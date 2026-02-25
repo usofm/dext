@@ -29,7 +29,6 @@ interface
 
 uses
   System.Classes,
-  System.Generics.Collections,
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
@@ -37,6 +36,7 @@ uses
   Dext.DI.Interfaces,
   Dext.Filters,
   Dext.Web.Interfaces,
+  Dext.Collections,
   Dext.OpenAPI.Attributes;
 
 type
@@ -71,7 +71,7 @@ type
   TControllerScanner = class(TInterfacedObject, IControllerScanner)
   private
     FCtx: TRttiContext;
-    FCachedMethods: TList<TCachedMethod>;
+    FCachedMethods: IList<TCachedMethod>;
     procedure ExecuteCachedMethod(Context: IHttpContext; const CachedMethod: TCachedMethod);
     function CreateHandler(const AMethod: TCachedMethod): TRequestDelegate;
   public
@@ -96,7 +96,7 @@ constructor TControllerScanner.Create;
 begin
   inherited Create;
   FCtx := TRttiContext.Create;
-  FCachedMethods := TList<TCachedMethod>.Create;
+  FCachedMethods := TCollections.CreateList<TCachedMethod>;
 end;
 
 function TControllerScanner.FindControllers: TArray<TControllerInfo>;
@@ -104,12 +104,12 @@ var
   Types: TArray<TRttiType>;
   RttiType: TRttiType;
   ControllerInfo: TControllerInfo;
-  Controllers: TList<TControllerInfo>;
+  Controllers: IList<TControllerInfo>;
   Method: TRttiMethod;
   MethodInfo: TControllerMethod;
   Attr: TCustomAttribute;
 begin
-  Controllers := TList<TControllerInfo>.Create;
+  Controllers := TCollections.CreateList<TControllerInfo>;
   try
     Types := FCtx.GetTypes;
 
@@ -122,7 +122,7 @@ begin
       begin
         // Verificar se tem métodos com atributos de rota
         var HasRouteMethods := False;
-        var MethodsList: TList<TControllerMethod> := TList<TControllerMethod>.Create;
+        var MethodsList: IList<TControllerMethod> := TCollections.CreateList<TControllerMethod>;
 
         try
           var Methods := RttiType.GetMethods;
@@ -195,7 +195,7 @@ begin
           end;
 
         finally
-          MethodsList.Free;
+          // MethodsList is ARC
         end;
       end;
     end;
@@ -216,7 +216,7 @@ begin
     end;
     {$WARN SYMBOL_PLATFORM ON}{$ENDIF}
   finally
-    Controllers.Free;
+    // Controllers is ARC
   end;
 end;
 
@@ -348,7 +348,7 @@ begin
       AppBuilder.MapEndpoint(ControllerMethod.HttpMethod, FullPath, CreateHandler(CachedMethod));
 
       // ✅ PROCESSAR ATRIBUTOS DE SEGURANÇA (SwaggerAuthorize)
-      var SecuritySchemes := TList<string>.Create;
+      var SecuritySchemes: IList<string> := TCollections.CreateList<string>;
       try
         // 1. Atributos do Controller
         var TypeAttrs := Controller.RttiType.GetAttributes;
@@ -375,7 +375,7 @@ begin
           end;
         end;
       finally
-        SecuritySchemes.Free;
+        // SecuritySchemes is ARC
       end;
 
       // ✅ PROCESSAR [SwaggerOperation], [SwaggerResponse], [SwaggerTag] e RequestType
@@ -474,7 +474,6 @@ end;
 
 destructor TControllerScanner.Destroy;
 begin
-  FCachedMethods.Free;
   inherited;
 end;
 
@@ -537,7 +536,7 @@ begin
     Exit;
   end;
 
-  var FilterList := TObjectList<TCustomAttribute>.Create(False);
+  var FilterList: IList<TCustomAttribute> := TCollections.CreateList<TCustomAttribute>;
   try
     // Controller Level
     for FilterAttr in ControllerType.GetAttributes do
@@ -660,7 +659,7 @@ begin
     end;
 
   finally
-    FilterList.Free;
+    // FilterList is ARC
   end;
 end;
 

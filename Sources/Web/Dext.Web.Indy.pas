@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -28,11 +28,21 @@ unit Dext.Web.Indy;
 interface
 
 uses
-  System.Classes, System.Generics.Collections, System.SysUtils, System.Generics.Defaults,
+  System.Classes,
+  System.SysUtils,
   System.Rtti,
-  IdCustomHTTPServer, IdContext, IdGlobal, IdURI, IdHeaderList,
-  Dext.Web.Interfaces, Dext.DI.Interfaces, Dext.Auth.Identity,
-  Dext.Web.Indy.Types, Dext.Json;
+  IdCustomHTTPServer,
+  IdContext,
+  IdGlobal,
+  IdURI,
+  IdHeaderList,
+  Dext.Collections,
+  Dext.Collections.Dict,
+  Dext.Web.Interfaces,
+  Dext.DI.Interfaces,
+  Dext.Auth.Identity,
+  Dext.Web.Indy.Types,
+  Dext.Json;
 
 type
   TIndyHttpResponse = class(TInterfacedObject, IHttpResponse)
@@ -64,12 +74,12 @@ type
     FRequestInfo: TIdHTTPRequestInfo;
     FQuery: TStrings;
     FBodyStream: TStream;
-    FRouteParams: TDictionary<string, string>;
-    FHeaders: TDictionary<string, string>;
-    FCookies: TDictionary<string, string>;
+    FRouteParams: IDictionary<string, string>;
+    FHeaders: IDictionary<string, string>;
+    FCookies: IDictionary<string, string>;
     FFiles: IFormFileCollection;
     function ParseQueryString(const AQuery: string): TStrings;
-    function ParseHeaders(AHeaderList: TIdHeaderList): TDictionary<string, string>;
+    function ParseHeaders(AHeaderList: TIdHeaderList): IDictionary<string, string>;
     procedure ParseMultipart;
   public
     constructor Create(ARequestInfo: TIdHTTPRequestInfo);
@@ -79,20 +89,20 @@ type
     function GetPath: string;
     function GetQuery: TStrings;
     function GetBody: TStream;
-    function GetRouteParams: TDictionary<string, string>;
-    function GetHeaders: TDictionary<string, string>;
+    function GetRouteParams: IDictionary<string, string>;
+    function GetHeaders: IDictionary<string, string>;
     function GetRemoteIpAddress: string;
     function GetHeader(const AName: string): string;
     function GetQueryParam(const AName: string): string;
-    function GetCookies: TDictionary<string, string>;
+    function GetCookies: IDictionary<string, string>;
     function GetFiles: IFormFileCollection;
     property Method: string read GetMethod;
     property Path: string read GetPath;
     property Query: TStrings read GetQuery;
     property Body: TStream read GetBody;
-    property RouteParams: TDictionary<string, string> read GetRouteParams;
-    property Headers: TDictionary<string, string> read GetHeaders;
-    property Cookies: TDictionary<string, string> read GetCookies;
+    property RouteParams: IDictionary<string, string> read GetRouteParams;
+    property Headers: IDictionary<string, string> read GetHeaders;
+    property Cookies: IDictionary<string, string> read GetCookies;
     property Files: IFormFileCollection read GetFiles;
     property RemoteIpAddress: string read GetRemoteIpAddress;
   end;
@@ -104,13 +114,13 @@ type
     FScope: IServiceScope; // Hold the scope for the request lifetime
     FServices: IServiceProvider;
     FUser: IClaimsPrincipal;
-    FItems: TDictionary<string, TValue>;
+    FItems: IDictionary<string, TValue>;
     FContext: TIdContext;
   public
     constructor Create(AContext: TIdContext; ARequestInfo: TIdHTTPRequestInfo;
       AResponseInfo: TIdHTTPResponseInfo; const AServices: IServiceProvider);
     destructor Destroy; override;
-    procedure SetRouteParams(const AParams: TDictionary<string, string>);
+    procedure SetRouteParams(const AParams: IDictionary<string, string>);
     function GetRequest: IHttpRequest;
     function GetResponse: IHttpResponse;
     procedure SetResponse(const AValue: IHttpResponse);
@@ -118,12 +128,12 @@ type
     procedure SetServices(const AValue: IServiceProvider);
     function GetUser: IClaimsPrincipal;
     procedure SetUser(const AValue: IClaimsPrincipal);
-    function GetItems: TDictionary<string, TValue>;
+    function GetItems: IDictionary<string, TValue>;
     property Request: IHttpRequest read GetRequest;
     property Response: IHttpResponse read GetResponse write SetResponse;
     property Services: IServiceProvider read GetServices write SetServices;
     property User: IClaimsPrincipal read GetUser write SetUser;
-    property Items: TDictionary<string, TValue> read GetItems;
+    property Items: IDictionary<string, TValue> read GetItems;
     property Context: TIdContext read FContext;
   end;
 
@@ -138,8 +148,8 @@ constructor TIndyHttpRequest.Create(ARequestInfo: TIdHTTPRequestInfo);
 begin
   inherited Create;
   FRequestInfo := ARequestInfo;
-  FRouteParams := TDictionary<string, string>.Create;
-  FFiles := TFormFileCollection.Create(TList<IFormFile>.Create);
+  FRouteParams := TCollections.CreateDictionary<string, string>;
+  FFiles := TFormFileCollection.Create(TCollections.CreateList<IFormFile>);
   // Note: FQuery, FHeaders, FBodyStream, FCookies are NIL and will be lazy loaded
 end;
 
@@ -147,20 +157,20 @@ destructor TIndyHttpRequest.Destroy;
 begin
   FQuery.Free;
   FBodyStream.Free;
-  FRouteParams.Free;
-  FHeaders.Free;
-  FCookies.Free;
+  FRouteParams := nil;
+  FHeaders := nil;
+  FCookies := nil;
   FFiles := nil;
   inherited Destroy;
 end;
 
 // ? NOVO: Parsear headers do Indy para dicionário
-function TIndyHttpRequest.ParseHeaders(AHeaderList: TIdHeaderList): TDictionary<string, string>;
+function TIndyHttpRequest.ParseHeaders(AHeaderList: TIdHeaderList): IDictionary<string, string>;
 var
   I: Integer;
   Name, Value: string;
 begin
-  Result := TDictionary<string, string>.Create(TIStringComparer.Ordinal);
+  Result := TCollections.CreateDictionary<string, string>;
 
   for I := 0 to AHeaderList.Count - 1 do
   begin
@@ -179,7 +189,7 @@ begin
   Result := FRequestInfo.RawHeaders.Values[AName];
 end;
 
-function TIndyHttpRequest.GetHeaders: TDictionary<string, string>;
+function TIndyHttpRequest.GetHeaders: IDictionary<string, string>;
 begin
   if FHeaders = nil then
     FHeaders := ParseHeaders(FRequestInfo.RawHeaders);
@@ -240,12 +250,12 @@ begin
   Result := GetQuery.Values[AName];
 end;
 
-function TIndyHttpRequest.GetRouteParams: TDictionary<string, string>;
+function TIndyHttpRequest.GetRouteParams: IDictionary<string, string>;
 begin
   Result := FRouteParams;
 end;
 
-function TIndyHttpRequest.GetCookies: TDictionary<string, string>;
+function TIndyHttpRequest.GetCookies: IDictionary<string, string>;
 var
   CookieHeader: string;
   Pairs: TArray<string>;
@@ -254,7 +264,7 @@ var
 begin
   if FCookies = nil then
   begin
-    FCookies := TDictionary<string, string>.Create(TIStringComparer.Ordinal);
+    FCookies := TCollections.CreateDictionary<string, string>;
     CookieHeader := FRequestInfo.RawHeaders.Values['Cookie'];
     if CookieHeader <> '' then
     begin
@@ -637,12 +647,12 @@ begin
   FScope := AServices.CreateScope;
   FServices := FScope.ServiceProvider;
   
-  FItems := TDictionary<string, TValue>.Create;
+  FItems := TCollections.CreateDictionary<string, TValue>;
 end;
 
 destructor TIndyHttpContext.Destroy;
 begin
-  FItems.Free;
+  FItems := nil;
   FRequest := nil;
   FResponse := nil;
   FServices := nil;
@@ -685,24 +695,24 @@ begin
   FUser := AValue;
 end;
 
-function TIndyHttpContext.GetItems: TDictionary<string, TValue>;
+function TIndyHttpContext.GetItems: IDictionary<string, TValue>;
 begin
   Result := FItems;
 end;
 
-procedure TIndyHttpContext.SetRouteParams(const AParams: TDictionary<string, string>);
+procedure TIndyHttpContext.SetRouteParams(const AParams: IDictionary<string, string>);
 var
   IndyRequest: TIndyHttpRequest;
-  Param: TPair<string, string>;
+  Pair: TPair<string, string>;
 begin
   if FRequest is TIndyHttpRequest then
   begin
     IndyRequest := TIndyHttpRequest(FRequest);
 
     IndyRequest.FRouteParams.Clear;
-    for Param in AParams do
+    for Pair in AParams do
     begin
-      IndyRequest.FRouteParams.Add(Param.Key, Param.Value);
+      IndyRequest.FRouteParams.Add(Pair.Key, Pair.Value);
     end;
   end;
 end;

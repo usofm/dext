@@ -30,7 +30,8 @@ interface
 uses
   System.Classes,
   System.SysUtils,
-  System.Generics.Collections,
+  Dext.Collections,
+  Dext.Collections.Dict,
   System.Rtti,
   System.TypInfo,
   Dext.Types.UUID,
@@ -518,7 +519,7 @@ begin
   end;
 end;
 
-function TryGetCaseInsensitive(const ADict: TDictionary<string, string>; const AKey: string; out AValue: string): Boolean;
+function TryGetCaseInsensitive(const ADict: IDictionary<string, string>; const AKey: string; out AValue: string): Boolean;
 begin
   Result := False;
   if ADict = nil then Exit;
@@ -547,7 +548,7 @@ var
   ContextRtti: TRttiContext;
   RttiType: TRttiType;
   Field: TRttiField;
-  RouteParams: TDictionary<string, string>;
+  RouteParams: IDictionary<string, string>;
   FieldName: string;
   FieldValue: string;
   SingleParamValue: string;
@@ -560,9 +561,9 @@ begin
     
     if RouteParams.Count = 1 then
     begin
-      for var Pair in RouteParams do
+      for var Key in RouteParams.Keys do
       begin
-        SingleParamValue := Pair.Value;
+        SingleParamValue := RouteParams[Key];
         Break; 
       end;
       
@@ -622,143 +623,6 @@ begin
   end;
 end;
 
-//function TModelBinder.BindRoute(AType: PTypeInfo; Context: IHttpContext): TValue;
-//var
-//  ContextRtti: TRttiContext;
-//  RttiType: TRttiType;
-//  Field: TRttiField;
-//  RouteParams: TDictionary<string, string>;
-//  FieldName: string;
-//  FieldValue: string;
-//begin
-//  if AType.Kind <> tkRecord then
-//    raise EBindingException.Create('BindRoute currently only supports records');
-//
-//  TValue.Make(nil, AType, Result);
-//
-//  ContextRtti := TRttiContext.Create;
-//  try
-//    RttiType := ContextRtti.GetType(AType);
-//    RouteParams := Context.Request.RouteParams;
-//
-//    // ✅ DEBUG: Antes do loop
-//    Writeln('🔍 BindRoute - Processing record type: ', RttiType.Name);
-//    Writeln('  RouteParams available: ', RouteParams.Count);
-//
-//    for Field in RttiType.GetFields do
-//    begin
-//      // Obter nome do campo (com suporte a atributos [FromRoute])
-//      var SourceProvider := TBindingSourceProvider.Create;
-//      try
-//        FieldName := SourceProvider.GetBindingName(Field);
-//      finally
-//        SourceProvider.Free;
-//      end;
-//
-//      // ✅ DEBUG: Para cada campo
-//      Writeln('🔍 Processing field: ', Field.Name);
-//      Writeln('  Looking for RouteParam: ', FieldName);
-//      Writeln('  Field type: ', Field.FieldType.Name);
-//
-//      // Buscar valor do route parameter
-//      if RouteParams.ContainsKey(FieldName) then
-//      begin
-//        FieldValue := RouteParams[FieldName];
-//        Writeln('  ✅ Found value: ', FieldValue);
-//
-//        // ✅ CONVERSÃO (código existente)
-//        try
-//          case Field.FieldType.TypeKind of
-//            tkInteger:
-//              begin
-//                var IntValue := StrToIntDef(FieldValue, 0);
-//                Writeln('  Converting to Integer: ', FieldValue, ' -> ', IntValue);
-//                Field.SetValue(Result.GetReferenceToRawData, TValue.From<Integer>(IntValue));
-//              end;
-//
-//            tkInt64:
-//              Field.SetValue(Result.GetReferenceToRawData,
-//                TValue.From<Int64>(StrToInt64Def(FieldValue, 0)));
-//
-//            tkFloat:
-//              begin
-//                if Field.FieldType.Handle = TypeInfo(TDateTime) then
-//                  Field.SetValue(Result.GetReferenceToRawData,
-//                    TValue.From<TDateTime>(StrToDateTimeDef(FieldValue, 0)))
-//                else
-//                begin
-//                  var FloatValue: Double;
-//                  if TryStrToFloat(FieldValue, FloatValue, TFormatSettings.Invariant) then
-//                    Field.SetValue(Result.GetReferenceToRawData, TValue.From<Double>(FloatValue))
-//                  else
-//                    Field.SetValue(Result.GetReferenceToRawData, TValue.From<Double>(0));
-//                end;
-//              end;
-//
-//            tkString, tkLString, tkWString, tkUString:
-//              Field.SetValue(Result.GetReferenceToRawData,
-//                TValue.From<string>(FieldValue));
-//
-//            tkEnumeration:
-//              begin
-//                if Field.FieldType.Handle = TypeInfo(Boolean) then
-//                begin
-//                  var BoolValue := SameText(FieldValue, 'true') or
-//                                   SameText(FieldValue, '1') or
-//                                   SameText(FieldValue, 'yes') or
-//                                   SameText(FieldValue, 'on');
-//                  Field.SetValue(Result.GetReferenceToRawData,
-//                    TValue.From<Boolean>(BoolValue));
-//                end
-//                else
-//                begin
-//                  Field.SetValue(Result.GetReferenceToRawData,
-//                    TValue.FromOrdinal(Field.FieldType.Handle,
-//                      StrToIntDef(FieldValue, 0)));
-//                end;
-//              end;
-//
-//            tkRecord:
-//              begin
-//                if Field.FieldType.Handle = TypeInfo(TGUID) then
-//                begin
-//                  var GuidValue: TGUID;
-//                  var GuidStr := FieldValue.Trim;
-//
-//                  try
-//                    if GuidStr.StartsWith('{') and GuidStr.EndsWith('}') then
-//                      GuidValue := StringToGUID(GuidStr)
-//                    else if GuidStr.Length = 36 then
-//                      GuidValue := StringToGUID('{' + GuidStr + '}')
-//                    else
-//                      GuidValue := StringToGUID(GuidStr);
-//
-//                    Field.SetValue(Result.GetReferenceToRawData,
-//                      TValue.From<TGUID>(GuidValue));
-//                  except
-//                    on E: EConvertError do
-//                      Field.SetValue(Result.GetReferenceToRawData,
-//                        TValue.From<TGUID>(TGUID.Empty));
-//                  end;
-//                end;
-//              end;
-//          end; // case
-//        except
-//          on E: Exception do
-//            Writeln('  ❌ Conversion error: ', E.Message);
-//        end;
-//      end
-//      else
-//      begin
-//        Writeln('  ❌ RouteParam not found: ', FieldName);
-//      end;
-//    end;
-//
-//  finally
-//    ContextRtti.Free;
-//  end;
-//end;
-
 function TModelBinder.BindRoute<T>(Context: IHttpContext): T;
 begin
   var Value := BindRoute(TypeInfo(T), Context);
@@ -770,7 +634,7 @@ var
   ContextRtti: TRttiContext;
   RttiType: TRttiType;
   Field: TRttiField;
-  Headers: TDictionary<string, string>;
+  Headers: IDictionary<string, string>;
   FieldName: string;
   FieldValue: string;
 begin
@@ -1081,8 +945,8 @@ var
   FieldValue: TValue;
   BodyBytes: TBytes;
   Stream: TStream;
-  Headers: TDictionary<string, string>;
-  RouteParams: TDictionary<string, string>;
+  Headers: IDictionary<string, string>;
+  RouteParams: IDictionary<string, string>;
   QueryParams: TStrings;
   HeaderVal, RouteVal, QueryVal: string;
   BodyJsonObj: IDextJsonObject;
@@ -1498,5 +1362,6 @@ begin
 end;
 
 end.
+
 
 

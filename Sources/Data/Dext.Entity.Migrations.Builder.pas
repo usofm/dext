@@ -30,7 +30,8 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
+  Dext.Collections.Base,
+  Dext.Collections,
   Dext.Entity.Migrations.Operations;
 
 type
@@ -94,7 +95,7 @@ type
   /// </summary>
   TSchemaBuilder = class
   private
-    FOperations: TObjectList<TMigrationOperation>;
+    FOperations: IList<TMigrationOperation>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -115,7 +116,7 @@ type
     
     function Sql(const ASql: string): TSchemaBuilder;
     
-    property Operations: TObjectList<TMigrationOperation> read FOperations;
+    property Operations: IList<TMigrationOperation> read FOperations;
   end;
 
 implementation
@@ -223,12 +224,12 @@ end;
 
 constructor TSchemaBuilder.Create;
 begin
-  FOperations := TObjectList<TMigrationOperation>.Create;
+  FOperations := TCollections.CreateList<TMigrationOperation>(True);
 end;
 
 destructor TSchemaBuilder.Destroy;
 begin
-  FOperations.Free;
+  FOperations := nil;
   inherited;
 end;
 

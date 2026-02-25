@@ -1,4 +1,4 @@
-unit Dext.Core.Extensions;
+﻿unit Dext.Core.Extensions;
 
 interface
 

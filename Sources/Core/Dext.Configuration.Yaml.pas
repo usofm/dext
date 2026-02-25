@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -29,7 +29,6 @@ interface
 
 uses
   System.Classes,
-  System.Generics.Collections,
   System.IOUtils,
   System.SysUtils,
   Dext.Configuration.Interfaces,

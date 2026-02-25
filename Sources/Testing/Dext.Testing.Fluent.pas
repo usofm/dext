@@ -43,7 +43,6 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
   Dext.Testing.Runner;
 
 type

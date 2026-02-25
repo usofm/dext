@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -30,7 +30,7 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
+  Dext.Collections,
   Dext.Entity.Core,
   Dext.Entity.Migrations,
   Dext.Entity.Migrations.Builder,
@@ -41,7 +41,7 @@ type
   TMigrator = class
   private
     FContext: IDbContext;
-    function GetAppliedMigrations: TList<string>;
+    function GetAppliedMigrations: IList<string>;
     procedure EnsureHistoryTable;
     procedure ApplyMigration(AMigration: IMigration);
     procedure DownMigration(AMigration: IMigration);
@@ -102,13 +102,13 @@ begin
   end;
 end;
 
-function TMigrator.GetAppliedMigrations: TList<string>;
+function TMigrator.GetAppliedMigrations: IList<string>;
 var
   CmdIntf: IInterface;
   Cmd: IDbCommand;
   Reader: IDbReader;
 begin
-  Result := TList<string>.Create;
+  Result := TCollections.CreateList<string>;
   try
     EnsureHistoryTable;
     
@@ -124,7 +124,7 @@ begin
       Reader.Close;
     end;
   except
-    Result.Free;
+    // Result is ARC
     raise;
   end;
 end;
@@ -137,7 +137,7 @@ var
   CmdIntf: IInterface;
   Cmd: IDbCommand;
 begin
-  SafeWriteLn('   🚀 Applying migration: ' + AMigration.GetId);
+  SafeWriteLn('   ?? Applying migration: ' + AMigration.GetId);
   
   FContext.BeginTransaction;
   try
@@ -186,7 +186,7 @@ var
   CmdIntf: IInterface;
   Cmd: IDbCommand;
 begin
-  SafeWriteLn('   ⏪ Rolling back migration: ' + AMigration.GetId);
+  SafeWriteLn('   ? Rolling back migration: ' + AMigration.GetId);
   
   FContext.BeginTransaction;
   try
@@ -227,7 +227,7 @@ end;
 
 procedure TMigrator.Rollback(const ATargetId: string);
 var
-  Applied: TList<string>;
+  Applied: IList<string>;
   Available: TArray<IMigration>;
   Migration: IMigration;
   i: Integer;
@@ -253,13 +253,13 @@ begin
       end;
     end;
   finally
-    Applied.Free;
+    // Applied is ARC
   end;
 end;
 
 procedure TMigrator.Migrate;
 var
-  Applied: TList<string>;
+  Applied: IList<string>;
   Available: TArray<IMigration>;
   Migration: IMigration;
 begin
@@ -268,9 +268,9 @@ begin
     Available := TMigrationRegistry.Instance.GetMigrations;
     
     if Length(Available) = 0 then
-      SafeWriteLn('   ⚠️No migrations found in registry.')
+      SafeWriteLn('   ??No migrations found in registry.')
     else
-      SafeWriteLn('   🔎 Found ' + Length(Available).ToString + ' migrations in registry.');
+      SafeWriteLn('   ?? Found ' + Length(Available).ToString + ' migrations in registry.');
     
     for Migration in Available do
     begin
@@ -280,17 +280,17 @@ begin
       end
       else
       begin
-        // SafeWriteLn('   ⏭️ Skipping applied migration: ' + Migration.GetId);
+        // SafeWriteLn('   ?? Skipping applied migration: ' + Migration.GetId);
       end;
     end;
   finally
-    Applied.Free;
+    // Applied is ARC
   end;
 end;
 
 function TMigrator.ValidateSchemaCompatibility(const ExpectedVersion: string): Boolean;
 var
-  Applied: TList<string>;
+  Applied: IList<string>;
   LastApplied: string;
 begin
   if ExpectedVersion.IsEmpty then
@@ -307,7 +307,7 @@ begin
     // Check if LastApplied >= ExpectedVersion
     Result := CompareText(LastApplied, ExpectedVersion) >= 0;
   finally
-    Applied.Free;
+    // Applied is ARC
   end;
 end;
 

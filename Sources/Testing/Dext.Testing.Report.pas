@@ -39,9 +39,10 @@ interface
 uses
   System.Classes,
   System.DateUtils,
-  System.Generics.Collections,
   System.IOUtils,
   System.SysUtils,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Testing.Runner;
 
 type
@@ -82,9 +83,9 @@ type
   /// </summary>
   TJUnitReporter = class
   private
-    FTestSuites: TList<TTestSuiteReport>;
+    FTestSuites: IList<TTestSuiteReport>;
     FCurrentSuite: TTestSuiteReport;
-    FCurrentTestCases: TList<TTestCaseReport>;
+    FCurrentTestCases: IList<TTestCaseReport>;
     function EscapeXml(const S: string): string;
     function FormatDuration(Seconds: Double): string;
   public
@@ -127,9 +128,9 @@ type
   /// </summary>
   TJsonReporter = class
   private
-    FTestSuites: TList<TTestSuiteReport>;
+    FTestSuites: IList<TTestSuiteReport>;
     FCurrentSuite: TTestSuiteReport;
-    FCurrentTestCases: TList<TTestCaseReport>;
+    FCurrentTestCases: IList<TTestCaseReport>;
     function EscapeJson(const S: string): string;
   public
     constructor Create;
@@ -148,7 +149,7 @@ type
   /// </summary>
   TSonarQubeReporter = class
   private
-    FTestCases: TList<TTestCaseReport>;
+    FTestCases: IList<TTestCaseReport>;
     FCurrentClassName: string;
     function EscapeXml(const S: string): string;
   public
@@ -168,9 +169,9 @@ type
   /// </summary>
   TXUnitReporter = class
   private
-    FTestSuites: TList<TTestSuiteReport>;
+    FTestSuites: IList<TTestSuiteReport>;
     FCurrentSuite: TTestSuiteReport;
-    FCurrentTestCases: TList<TTestCaseReport>;
+    FCurrentTestCases: IList<TTestCaseReport>;
     function EscapeXml(const S: string): string;
     function FormatDuration(Seconds: Double): string;
   public
@@ -191,9 +192,9 @@ type
   /// </summary>
   TTRXReporter = class
   private
-    FTestSuites: TList<TTestSuiteReport>;
+    FTestSuites: IList<TTestSuiteReport>;
     FCurrentSuite: TTestSuiteReport;
-    FCurrentTestCases: TList<TTestCaseReport>;
+    FCurrentTestCases: IList<TTestCaseReport>;
     FRunId: TGUID;
     FRunName: string;
     FStartTime: TDateTime;
@@ -220,9 +221,9 @@ type
   /// </summary>
   THTMLReporter = class
   private
-    FTestSuites: TList<TTestSuiteReport>;
+    FTestSuites: IList<TTestSuiteReport>;
     FCurrentSuite: TTestSuiteReport;
-    FCurrentTestCases: TList<TTestCaseReport>;
+    FCurrentTestCases: IList<TTestCaseReport>;
     FReportTitle: string;
     function EscapeHtml(const S: string): string;
     function GetStatusClass(Status: TTestResult): string;
@@ -247,14 +248,12 @@ implementation
 constructor TJUnitReporter.Create;
 begin
   inherited Create;
-  FTestSuites := TList<TTestSuiteReport>.Create;
-  FCurrentTestCases := TList<TTestCaseReport>.Create;
+  FTestSuites := TCollections.CreateList<TTestSuiteReport>;
+  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>;
 end;
 
 destructor TJUnitReporter.Destroy;
 begin
-  FTestSuites.Free;
-  FCurrentTestCases.Free;
   inherited;
 end;
 
@@ -427,14 +426,12 @@ end;
 constructor TJsonReporter.Create;
 begin
   inherited Create;
-  FTestSuites := TList<TTestSuiteReport>.Create;
-  FCurrentTestCases := TList<TTestCaseReport>.Create;
+  FTestSuites := TCollections.CreateList<TTestSuiteReport>;
+  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>;
 end;
 
 destructor TJsonReporter.Destroy;
 begin
-  FTestSuites.Free;
-  FCurrentTestCases.Free;
   inherited;
 end;
 
@@ -586,12 +583,11 @@ end;
 constructor TSonarQubeReporter.Create;
 begin
   inherited Create;
-  FTestCases := TList<TTestCaseReport>.Create;
+  FTestCases := TCollections.CreateList<TTestCaseReport>;
 end;
 
 destructor TSonarQubeReporter.Destroy;
 begin
-  FTestCases.Free;
   inherited;
 end;
 
@@ -630,12 +626,12 @@ var
   SB: TStringBuilder;
   TC: TTestCaseReport;
   ResultStr, TestFile: string;
-  FileTests: TList<TTestCaseReport>;
-  FileGroups: TDictionary<string, TList<TTestCaseReport>>;
+  FileTests: IList<TTestCaseReport>;
+  FileGroups: IDictionary<string, IList<TTestCaseReport>>;
   FilePath: string;
 begin
   SB := TStringBuilder.Create;
-  FileGroups := TDictionary<string, TList<TTestCaseReport>>.Create;
+  FileGroups := TCollections.CreateDictionary<string, IList<TTestCaseReport>>;
   try
     // Group tests by class name (which represents the file)
     for TC in FTestCases do
@@ -645,7 +641,7 @@ begin
         TestFile := 'UnknownFile';
         
       if not FileGroups.ContainsKey(TestFile) then
-        FileGroups.Add(TestFile, TList<TTestCaseReport>.Create);
+        FileGroups.Add(TestFile, TCollections.CreateList<TTestCaseReport>);
         
       FileGroups[TestFile].Add(TC);
     end;
@@ -696,9 +692,8 @@ begin
     Result := SB.ToString;
   finally
     // Free all the lists in the dictionary
-    for FileTests in FileGroups.Values do
-      FileTests.Free;
-    FileGroups.Free;
+    // ARC will free FileTests
+    // FileGroups is ARC
     SB.Free;
   end;
 end;
@@ -721,14 +716,12 @@ end;
 constructor TXUnitReporter.Create;
 begin
   inherited Create;
-  FTestSuites := TList<TTestSuiteReport>.Create;
-  FCurrentTestCases := TList<TTestCaseReport>.Create;
+  FTestSuites := TCollections.CreateList<TTestSuiteReport>;
+  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>;
 end;
 
 destructor TXUnitReporter.Destroy;
 begin
-  FTestSuites.Free;
-  FCurrentTestCases.Free;
   inherited;
 end;
 
@@ -893,8 +886,8 @@ end;
 constructor TTRXReporter.Create;
 begin
   inherited Create;
-  FTestSuites := TList<TTestSuiteReport>.Create;
-  FCurrentTestCases := TList<TTestCaseReport>.Create;
+  FTestSuites := TCollections.CreateList<TTestSuiteReport>;
+  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>;
   FRunId := CreateGuid;
   FStartTime := Now;
   FRunName := 'Dext Test Run';
@@ -902,8 +895,6 @@ end;
 
 destructor TTRXReporter.Destroy;
 begin
-  FTestSuites.Free;
-  FCurrentTestCases.Free;
   inherited;
 end;
 
@@ -1128,15 +1119,13 @@ end;
 constructor THTMLReporter.Create;
 begin
   inherited Create;
-  FTestSuites := TList<TTestSuiteReport>.Create;
-  FCurrentTestCases := TList<TTestCaseReport>.Create;
+  FTestSuites := TCollections.CreateList<TTestSuiteReport>;
+  FCurrentTestCases := TCollections.CreateList<TTestCaseReport>;
   FReportTitle := 'Dext Test Report';
 end;
 
 destructor THTMLReporter.Destroy;
 begin
-  FTestSuites.Free;
-  FCurrentTestCases.Free;
   inherited;
 end;
 

@@ -11,15 +11,15 @@ uses
   System.Net.HttpClient,
   System.Net.URLClient,
   Dext.Testing.Runner,
+  Dext.Collections,
   Dext.Logging,
-  Dext.Logging.Global,
-  System.Generics.Collections;
+  Dext.Logging.Global;
 
 type
   TTelemetryTestListener = class(TInterfacedObject, ITestListener)
   private
     FLogger: ILogger;
-    FLogCache: TList<string>;
+    FLogCache: IList<string>;
     procedure CacheLog(const Msg: string);
     procedure FlushLogs;
   public
@@ -42,12 +42,11 @@ constructor TTelemetryTestListener.Create(const ALogger: ILogger);
 begin
   inherited Create;
   FLogger := ALogger;
-  FLogCache := TList<string>.Create;
+  FLogCache := TCollections.CreateList<string>;
 end;
 
 destructor TTelemetryTestListener.Destroy;
 begin
-  FLogCache.Free;
   inherited;
 end;
 

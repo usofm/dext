@@ -1,4 +1,4 @@
-unit Dext.Entity.Dialect.Oracle.Test;
+﻿unit Dext.Entity.Dialect.Oracle.Test;
 
 interface
 

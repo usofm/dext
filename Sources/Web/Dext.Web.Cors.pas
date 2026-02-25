@@ -307,7 +307,14 @@ begin
   if FEnableDebugLog then
   begin
     DebugLog('📋 Request Headers:');
-    Headers := AContext.Request.Headers.Keys.ToArray;
+    SetLength(Headers, AContext.Request.Headers.Count);
+    I := 0;
+    for var K in AContext.Request.Headers.Keys do
+    begin
+      Headers[I] := K;
+      Inc(I);
+    end;
+    
     for I := 0 to High(Headers) do
       DebugLog('   ' + Headers[I] + ': ' + AContext.Request.Headers[Headers[I]]);
   end;

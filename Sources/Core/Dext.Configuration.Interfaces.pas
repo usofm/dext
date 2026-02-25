@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -30,7 +30,8 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections;
+  Dext.Collections,
+  Dext.Collections.Dict;
 
 type
   EConfigurationException = class(Exception);
@@ -98,14 +99,14 @@ type
   /// </summary>
   IConfigurationBuilder = interface
     ['{F6A7B8C9-D0E1-4234-F6A7-890123456789}']
-    function GetSources: TList<IConfigurationSource>;
-    function GetProperties: TDictionary<string, TObject>;
+    function GetSources: IList<IConfigurationSource>;
+    function GetProperties: IDictionary<string, TObject>;
     
     function Add(Source: IConfigurationSource): IConfigurationBuilder;
     function Build: IConfigurationRoot;
     
-    property Sources: TList<IConfigurationSource> read GetSources;
-    property Properties: TDictionary<string, TObject> read GetProperties;
+    property Sources: IList<IConfigurationSource> read GetSources;
+    property Properties: IDictionary<string, TObject> read GetProperties;
   end;
 
 implementation

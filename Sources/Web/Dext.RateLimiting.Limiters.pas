@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -30,9 +30,10 @@ interface
 uses
   System.SysUtils,
   System.DateUtils,
-  System.Generics.Collections,
   System.SyncObjs,
   System.Math,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.RateLimiting.Core;
 
 type
@@ -50,7 +51,7 @@ type
   private
     FPermitLimit: Integer;
     FWindowSeconds: Integer;
-    FEntries: TDictionary<string, TWindowEntry>;
+    FEntries: IDictionary<string, TWindowEntry>;
     FLock: TCriticalSection;
   public
     constructor Create(APermitLimit, AWindowSeconds: Integer);
@@ -71,11 +72,11 @@ type
       TRequestTimestamp = record
         Timestamp: TDateTime;
       end;
-      TRequestList = TList<TRequestTimestamp>;
+      TRequestList = IList<TRequestTimestamp>;
   private
     FPermitLimit: Integer;
     FWindowSeconds: Integer;
-    FEntries: TObjectDictionary<string, TRequestList>;
+    FEntries: IDictionary<string, TRequestList>;
     FLock: TCriticalSection;
   public
     constructor Create(APermitLimit, AWindowSeconds: Integer);
@@ -100,7 +101,7 @@ type
   private
     FTokenLimit: Integer;
     FRefillRate: Integer;  // Tokens per second
-    FEntries: TDictionary<string, TBucketEntry>;
+    FEntries: IDictionary<string, TBucketEntry>;
     FLock: TCriticalSection;
     
     procedure RefillTokens(var AEntry: TBucketEntry);
@@ -120,7 +121,7 @@ type
   TConcurrencyLimiter = class(TInterfacedObject, IRateLimiter)
   private
     FConcurrencyLimit: Integer;
-    FCurrentCount: TDictionary<string, Integer>;
+    FCurrentCount: IDictionary<string, Integer>;
     FLock: TCriticalSection;
   public
     constructor Create(AConcurrencyLimit: Integer);
@@ -140,13 +141,13 @@ begin
   inherited Create;
   FPermitLimit := APermitLimit;
   FWindowSeconds := AWindowSeconds;
-  FEntries := TDictionary<string, TWindowEntry>.Create;
+  FEntries := TCollections.CreateDictionary<string, TWindowEntry>;
   FLock := TCriticalSection.Create;
 end;
 
 destructor TFixedWindowLimiter.Destroy;
 begin
-  FEntries.Free;
+  // FEntries is ARC
   FLock.Free;
   inherited;
 end;
@@ -210,14 +211,14 @@ end;
 procedure TFixedWindowLimiter.Cleanup;
 var
   Now: TDateTime;
-  KeysToRemove: TList<string>;
+  KeysToRemove: IList<string>;
   Key: string;
   Entry: TWindowEntry;
 begin
   FLock.Enter;
   try
     Now := System.SysUtils.Now;
-    KeysToRemove := TList<string>.Create;
+    KeysToRemove := TCollections.CreateList<string>;
     try
       for Key in FEntries.Keys do
       begin
@@ -229,7 +230,7 @@ begin
       for Key in KeysToRemove do
         FEntries.Remove(Key);
     finally
-      KeysToRemove.Free;
+      // KeysToRemove is ARC
     end;
   finally
     FLock.Leave;
@@ -243,13 +244,13 @@ begin
   inherited Create;
   FPermitLimit := APermitLimit;
   FWindowSeconds := AWindowSeconds;
-  FEntries := TObjectDictionary<string, TRequestList>.Create([doOwnsValues]);
+  FEntries := TCollections.CreateDictionary<string, TRequestList>;
   FLock := TCriticalSection.Create;
 end;
 
 destructor TSlidingWindowLimiter.Destroy;
 begin
-  FEntries.Free;
+  // FEntries is ARC
   FLock.Free;
   inherited;
 end;
@@ -270,7 +271,7 @@ begin
     
     if not FEntries.TryGetValue(APartitionKey, RequestList) then
     begin
-      RequestList := TRequestList.Create;
+      RequestList := TCollections.CreateList<TRequestTimestamp>;
       FEntries.Add(APartitionKey, RequestList);
     end;
     
@@ -312,7 +313,7 @@ procedure TSlidingWindowLimiter.Cleanup;
 var
   Now: TDateTime;
   WindowStart: TDateTime;
-  KeysToRemove: TList<string>;
+  KeysToRemove: IList<string>;
   Key: string;
   RequestList: TRequestList;
 begin
@@ -320,7 +321,7 @@ begin
   try
     Now := System.SysUtils.Now;
     WindowStart := IncSecond(Now, -FWindowSeconds * 2);
-    KeysToRemove := TList<string>.Create;
+    KeysToRemove := TCollections.CreateList<string>;
     try
       for Key in FEntries.Keys do
       begin
@@ -332,7 +333,7 @@ begin
       for Key in KeysToRemove do
         FEntries.Remove(Key);
     finally
-      KeysToRemove.Free;
+      // KeysToRemove is ARC
     end;
   finally
     FLock.Leave;
@@ -346,13 +347,13 @@ begin
   inherited Create;
   FTokenLimit := ATokenLimit;
   FRefillRate := ARefillRate;
-  FEntries := TDictionary<string, TBucketEntry>.Create;
+  FEntries := TCollections.CreateDictionary<string, TBucketEntry>;
   FLock := TCriticalSection.Create;
 end;
 
 destructor TTokenBucketLimiter.Destroy;
 begin
-  FEntries.Free;
+  // FEntries is ARC
   FLock.Free;
   inherited;
 end;
@@ -413,14 +414,14 @@ end;
 procedure TTokenBucketLimiter.Cleanup;
 var
   Now: TDateTime;
-  KeysToRemove: TList<string>;
+  KeysToRemove: IList<string>;
   Key: string;
   Entry: TBucketEntry;
 begin
   FLock.Enter;
   try
     Now := System.SysUtils.Now;
-    KeysToRemove := TList<string>.Create;
+    KeysToRemove := TCollections.CreateList<string>;
     try
       for Key in FEntries.Keys do
       begin
@@ -432,7 +433,7 @@ begin
       for Key in KeysToRemove do
         FEntries.Remove(Key);
     finally
-      KeysToRemove.Free;
+      // KeysToRemove is ARC
     end;
   finally
     FLock.Leave;
@@ -445,13 +446,13 @@ constructor TConcurrencyLimiter.Create(AConcurrencyLimit: Integer);
 begin
   inherited Create;
   FConcurrencyLimit := AConcurrencyLimit;
-  FCurrentCount := TDictionary<string, Integer>.Create;
+  FCurrentCount := TCollections.CreateDictionary<string, Integer>;
   FLock := TCriticalSection.Create;
 end;
 
 destructor TConcurrencyLimiter.Destroy;
 begin
-  FCurrentCount.Free;
+  // FCurrentCount is ARC
   FLock.Free;
   inherited;
 end;

@@ -37,8 +37,6 @@ interface
 
 uses
   System.DateUtils,
-  System.Generics.Collections,
-  System.Generics.Defaults,
   System.IOUtils,
   System.Rtti,
   System.SysUtils,
@@ -47,6 +45,7 @@ uses
   Dext,
   Dext.Collections,
   Dext.Collections.Base,
+  Dext.Collections.Comparers,
   Dext.Core.SmartTypes,
   Dext.Types.Nullable,
   Dext.Types.UUID;
@@ -490,7 +489,7 @@ uses
 
 threadvar
   GSoftAssertMode: Boolean;
-  GSoftAssertErrors: TList<string>;
+  GSoftAssertErrors: IList<string>;
 
 class procedure Assert.RegisterFailure(const Message, Reason: string);
 var
@@ -531,7 +530,7 @@ end;
 
 class procedure Assert.Multiple(const Action: TProc);
 var
-  Errors: TList<string>;
+  Errors: IList<string>;
   ErrorMsg: string;
   I: Integer;
 begin
@@ -542,7 +541,7 @@ begin
     Exit;
   end;
 
-  Errors := TList<string>.Create;
+  Errors := TCollections.CreateList<string>;
   try
     GSoftAssertErrors := Errors;
     GSoftAssertMode := True;
@@ -579,7 +578,7 @@ begin
        raise EAssertionFailed.Create(ErrorMsg);
     end;
   finally
-    Errors.Free;
+    // Errors is ARC
   end;
 end;
 
@@ -1645,10 +1644,10 @@ function ShouldList<T>.Contain(const Item: T): ShouldList<T>;
 var
   Found: Boolean;
   EnumItem: T;
-  Comparer: System.Generics.Defaults.IEqualityComparer<T>;
+  Comparer: Dext.Collections.Comparers.IEqualityComparer<T>;
 begin
   Found := False;
-  Comparer := System.Generics.Defaults.TEqualityComparer<T>.Default;
+  Comparer := Dext.Collections.Comparers.TEqualityComparer<T>.Default;
   
   if FIsArray then
   begin
@@ -1678,10 +1677,10 @@ function ShouldList<T>.NotContain(const Item: T): ShouldList<T>;
 var
   Found: Boolean;
   EnumItem: T;
-  Comparer: System.Generics.Defaults.IEqualityComparer<T>;
+  Comparer: Dext.Collections.Comparers.IEqualityComparer<T>;
 begin
   Found := False;
-  Comparer := System.Generics.Defaults.TEqualityComparer<T>.Default;
+  Comparer := Dext.Collections.Comparers.TEqualityComparer<T>.Default;
   
   if FIsArray then
   begin
@@ -1789,11 +1788,11 @@ end;
 
 function ShouldList<T>.ContainInOrder(const Items: TArray<T>): ShouldList<T>;
 var
-  Comparer: System.Generics.Defaults.IEqualityComparer<T>;
+  Comparer: Dext.Collections.Comparers.IEqualityComparer<T>;
   Arr: TArray<T>;
   I, J: Integer;
 begin
-  Comparer := System.Generics.Defaults.TEqualityComparer<T>.Default;
+  Comparer := Dext.Collections.Comparers.TEqualityComparer<T>.Default;
   
   // Get items as array for indexing
   if FIsArray then
@@ -1824,12 +1823,12 @@ end;
 
 function ShouldList<T>.BeEquivalentTo(const Expected: TArray<T>): ShouldList<T>;
 var
-  Comparer: System.Generics.Defaults.IEqualityComparer<T>;
+  Comparer: Dext.Collections.Comparers.IEqualityComparer<T>;
   Arr: TArray<T>;
   ExpItem, SrcItem: T;
   Found: Boolean;
 begin
-  Comparer := System.Generics.Defaults.TEqualityComparer<T>.Default;
+  Comparer := Dext.Collections.Comparers.TEqualityComparer<T>.Default;
   
   // Get items as array
   if FIsArray then

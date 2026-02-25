@@ -39,12 +39,13 @@ unit Dext.Web.Hubs.Interfaces;
 interface
 
 uses
-  System.SysUtils,
   System.Classes,
   System.Rtti,
-  System.Generics.Collections,
-  Dext.Threading.CancellationToken,
-  Dext.Auth.Identity;
+  System.SysUtils,
+  Dext.Auth.Identity,
+  Dext.Collections,
+  Dext.Collections.Dict,
+  Dext.Threading.CancellationToken;
 
 type
   // Forward declarations
@@ -198,8 +199,8 @@ type
     property User: IClaimsPrincipal read GetUser;
     
     /// <summary>Gets a key-value store for the connection lifetime.</summary>
-    function GetItems: TDictionary<string, TValue>;
-    property Items: TDictionary<string, TValue> read GetItems;
+    function GetItems: IDictionary<string, TValue>;
+    property Items: IDictionary<string, TValue> read GetItems;
     
     /// <summary>Gets a token that signals when the connection is aborted.</summary>
     function GetConnectionAborted: ICancellationToken;
@@ -267,8 +268,8 @@ type
     property UserIdentifier: string read GetUserIdentifier;
     
     /// <summary>Gets custom items dictionary for this connection.</summary>
-    function GetItems: TDictionary<string, TValue>;
-    property Items: TDictionary<string, TValue> read GetItems;
+    function GetItems: IDictionary<string, TValue>;
+    property Items: IDictionary<string, TValue> read GetItems;
     
     /// <summary>Sends a raw message to this connection.</summary>
     procedure SendAsync(const Message: string);

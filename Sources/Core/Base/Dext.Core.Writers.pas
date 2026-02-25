@@ -1,4 +1,4 @@
-unit Dext.Core.Writers;
+﻿unit Dext.Core.Writers;
 
 interface
 

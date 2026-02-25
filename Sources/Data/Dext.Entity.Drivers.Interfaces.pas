@@ -31,7 +31,7 @@ uses
   System.SysUtils,
   System.Classes,
   System.Rtti,
-  System.Generics.Collections,
+  Dext.Collections,
   Data.DB,
   Dext.Entity.Dialects;
 

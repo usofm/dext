@@ -33,6 +33,7 @@ uses
   System.TypInfo,
   Dext.Collections.Base,
   Dext.Collections.Raw,
+  Dext.Collections.Comparers,
   Dext.Collections.Dict,
   Dext.Specifications.Interfaces,
   Dext.Specifications.Evaluator;
@@ -83,6 +84,7 @@ type
     function All(const Expression: IExpression): Boolean; overload;
 
     procedure ForEach(const Action: TProc<T>);
+    procedure Sort(const AComparer: IComparer<T> = nil);
     function ToArray: TArray<T>;
   end;
 
@@ -153,6 +155,7 @@ type
     function All(const Expression: IExpression): Boolean; overload;
 
     procedure ForEach(const Action: TProc<T>);
+    procedure Sort(const AComparer: IComparer<T> = nil);
     function ToArray: TArray<T>;
 
     property Count: Integer read GetCount;
@@ -169,8 +172,8 @@ type
   public
     class function CreateList<T>(OwnsObjects: Boolean = False): IList<T>; static;
     class function CreateObjectList<T: class>(OwnsObjects: Boolean = False): IList<T>; static;
-    class function CreateDictionary<K, V>(ACapacity: Integer = 0): IDextDictionary<K, V>; overload; static;
-    class function CreateDictionary<K, V>(AOwnsValues: Boolean; ACapacity: Integer = 0): IDextDictionary<K, V>; overload; static;
+    class function CreateDictionary<K, V>(ACapacity: Integer = 0): IDictionary<K, V>; overload; static;
+    class function CreateDictionary<K, V>(AOwnsValues: Boolean; ACapacity: Integer = 0): IDictionary<K, V>; overload; static;
   end;
   {$M-}
 
@@ -399,9 +402,9 @@ function TList<T>.Where(const Predicate: TFunc<T, Boolean>): IList<T>;
 var
   I: Integer;
   Item: T;
-  NewList: TList<T>;
+  NewList: IList<T>;
 begin
-  NewList := TList<T>.Create(False);
+  NewList := TCollections.CreateList<T>(False);
   Result := NewList;
   for I := 0 to FCore.Count - 1 do
   begin
@@ -415,9 +418,9 @@ function TList<T>.Where(const Expression: IExpression): IList<T>;
 var
   I: Integer;
   Item: T;
-  NewList: TList<T>;
+  NewList: IList<T>;
 begin
-  NewList := TList<T>.Create(False);
+  NewList := TCollections.CreateList<T>(False);
   Result := NewList;
 
   if PTypeInfo(System.TypeInfo(T)).Kind <> tkClass then
@@ -562,6 +565,25 @@ begin
     Action(GetItem(I));
 end;
 
+procedure TList<T>.Sort(const AComparer: IComparer<T>);
+type
+  PT = ^T;
+var
+  Comparer: IComparer<T>;
+begin
+  if AComparer <> nil then
+    Comparer := AComparer
+  else
+    Comparer := TComparer<T>.Default;
+
+  FCore.SortRaw(
+    function(A, B: Pointer): Integer
+    begin
+      Result := Comparer.Compare(PT(A)^, PT(B)^);
+    end
+  );
+end;
+
 function TList<T>.ToArray: TArray<T>;
 begin
   SetLength(Result, FCore.Count);
@@ -581,14 +603,14 @@ begin
   Result := TList<T>.Create(OwnsObjects);
 end;
 
-class function TCollections.CreateDictionary<K, V>(ACapacity: Integer): IDextDictionary<K, V>;
+class function TCollections.CreateDictionary<K, V>(ACapacity: Integer): IDictionary<K, V>;
 begin
-  Result := TDextDictionary<K, V>.Create(ACapacity);
+  Result := TDictionary<K, V>.Create(ACapacity);
 end;
 
-class function TCollections.CreateDictionary<K, V>(AOwnsValues: Boolean; ACapacity: Integer): IDextDictionary<K, V>;
+class function TCollections.CreateDictionary<K, V>(AOwnsValues: Boolean; ACapacity: Integer): IDictionary<K, V>;
 begin
-  Result := TDextDictionary<K, V>.Create(AOwnsValues, ACapacity);
+  Result := TDictionary<K, V>.Create(AOwnsValues, ACapacity);
 end;
 
 end.

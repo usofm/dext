@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -29,9 +29,10 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
-  System.RegularExpressions,
   System.StrUtils,
+  System.RegularExpressions,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Web.Interfaces;
   // Note: We don't import Versioning here to avoid circular dep if possible, 
   // or we define IApiVersionReader in Interfaces? 
@@ -54,7 +55,7 @@ type
     function ExtractParameterNames(const APattern: string): TArray<string>;
   public
     constructor Create(const APattern: string);
-    function Match(const APath: string; out AParams: TDictionary<string, string>): Boolean;
+    function Match(const APath: string; out AParams: IDictionary<string, string>): Boolean;
     property Pattern: string read FPattern;
     property ParameterNames: TArray<string> read FParameterNames;
   end;
@@ -80,21 +81,21 @@ type
     ['{A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}']
     function FindMatchingRoute(const AContext: IHttpContext;
       out AHandler: TRequestDelegate;
-      out ARouteParams: TDictionary<string, string>;
+      out ARouteParams: IDictionary<string, string>;
       out AMetadata: TEndpointMetadata): Boolean;
   end;
 
   TRouteMatcher = class(TInterfacedObject, IRouteMatcher)
   private
-    FRoutes: TObjectList<TRouteDefinition>;
+    FRoutes: IList<TRouteDefinition>;
     function GetRequestedApiVersion(const AContext: IHttpContext): string;
     function IsVersionMatch(const RequestedVersion: string; const SupportedVersions: TArray<string>): Boolean;
   public
-    constructor Create(const ARoutes: TList<TRouteDefinition>);
+    constructor Create(const ARoutes: IList<TRouteDefinition>);
     destructor Destroy; override;
     function FindMatchingRoute(const AContext: IHttpContext;
       out AHandler: TRequestDelegate;
-      out ARouteParams: TDictionary<string, string>;
+      out ARouteParams: IDictionary<string, string>;
       out AMetadata: TEndpointMetadata): Boolean;
   end;
 
@@ -144,7 +145,7 @@ begin
 end;
 
 function TRoutePattern.Match(const APath: string;
-  out AParams: TDictionary<string, string>): Boolean;
+  out AParams: IDictionary<string, string>): Boolean;
 var
   Match: TMatch;
   I: Integer;
@@ -156,7 +157,7 @@ begin
 
   if Match.Success then
   begin
-    AParams := TDictionary<string, string>.Create;
+    AParams := TCollections.CreateDictionary<string, string>;
 
     try
       for I := 0 to High(FParameterNames) do
@@ -168,7 +169,7 @@ begin
       Result := True;
 
     except
-      AParams.Free;
+      AParams := nil;
       raise;
     end;
   end;
@@ -204,13 +205,13 @@ end;
 
 { TRouteMatcher }
 
-constructor TRouteMatcher.Create(const ARoutes: TList<TRouteDefinition>);
+constructor TRouteMatcher.Create(const ARoutes: IList<TRouteDefinition>);
 var
   Route: TRouteDefinition;
   NewRoute: TRouteDefinition;
 begin
   inherited Create;
-  FRoutes := TObjectList<TRouteDefinition>.Create(True); // Owns objects
+  FRoutes := TCollections.CreateList<TRouteDefinition>(True); // Owns objects
   
   // Clone routes to ensure thread safety and independence
   for Route in ARoutes do
@@ -223,8 +224,7 @@ end;
 
 destructor TRouteMatcher.Destroy;
 begin
-  FRoutes.Clear; // Force clear
-  FRoutes.Free;
+  FRoutes := nil;
   inherited;
 end;
 
@@ -272,12 +272,12 @@ end;
 
 function TRouteMatcher.FindMatchingRoute(const AContext: IHttpContext;
   out AHandler: TRequestDelegate;
-  out ARouteParams: TDictionary<string, string>;
+  out ARouteParams: IDictionary<string, string>;
   out AMetadata: TEndpointMetadata): Boolean;
 var
   Route: TRouteDefinition;
   Method, Path, RequestVersion: string;
-  LiteralCandidates, PatternCandidates: TList<TRouteDefinition>;
+  LiteralCandidates, PatternCandidates: IList<TRouteDefinition>;
   BestMatch: TRouteDefinition;
 begin
   ARouteParams := nil;
@@ -292,8 +292,8 @@ begin
   
   // Separate into literal and pattern candidates
   // RULE: Literal routes (exact match) take priority over pattern routes (with {params})
-  LiteralCandidates := TList<TRouteDefinition>.Create;
-  PatternCandidates := TList<TRouteDefinition>.Create;
+  LiteralCandidates := TCollections.CreateList<TRouteDefinition>;
+  PatternCandidates := TCollections.CreateList<TRouteDefinition>;
   try
     for Route in FRoutes do
     begin
@@ -306,7 +306,6 @@ begin
                // Route matches with pattern. Clean up the params created by Match().
                if Assigned(ARouteParams) then 
                begin
-                 ARouteParams.Free;
                  ARouteParams := nil;
                end;
                PatternCandidates.Add(Route);
@@ -373,8 +372,8 @@ begin
     end;
     
   finally
-    LiteralCandidates.Free;
-    PatternCandidates.Free;
+    LiteralCandidates := nil;
+    PatternCandidates := nil;
   end;
 end;
 

@@ -29,7 +29,6 @@ interface
 
 uses
   System.Character,
-  System.Generics.Collections,
   System.Rtti,
   System.SysUtils,
   System.StrUtils,
@@ -37,6 +36,8 @@ uses
   Dext.Types.UUID,
   Dext.DI.Interfaces,
   Dext.Core.Activator,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Json.Types;
 
 type
@@ -250,9 +251,9 @@ type
   private
     class var FProvider: IDextJsonProvider;
     class var FDefaultSettings: TJsonSettings;
-    class var FInterfaceMappings: TDictionary<string, string>;
+    class var FInterfaceMappings: IDictionary<string, string>;
     class function GetProvider: IDextJsonProvider; static;
-    class function GetInterfaceMappings: TDictionary<string, string>; static;
+    class function GetInterfaceMappings: IDictionary<string, string>; static;
   public
     /// <summary>
     ///   Registers a default implementation class for an interface type.
@@ -381,7 +382,7 @@ type
   private
     FRoot: TBuilderNode;
     FCurrent: TBuilderNode;
-    FNodeStack: System.Generics.Collections.TList<TBuilderNode>;
+    FNodeStack: IList<TBuilderNode>;
     function GetCurrentObject: IDextJsonObject;
     function GetCurrentArray: IDextJsonArray;
   public
@@ -454,7 +455,6 @@ uses
   System.Variants,
   Dext.Core.Reflection,
   Dext.Core.DateUtils,
-  Dext.Collections,
   Dext.Json.Driver.DextJsonDataObjects; // Default driver
 
 const
@@ -1675,10 +1675,11 @@ begin
     Result := FDefaultSettings;
 end;
 
-class function TDextJson.GetInterfaceMappings: TDictionary<string, string>;
+class function TDextJson.GetInterfaceMappings: IDictionary<string, string>;
 begin
-  if FInterfaceMappings = nil then
-    FInterfaceMappings := TDictionary<string, string>.Create;
+  if not Assigned(FInterfaceMappings) then
+    FInterfaceMappings := TCollections.CreateDictionary<string, string>;
+  
   Result := FInterfaceMappings;
 end;
 
@@ -1695,8 +1696,7 @@ end;
 function TDextSerializer.IsListType(AType: PTypeInfo): Boolean;
 begin
   Result := ((AType.Kind = tkClass) or (AType.Kind = tkInterface)) and
-            ((Pos('System.Generics.Collections', string(AType.TypeData^.UnitName)) > 0) or
-             (Pos('Dext.Collections', string(AType.TypeData^.UnitName)) > 0));
+            (Pos('Dext.Collections', string(AType.TypeData^.UnitName)) > 0);
 end;
 
 function TDextSerializer.GetArrayElementType(AType: PTypeInfo): PTypeInfo;
@@ -2098,7 +2098,7 @@ end;
 constructor TJsonBuilder.Create;
 begin
   inherited Create;
-  FNodeStack := System.Generics.Collections.TList<TBuilderNode>.Create;
+  FNodeStack := TCollections.CreateList<TBuilderNode>;
   
   FRoot := TBuilderNode.Create;
   FRoot.NodeType := ntObject;
@@ -2115,7 +2115,7 @@ var
 begin
   for Node in FNodeStack do
     Node.Free;
-  FNodeStack.Free;
+  FNodeStack := nil;
   inherited;
 end;
 
@@ -2257,6 +2257,6 @@ end;
 initialization
 
 finalization
-  TDextJson.FInterfaceMappings.Free;
+  TDextJson.FInterfaceMappings := nil;
 
 end.

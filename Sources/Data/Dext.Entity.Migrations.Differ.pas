@@ -29,7 +29,8 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
+  Dext.Collections.Base,
+  Dext.Collections,
   Dext.Entity.Migrations.Model,
   Dext.Entity.Migrations.Operations;
 
@@ -40,16 +41,16 @@ type
     ///   Compares Current model with Previous model and returns a list of operations
     ///   to transform Previous into Current.
     /// </summary>
-    class function Diff(Current, Previous: TSnapshotModel): TObjectList<TMigrationOperation>;
+    class function Diff(Current, Previous: TSnapshotModel): IList<TMigrationOperation>;
   end;
 
 implementation
 
 { TModelDiffer }
 
-class function TModelDiffer.Diff(Current, Previous: TSnapshotModel): TObjectList<TMigrationOperation>;
+class function TModelDiffer.Diff(Current, Previous: TSnapshotModel): IList<TMigrationOperation>;
 var
-  Ops: TObjectList<TMigrationOperation>;
+  Ops: IList<TMigrationOperation>;
   CurrTable, PrevTable: TSnapshotTable;
   CurrCol, PrevCol: TSnapshotColumn;
   CurrFK: TSnapshotForeignKey;
@@ -68,7 +69,7 @@ var
   end;
   
 begin
-  Ops := TObjectList<TMigrationOperation>.Create;
+  Ops := TCollections.CreateList<TMigrationOperation>(True);
   
   // 1. Check for New Tables
   if Current <> nil then
@@ -92,14 +93,14 @@ begin
         // For simplicity, let's assume PKs are marked in columns for now, 
         // or we extract them.
         // TCreateTableOperation has a PrimaryKey array property.
-        var PKs: TList<string> := TList<string>.Create;
+        var PKs := TCollections.CreateList<string>;
         try
           for CurrCol in CurrTable.Columns do
             if CurrCol.IsPrimaryKey then
               PKs.Add(CurrCol.Name);
           CreateOp.PrimaryKey := PKs.ToArray;
         finally
-          PKs.Free;
+          PKs := nil;
         end;
         
         Ops.Add(CreateOp);

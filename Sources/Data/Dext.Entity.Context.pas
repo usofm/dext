@@ -32,8 +32,9 @@ uses
   Data.DB,
   System.TypInfo,
   System.Rtti,
-  System.Generics.Collections,
-  System.Generics.Defaults,
+  Dext.Collections.Base,
+  Dext.Collections.Dict,
+  Dext.Collections,
   Dext.Entity.Naming,
   Dext.Entity.Mapping,
   Dext.Entity.Core,
@@ -63,19 +64,19 @@ type
   ///   Concrete implementation of DbContext.
   TEntityShadowState = class
   private
-    FShadowValues: TDictionary<string, TValue>;
-    FModifiedProperties: TDictionary<string, Boolean>;
+    FShadowValues: IDictionary<string, TValue>;
+    FModifiedProperties: IDictionary<string, Boolean>;
   public
     constructor Create;
     destructor Destroy; override;
-    property ShadowValues: TDictionary<string, TValue> read FShadowValues;
-    property ModifiedProperties: TDictionary<string, Boolean> read FModifiedProperties;
+    property ShadowValues: IDictionary<string, TValue> read FShadowValues;
+    property ModifiedProperties: IDictionary<string, Boolean> read FModifiedProperties;
   end;
 
   TChangeTracker = class(TInterfacedObject, IChangeTracker)
   private
-    FTrackedEntities: TDictionary<TObject, TEntityState>;
-    FShadowStates: TDictionary<TObject, TEntityShadowState>;
+    FTrackedEntities: IDictionary<TObject, TEntityState>;
+    FShadowStates: IDictionary<TObject, TEntityShadowState>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -85,7 +86,7 @@ type
     function HasChanges: Boolean;
     procedure AcceptAllChanges;
     procedure Clear;
-    function GetTrackedEntities: TEnumerable<TPair<TObject, TEntityState>>;
+    function GetTrackedEntities: IDictionary<TObject, TEntityState>;
     
     // Shadow Property Methods
     function GetShadowState(const AEntity: TObject): TEntityShadowState;
@@ -160,13 +161,13 @@ type
     FModelBuilder: TModelBuilder; // Model Builder
     FOwnsModelBuilder: Boolean;
     FTransaction: IDbTransaction;
-    FCache: TDictionary<PTypeInfo, IInterface>; // Cache for DbSets
+    FCache: IDictionary<PTypeInfo, IInterface>; // Cache for DbSets
     FChangeTracker: IChangeTracker;
     FTenantProvider: ITenantProvider;
     FTenantConfigApplied: Boolean;
     FLastAppliedTenantId: string;
     FOnLog: TProc<string>;
-    FProxies: TObjectList<TObject>;
+    FProxies: IList<TObject>;
     procedure SetOnLog(const AValue: TProc<string>);
     function GetOnLog: TProc<string>;
     procedure ApplyTenantConfig(ACreateSchema: Boolean = False);
@@ -189,7 +190,7 @@ type
     procedure OnConfiguring(Options: TDbContextOptions); virtual;
     
   public
-    class var FModelCache: TObjectDictionary<TClass, TModelBuilder>;
+    class var FModelCache: IDictionary<TClass, TModelBuilder>;
     class var FCriticalSection: TObject; // For thread safety
     
     constructor Create(const AConnection: IDbConnection; const ADialect: ISQLDialect = nil; const ANamingStrategy: INamingStrategy = nil; const ATenantProvider: ITenantProvider = nil); overload;
@@ -336,7 +337,7 @@ type
   public
     TypeInfo: PTypeInfo;
     DbSet: IDbSet;
-    Dependencies: TList<PTypeInfo>;
+    Dependencies: IList<PTypeInfo>;
     constructor Create;
     destructor Destroy; override;
   end;
@@ -347,15 +348,15 @@ const
 
 class constructor TDbContext.Create;
 begin
-  FModelCache := TObjectDictionary<TClass, TModelBuilder>.Create([doOwnsValues]);
+  FModelCache := TCollections.CreateDictionary<TClass, TModelBuilder>(True);
   FCriticalSection := TObject.Create;
 end;
-
-class destructor TDbContext.Destroy;
-begin
-  FreeAndNil(FModelCache);
-  FreeAndNil(FCriticalSection);
-end;
+ 
+ class destructor TDbContext.Destroy;
+ begin
+   FModelCache := nil;
+   FreeAndNil(FCriticalSection);
+ end;
 
 constructor TDbContext.Create(const AConnection: IDbConnection; const ADialect: ISQLDialect; const ANamingStrategy: INamingStrategy; const ATenantProvider: ITenantProvider);
 begin
@@ -380,11 +381,11 @@ begin
   else
     FNamingStrategy := TDefaultNamingStrategy.Create; // Default
     
-  FCache := TDictionary<PTypeInfo, IInterface>.Create;
+  FCache := TCollections.CreateDictionary<PTypeInfo, IInterface>;
   FChangeTracker := TChangeTracker.Create;
   FTenantProvider := ATenantProvider;
   FTenantConfigApplied := False;
-  FProxies := TObjectList<TObject>.Create(True);
+  FProxies := TCollections.CreateList<TObject>(True);
   
   // Model Caching Logic
   System.TMonitor.Enter(FCriticalSection);
@@ -427,8 +428,8 @@ begin
   if FChangeTracker <> nil then
     FChangeTracker.Clear;
     
-  FProxies.Free;
-  FCache.Free;
+  FProxies := nil;
+  FCache := nil;
   if FOwnsModelBuilder then
     FModelBuilder.Free;
   inherited;
@@ -716,8 +717,8 @@ end;
 
 function TDbContext.EnsureCreated: Boolean;
 var
-  Nodes: TObjectList<TEntityNode>;
-  Created: TList<PTypeInfo>;
+  Nodes: IList<TEntityNode>;
+  Created: IList<PTypeInfo>;
   Ctx: TRttiContext;
   Typ: TRttiType;
   Prop: TRttiProperty;
@@ -733,8 +734,8 @@ var
 begin
   Result := False;
   ApplyTenantConfig(True);
-  Nodes := TObjectList<TEntityNode>.Create;
-  Created := TList<PTypeInfo>.Create;
+  Nodes := TCollections.CreateList<TEntityNode>;
+  Created := TCollections.CreateList<PTypeInfo>;
   if FCache.Count = 0 then
     PreloadDBSets;
   Ctx := TRttiContext.Create;
@@ -894,8 +895,8 @@ begin
     end;
     
   finally
-    Created.Free;
-    Nodes.Free;
+    Created := nil;
+    Nodes := nil;
     Ctx.Free;
   end;
 end;
@@ -906,12 +907,12 @@ end;
 
 constructor TEntityNode.Create;
 begin
-  Dependencies := TList<PTypeInfo>.Create;
+  Dependencies := TCollections.CreateList<PTypeInfo>;
 end;
 
 destructor TEntityNode.Destroy;
 begin
-  Dependencies.Free;
+  Dependencies := nil;
   // inherited; // Removing inherited call to fix E2075
 end;
 
@@ -920,120 +921,112 @@ var
   Pair: TPair<TObject, TEntityState>;
   Entity: TObject;
   DbSet: IDbSet;
-  TrackedEntities: TList<TPair<TObject, TEntityState>>;
 begin
   ApplyTenantConfig(False);
   Result := 0;
   if not FChangeTracker.HasChanges then Exit;
-
-  // Snapshot of tracked entities to avoid modification during iteration if needed
-  // (Though we are iterating, and Persist methods shouldn't modify the list structure, 
-  // but they might update state to Unchanged if we did it per item. 
-  // Here we accept all changes at the end.)
-
-  TrackedEntities := TList<TPair<TObject, TEntityState>>.Create;
-  try
-    TrackedEntities.AddRange(FChangeTracker.GetTrackedEntities);
-    
-    if not InTransaction then BeginTransaction;
-    try
-      // 1. Process Inserts (Bulk Optimized)
-      var AddedGroups := TDictionary<PTypeInfo, TList<TObject>>.Create;
-      try
-        for Pair in TrackedEntities do
-        begin
-          if Pair.Value = esAdded then
-          begin
-            Entity := Pair.Key;
-            if not AddedGroups.ContainsKey(Entity.ClassInfo) then
-              AddedGroups.Add(Entity.ClassInfo, TList<TObject>.Create);
-            
-             // Auto-populate TenantId if applicable (Security & Convenience)
-             if (FTenantProvider <> nil) and (FTenantProvider.Tenant <> nil) then
-             begin
-               var TenantAware: ITenantAware;
-               if Supports(Entity, ITenantAware, TenantAware) then
-               begin
-                  // Always enforce current tenant ID on insert
-                  TenantAware.TenantId := FTenantProvider.Tenant.Id;
-               end;
-             end;
-               
-
-             // Validate Entity
-             var Map: TEntityMap := nil;
-             if FModelBuilder <> nil then
-               Map := FModelBuilder.GetMap(Entity.ClassInfo);
-               
-             TEntityValidator.Validate(Entity, Map);
-
-             AddedGroups[Entity.ClassInfo].Add(Entity);
-          end;
-        end;
-
-        for var TypeInfo in AddedGroups.Keys do
-        begin
-          var List := AddedGroups[TypeInfo];
-          DbSet := DataSet(TypeInfo);
-          
-          // Force loop to ensure IDs are retrieved for all entities.
-          // Bulk Insert (PersistAddRange) does not currently support ID retrieval.
-          for var Item in List do
-            DbSet.PersistAdd(Item);
-            
-          Inc(Result, List.Count);
-        end;
+ 
+   if not InTransaction then BeginTransaction;
+   try
+     // 1. Process Inserts (Bulk Optimized)
+     var AddedGroups := TCollections.CreateDictionary<PTypeInfo, IList<TObject>>;
+     try
+       for Pair in FChangeTracker.GetTrackedEntities do
+       begin
+         if Pair.Value = esAdded then
+         begin
+           Entity := Pair.Key;
+           if not AddedGroups.ContainsKey(Entity.ClassInfo) then
+             AddedGroups.Add(Entity.ClassInfo, TCollections.CreateList<TObject>);
+           
+            // Auto-populate TenantId if applicable (Security & Convenience)
+            if (FTenantProvider <> nil) and (FTenantProvider.Tenant <> nil) then
+            begin
+              var TenantAware: ITenantAware;
+              if Supports(Entity, ITenantAware, TenantAware) then
+              begin
+                 // Always enforce current tenant ID on insert
+                 TenantAware.TenantId := FTenantProvider.Tenant.Id;
+              end;
+            end;
+              
+ 
+            // Validate Entity
+            var Map: TEntityMap := nil;
+            if FModelBuilder <> nil then
+              Map := FModelBuilder.GetMap(Entity.ClassInfo);
+              
+            TEntityValidator.Validate(Entity, Map);
+ 
+            AddedGroups[Entity.ClassInfo].Add(Entity);
+         end;
+       end;
+ 
+       for var APair in AddedGroups do
+       begin
+         var List := APair.Value;
+         DbSet := DataSet(APair.Key);
+         
+         // Force loop to ensure IDs are retrieved for all entities.
+         // Bulk Insert (PersistAddRange) does not currently support ID retrieval.
+         for var Item in List do
+           DbSet.PersistAdd(Item);
+           
+         Inc(Result, List.Count);
+       end;
       finally
-        for var List in AddedGroups.Values do List.Free;
-        AddedGroups.Free;
+        AddedGroups := nil;
       end;
-      
-      // 2. Process Updates
-      for Pair in TrackedEntities do
-      begin
-        if Pair.Value = esModified then
-        begin
-          Entity := Pair.Key;
-          
-          // Validate Entity
-          var Map: TEntityMap := nil;
-          if FModelBuilder <> nil then
-            Map := FModelBuilder.GetMap(Entity.ClassInfo);
-            
-          TEntityValidator.Validate(Entity, Map);
-
-          DbSet := DataSet(Entity.ClassInfo);
-          DbSet.PersistUpdate(Entity);
-          Inc(Result);
-        end;
-      end;
-      
-      // 3. Process Deletes
-      for Pair in TrackedEntities do
-      begin
-        if Pair.Value = esDeleted then
-        begin
-          Entity := Pair.Key;
-          DbSet := DataSet(Entity.ClassInfo);
-          
-          // Remove from tracker BEFORE freeing the entity (via PersistRemove -> IdentityMap)
-          // This prevents dangling pointers in the tracker.
-          FChangeTracker.Remove(Entity);
-          
-          DbSet.PersistRemove(Entity);
-          Inc(Result);
-        end;
-      end;
-      
-      Commit;
-      FChangeTracker.AcceptAllChanges;
-    except
-      Rollback;
-      raise;
-    end;
-  finally
-    TrackedEntities.Free;
-  end;
+     
+     // 2. Process Updates
+     for Pair in FChangeTracker.GetTrackedEntities do
+     begin
+       if Pair.Value = esModified then
+       begin
+         Entity := Pair.Key;
+         
+         // Validate Entity
+         var Map: TEntityMap := nil;
+         if FModelBuilder <> nil then
+           Map := FModelBuilder.GetMap(Entity.ClassInfo);
+           
+         TEntityValidator.Validate(Entity, Map);
+ 
+         DbSet := DataSet(Entity.ClassInfo);
+         DbSet.PersistUpdate(Entity);
+         Inc(Result);
+       end;
+     end;
+     
+     // 3. Process Deletes
+     // Note: We need a snapshot for deletes because PersistRemove calls Remove from tracker
+     var Deletes := TCollections.CreateList<TObject>;
+     try
+       for Pair in FChangeTracker.GetTrackedEntities do
+         if Pair.Value = esDeleted then
+           Deletes.Add(Pair.Key);
+           
+       for Entity in Deletes do
+       begin
+         DbSet := DataSet(Entity.ClassInfo);
+         
+         // Remove from tracker BEFORE freeing the entity (via PersistRemove -> IdentityMap)
+         // This prevents dangling pointers in the tracker.
+         FChangeTracker.Remove(Entity);
+         
+         DbSet.PersistRemove(Entity);
+         Inc(Result);
+       end;
+     finally
+       Deletes := nil;
+     end;
+     
+     Commit;
+     FChangeTracker.AcceptAllChanges;
+   except
+     Rollback;
+     raise;
+   end;
 end;
 
 function TDbContext.SaveChangesAsync: TAsyncBuilder<Integer>;
@@ -1042,10 +1035,12 @@ begin
     raise Exception.Create('SaveChangesAsync requires a pooled connection to ensure thread safety.');
 
   Result := TAsyncTask.Run<Integer>(
-    function: Integer
-    begin
-      Result := SaveChanges;
-    end
+    TFunc<Integer>(
+      function: Integer
+      begin
+        Result := SaveChanges;
+      end
+    )
   );
 end;
 
@@ -1099,13 +1094,13 @@ var
   Prop: TRttiProperty;
   ParamAttr: DbParamAttribute;
   Cmd: IDbCommand;
-  ParamNames: TList<string>;
-  PropList: TList<TRttiProperty>;
+  ParamNames: IList<string>;
+  PropList: IList<TRttiProperty>;
   i: Integer;
 begin
   Ctx := TRttiContext.Create;
-  ParamNames := TList<string>.Create;
-  PropList := TList<TRttiProperty>.Create;
+  ParamNames := TCollections.CreateList<string>;
+  PropList := TCollections.CreateList<TRttiProperty>;
   try
     Typ := Ctx.GetType(ADto.ClassType);
     ProcAttr := Typ.GetAttribute<StoredProcedureAttribute>;
@@ -1153,8 +1148,8 @@ begin
       end;
     end;
   finally
-    ParamNames.Free;
-    PropList.Free;
+    ParamNames := nil;
+    PropList := nil;
     Ctx.Free;
   end;
 end;
@@ -1173,30 +1168,30 @@ end;
 
 constructor TEntityShadowState.Create;
 begin
-  FShadowValues := TDictionary<string, TValue>.Create;
-  FModifiedProperties := TDictionary<string, Boolean>.Create;
+  FShadowValues := TCollections.CreateDictionary<string, TValue>;
+  FModifiedProperties := TCollections.CreateDictionary<string, Boolean>;
 end;
-
-destructor TEntityShadowState.Destroy;
-begin
-  FShadowValues.Free;
-  FModifiedProperties.Free;
-  inherited;
-end;
+ 
+ destructor TEntityShadowState.Destroy;
+ begin
+   FShadowValues := nil;
+   FModifiedProperties := nil;
+   inherited;
+ end;
 
 { TChangeTracker }
 
 constructor TChangeTracker.Create;
 begin
   inherited Create;
-  FTrackedEntities := TDictionary<TObject, TEntityState>.Create;
-  FShadowStates := TObjectDictionary<TObject, TEntityShadowState>.Create([doOwnsValues]);
+  FTrackedEntities := TCollections.CreateDictionary<TObject, TEntityState>;
+  FShadowStates := TCollections.CreateDictionary<TObject, TEntityShadowState>;
 end;
 
 destructor TChangeTracker.Destroy;
 begin
-  FTrackedEntities.Free;
-  FShadowStates.Free;
+  FTrackedEntities := nil;
+  FShadowStates := nil;
   inherited;
 end;
 
@@ -1220,28 +1215,31 @@ end;
 
 function TChangeTracker.HasChanges: Boolean;
 var
-  Pair: TPair<TObject, TEntityState>;
+  LPair: TPair<TObject, TEntityState>;
 begin
   Result := False;
-  for Pair in FTrackedEntities do
+  for LPair in FTrackedEntities do
   begin
-    if Pair.Value in [esAdded, esModified, esDeleted] then
+    if LPair.Value in [esAdded, esModified, esDeleted] then
       Exit(True);
   end;
 end;
 
 procedure TChangeTracker.AcceptAllChanges;
+var
+  LKey: TObject;
+  LPair: TPair<TObject, TEntityShadowState>;
 begin
-  for var Key in FTrackedEntities.Keys.ToArray do
+  for LKey in FTrackedEntities.Keys do
   begin
-    if FTrackedEntities[Key] = esDeleted then
-      FTrackedEntities.Remove(Key)
+    if FTrackedEntities[LKey] = esDeleted then
+      FTrackedEntities.Remove(LKey)
     else
-      FTrackedEntities[Key] := esUnchanged;
+      FTrackedEntities[LKey] := esUnchanged;
   end;
     
-  for var State in FShadowStates.Values do
-    State.ModifiedProperties.Clear;
+  for LPair in FShadowStates do
+    LPair.Value.ModifiedProperties.Clear;
 end;
 
 procedure TChangeTracker.Clear;
@@ -1250,7 +1248,7 @@ begin
   FShadowStates.Clear;
 end;
 
-function TChangeTracker.GetTrackedEntities: TEnumerable<TPair<TObject, TEntityState>>;
+function TChangeTracker.GetTrackedEntities: IDictionary<TObject, TEntityState>;
 begin
   Result := FTrackedEntities;
 end;

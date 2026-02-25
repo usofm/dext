@@ -24,22 +24,23 @@ unit Dext.Mocks.Auto;
 interface
 
 uses
-  System.SysUtils,
   System.Rtti,
+  System.SysUtils,
   System.TypInfo,
-  System.Generics.Collections,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Interception,
-  Dext.Interception.Proxy,
   Dext.Interception.ClassProxy,
+  Dext.Interception.Proxy,
   Dext.Mocks,
   Dext.Mocks.Interceptor;
 
 type
   TAutoMocker = class
   private
-    FInterceptors: TDictionary<PTypeInfo, IInterceptor>;
-    FClassProxies: TObjectDictionary<PTypeInfo, TObject>; // OwnsProxies
-    FMocks: TDictionary<PTypeInfo, IMock>;
+    FInterceptors: IDictionary<PTypeInfo, IInterceptor>;
+    FClassProxies: IDictionary<PTypeInfo, TObject>; // OwnsProxies
+    FMocks: IDictionary<PTypeInfo, IMock>;
     FContext: TRttiContext;
     function GetMockInterceptor(Info: PTypeInfo): IInterceptor;
   public
@@ -55,17 +56,17 @@ implementation
 
 constructor TAutoMocker.Create;
 begin
-  FInterceptors := TDictionary<PTypeInfo, IInterceptor>.Create;
-  FClassProxies := TObjectDictionary<PTypeInfo, TObject>.Create([doOwnsValues]);
-  FMocks := TDictionary<PTypeInfo, IMock>.Create;
+  FInterceptors := TCollections.CreateDictionary<PTypeInfo, IInterceptor>;
+  FClassProxies := TCollections.CreateDictionary<PTypeInfo, TObject>(True);
+  FMocks := TCollections.CreateDictionary<PTypeInfo, IMock>;
   FContext := TRttiContext.Create;
 end;
 
 destructor TAutoMocker.Destroy;
 begin
-  FMocks.Free;
-  FClassProxies.Free;
-  FInterceptors.Free;
+  // FMocks is ARC
+  // FClassProxies is ARC
+  // FInterceptors is ARC
   FContext.Free;
   inherited;
 end;

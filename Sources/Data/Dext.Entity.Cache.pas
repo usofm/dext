@@ -29,7 +29,8 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections;
+  Dext.Collections,
+  Dext.Collections.Dict;
 
 type
   /// <summary>
@@ -40,7 +41,7 @@ type
     class var FInstance: TSQLCache;
     class var FLock: TObject;
   private
-    FCache: TDictionary<string, string>;
+    FCache: IDictionary<string, string>;
     FLockObj: TObject;
     FEnabled: Boolean;
   public
@@ -90,14 +91,14 @@ end;
 
 constructor TSQLCache.Create;
 begin
-  FCache := TDictionary<string, string>.Create;
+  FCache := TCollections.CreateDictionary<string, string>;
   FLockObj := TObject.Create;
   FEnabled := True;
 end;
 
 destructor TSQLCache.Destroy;
 begin
-  FCache.Free;
+  FCache := nil;
   FLockObj.Free;
   inherited;
 end;

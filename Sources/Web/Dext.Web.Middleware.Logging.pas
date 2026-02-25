@@ -1,4 +1,4 @@
-unit Dext.Web.Middleware.Logging;
+﻿unit Dext.Web.Middleware.Logging;
 
 interface
 

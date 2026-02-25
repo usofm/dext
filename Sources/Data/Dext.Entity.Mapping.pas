@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -28,8 +28,9 @@ unit Dext.Entity.Mapping;
 interface
 
 uses
-  System.Generics.Collections,
+  Dext.Collections,
   System.SysUtils,
+  Dext.Collections.Dict,
   System.TypInfo,
   System.Rtti,
   System.Variants,
@@ -168,8 +169,8 @@ type
   private
     FEntityType: PTypeInfo;
     FTableName: string;
-    FProperties: TObjectDictionary<string, TPropertyMap>;
-    FKeys: TList<string>;
+    FProperties: IDictionary<string, TPropertyMap>;
+    FKeys: IList<string>;
     // Soft Delete Configuration
     FIsSoftDelete: Boolean;
     FSoftDeleteProp: string;
@@ -180,7 +181,7 @@ type
     FDiscriminatorColumn: string;
     FDiscriminatorValue: Variant;
     // Global Query Filters
-    FQueryFilters: TList<IExpression>;
+    FQueryFilters: IList<IExpression>;
 
   public
     constructor Create(AEntityType: PTypeInfo);
@@ -188,14 +189,14 @@ type
     
     property EntityType: PTypeInfo read FEntityType;
     property TableName: string read FTableName write FTableName;
-    property Properties: TObjectDictionary<string, TPropertyMap> read FProperties;
-    property Keys: TList<string> read FKeys;
+    property Properties: IDictionary<string, TPropertyMap> read FProperties;
+    property Keys: IList<string> read FKeys;
     
     property IsSoftDelete: Boolean read FIsSoftDelete;
     property SoftDeleteProp: string read FSoftDeleteProp;
     property SoftDeleteDeletedValue: Variant read FSoftDeleteDeletedValue;
     property SoftDeleteNotDeletedValue: Variant read FSoftDeleteNotDeletedValue;
-    property QueryFilters: TList<IExpression> read FQueryFilters;
+    property QueryFilters: IList<IExpression> read FQueryFilters;
     
     property InheritanceStrategy: TInheritanceStrategy read FInheritanceStrategy write FInheritanceStrategy;
     property DiscriminatorColumn: string read FDiscriminatorColumn write FDiscriminatorColumn;
@@ -323,8 +324,8 @@ type
   private
     class var FInstance: TModelBuilder;
   private var
-    FMaps: TObjectDictionary<PTypeInfo, TEntityMap>;
-    FDiscoveryNames: TDictionary<PTypeInfo, string>;
+    FMaps: IDictionary<PTypeInfo, TEntityMap>;
+    FDiscoveryNames: IDictionary<PTypeInfo, string>;
     class constructor Create;
     class destructor Destroy;
   public
@@ -336,7 +337,7 @@ type
     
     function GetMap(AType: PTypeInfo): TEntityMap;
     function HasMap(AType: PTypeInfo): Boolean;
-    function GetMaps: TEnumerable<TEntityMap>;
+    function GetMaps: TArray<TEntityMap>;
     
     procedure RegisterDiscoveryName(AType: PTypeInfo; const AName: string);
     function GetDiscoveryName(AType: PTypeInfo): string;
@@ -369,9 +370,9 @@ implementation
 constructor TEntityMap.Create(AEntityType: PTypeInfo);
 begin
   FEntityType := AEntityType;
-  FProperties := TObjectDictionary<string, TPropertyMap>.Create([doOwnsValues]);
-  FKeys := TList<string>.Create;
-  FQueryFilters := TList<IExpression>.Create;
+  FProperties := TCollections.CreateDictionary<string, TPropertyMap>(True);
+  FKeys := TCollections.CreateList<string>;
+  FQueryFilters := TCollections.CreateList<IExpression>;
   FIsSoftDelete := False;
   FSoftDeleteProp := '';
   FSoftDeleteDeletedValue := 1;  // Default (1 = Deleted)
@@ -608,9 +609,9 @@ end;
 
 destructor TEntityMap.Destroy;
 begin
-  FQueryFilters.Free;
-  FKeys.Free;
-  FProperties.Free;
+  FQueryFilters := nil;
+  FKeys := nil;
+  FProperties := nil;
   inherited;
 end;
 
@@ -1169,19 +1170,14 @@ end;
 
 constructor TModelBuilder.Create;
 begin
-  inherited;
-  FMaps := TObjectDictionary<PTypeInfo, TEntityMap>.Create([doOwnsValues]);
-  FDiscoveryNames := TDictionary<PTypeInfo, string>.Create;
+  FMaps := TCollections.CreateDictionary<PTypeInfo, TEntityMap>(True);
+  FDiscoveryNames := TCollections.CreateDictionary<PTypeInfo, string>;
 end;
 
 destructor TModelBuilder.Destroy;
 begin
-  FDiscoveryNames.Free;
-  if Assigned(FMaps) then
-  begin
-    FMaps.Clear;  // Explicitly clear items first
-    FreeAndNil(FMaps);
-  end;
+  FMaps := nil;
+  FDiscoveryNames := nil;
   inherited;
 end;
 
@@ -1257,7 +1253,7 @@ begin
   Result := FMaps.ContainsKey(AType);
 end;
 
-function TModelBuilder.GetMaps: TEnumerable<TEntityMap>;
+function TModelBuilder.GetMaps: TArray<TEntityMap>;
 begin
   Result := FMaps.Values;
 end;

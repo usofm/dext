@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -28,10 +28,24 @@ unit Dext.Core.Span;
 interface
 
 uses
-  System.SysUtils,
-  System.Generics.Collections;
+  System.SysUtils;
 
 type
+  /// <summary>
+  ///   Enumerator for TSpan and TReadOnlySpan
+  /// </summary>
+  TSpanEnumerator<T> = record
+
+  private
+    FData: Pointer;
+    FIndex: Integer;
+    FLength: Integer;
+  public
+    function MoveNext: Boolean; inline;
+    function GetCurrent: T; inline;
+    property Current: T read GetCurrent;
+  end;
+
   /// <summary>
   ///   A Span is a lightweight, zero-allocation reference to a contiguous region of memory.
   /// </summary>
@@ -56,6 +70,9 @@ type
     /// <summary>Clears the memory referenced by the span.</summary>
     procedure Clear;
     
+    /// <summary>Returns an enumerator for the span.</summary>
+    function GetEnumerator: TSpanEnumerator<T>; inline;
+    
     property Ptr: Pointer read FPtr;
     property Length: Integer read FLength;
     property Items[Index: Integer]: T read GetItem write SetItem; default;
@@ -63,6 +80,36 @@ type
   public
     class function Empty: TSpan<T>; static;
     class function From(var AArray: TArray<T>): TSpan<T>; static;
+  end;
+
+  /// <summary>
+  ///   A Read-Only version of TSpan.
+  /// </summary>
+  TReadOnlySpan<T> = record
+  private
+    FPtr: Pointer;
+    FLength: Integer;
+    function GetItem(AIndex: Integer): T;
+    function GetLength: Boolean;
+  public
+    constructor Create(APtr: Pointer; ALength: Integer); overload;
+    
+    function Slice(AStart: Integer): TReadOnlySpan<T>; overload;
+    function Slice(AStart, ALength: Integer): TReadOnlySpan<T>; overload;
+    
+    function ToArray: TArray<T>;
+    
+    function GetEnumerator: TSpanEnumerator<T>; inline;
+    
+    property Ptr: Pointer read FPtr;
+    property Length: Integer read FLength;
+    property Items[Index: Integer]: T read GetItem; default;
+    property IsEmpty: Boolean read GetLength;
+  public
+    class function Empty: TReadOnlySpan<T>; static;
+    class function From(const AArray: TArray<T>): TReadOnlySpan<T>; static;
+    class operator Implicit(const A: TArray<T>): TReadOnlySpan<T>;
+    class operator Implicit(const Span: TSpan<T>): TReadOnlySpan<T>;
   end;
 
   /// <summary>
@@ -104,6 +151,19 @@ type
   end;
 
 implementation
+
+{ TSpanEnumerator<T> }
+
+function TSpanEnumerator<T>.GetCurrent: T;
+begin
+  Move(PByte(FData)[FIndex * SizeOf(T)], Result, SizeOf(T));
+end;
+
+function TSpanEnumerator<T>.MoveNext: Boolean;
+begin
+  Inc(FIndex);
+  Result := FIndex < FLength;
+end;
 
 { TSpan<T> }
 
@@ -178,6 +238,87 @@ procedure TSpan<T>.Clear;
 begin
   if (FPtr <> nil) and (FLength > 0) then
     FillChar(FPtr^, FLength * SizeOf(T), 0);
+end;
+
+function TSpan<T>.GetEnumerator: TSpanEnumerator<T>;
+begin
+  Result.FData := FPtr;
+  Result.FLength := FLength;
+  Result.FIndex := -1;
+end;
+
+{ TReadOnlySpan<T> }
+
+constructor TReadOnlySpan<T>.Create(APtr: Pointer; ALength: Integer);
+begin
+  FPtr := APtr;
+  FLength := ALength;
+end;
+
+class function TReadOnlySpan<T>.Empty: TReadOnlySpan<T>;
+begin
+  Result.FPtr := nil;
+  Result.FLength := 0;
+end;
+
+class function TReadOnlySpan<T>.From(const AArray: TArray<T>): TReadOnlySpan<T>;
+begin
+  if System.Length(AArray) = 0 then
+    Exit(Empty);
+  Result.FPtr := @AArray[0];
+  Result.FLength := System.Length(AArray);
+end;
+
+class operator TReadOnlySpan<T>.Implicit(const A: TArray<T>): TReadOnlySpan<T>;
+begin
+  Result := From(A);
+end;
+
+class operator TReadOnlySpan<T>.Implicit(const Span: TSpan<T>): TReadOnlySpan<T>;
+begin
+  Result.FPtr := Span.Ptr;
+  Result.FLength := Span.Length;
+end;
+
+function TReadOnlySpan<T>.GetItem(AIndex: Integer): T;
+begin
+  if (AIndex < 0) or (AIndex >= FLength) then
+    raise ERangeError.Create('Span index out of range');
+  Move(PByte(FPtr)[AIndex * SizeOf(T)], Result, SizeOf(T));
+end;
+
+function TReadOnlySpan<T>.GetLength: Boolean;
+begin
+  Result := FLength = 0;
+end;
+
+function TReadOnlySpan<T>.Slice(AStart: Integer): TReadOnlySpan<T>;
+begin
+  Result := Slice(AStart, FLength - AStart);
+end;
+
+function TReadOnlySpan<T>.Slice(AStart, ALength: Integer): TReadOnlySpan<T>;
+begin
+  if (AStart < 0) or (AStart + ALength > FLength) then
+    raise ERangeError.Create('Span slice out of range');
+  Result.FPtr := @PByte(FPtr)[AStart * SizeOf(T)];
+  Result.FLength := ALength;
+end;
+
+function TReadOnlySpan<T>.ToArray: TArray<T>;
+var
+  i: Integer;
+begin
+  System.SetLength(Result, FLength);
+  for i := 0 to FLength - 1 do
+    Result[i] := GetItem(i);
+end;
+
+function TReadOnlySpan<T>.GetEnumerator: TSpanEnumerator<T>;
+begin
+  Result.FData := FPtr;
+  Result.FLength := FLength;
+  Result.FIndex := -1;
 end;
 
 { TByteSpan }

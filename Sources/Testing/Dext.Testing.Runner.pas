@@ -38,8 +38,8 @@ uses
   System.Rtti,
   System.TimeSpan,
   System.TypInfo,
-  System.Generics.Collections,
   System.Diagnostics,
+  Dext.Collections,
   System.Classes,
   Dext.Testing.Attributes;
 
@@ -139,7 +139,7 @@ type
     FTearDownMethod: TRttiMethod;
     FBeforeAllMethod: TRttiMethod;
     FAfterAllMethod: TRttiMethod;
-    FTestMethods: TList<TRttiMethod>;
+    FTestMethods: IList<TRttiMethod>;
   public
     constructor Create(ARttiType: TRttiType);
     destructor Destroy; override;
@@ -151,7 +151,7 @@ type
     property TearDownMethod: TRttiMethod read FTearDownMethod;
     property BeforeAllMethod: TRttiMethod read FBeforeAllMethod;
     property AfterAllMethod: TRttiMethod read FAfterAllMethod;
-    property TestMethods: TList<TRttiMethod> read FTestMethods;
+    property TestMethods: IList<TRttiMethod> read FTestMethods;
   end;
 
   /// <summary>
@@ -176,7 +176,7 @@ type
     FCurrentTest: string;
     FCurrentFixture: string;
     FOutput: TStringBuilder;
-    FAttachedFiles: TList<string>;
+    FAttachedFiles: IList<string>;
   public
     constructor Create(const AFixture, ATest: string);
     destructor Destroy; override;
@@ -197,7 +197,7 @@ type
   TTestRunner = class
   private
     class var FContext: TRttiContext;
-    class var FFixtures: TObjectList<TTestFixtureInfo>;
+    class var FFixtures: IList<TTestFixtureInfo>;
     class var FSummary: TTestSummary;
     class var FFilter: TTestFilter;
     class var FVerbose: Boolean;
@@ -205,7 +205,7 @@ type
     class var FOutputFormat: TOutputFormat;
     class var FReportFileName: string;
     class var FReportFormat: TOutputFormat;
-    class var FTestResults: TList<TTestInfo>;
+    class var FTestResults: IList<TTestInfo>;
     
     // Assembly-level hooks (execute once for entire test suite)
     class var FAssemblyInitMethod: TRttiMethod;
@@ -217,7 +217,7 @@ type
     class var FOnFixtureStart: TFixtureStartEvent;
     class var FOnFixtureComplete: TFixtureCompleteEvent;
     
-    class var FListeners: TList<ITestListener>;
+    class var FListeners: IList<ITestListener>;
     
     class procedure NotifyRunStart(TotalTests: Integer);
     class procedure NotifyRunComplete(const Summary: TTestSummary);
@@ -493,13 +493,12 @@ begin
   FCurrentFixture := AFixture;
   FCurrentTest := ATest;
   FOutput := TStringBuilder.Create;
-  FAttachedFiles := TList<string>.Create;
+  FAttachedFiles := TCollections.CreateList<string>;
 end;
 
 destructor TTestContext.Destroy;
 begin
   FOutput.Free;
-  FAttachedFiles.Free;
   inherited;
 end;
 
@@ -551,7 +550,7 @@ begin
   FRttiType := ARttiType;
   FFixtureClass := ARttiType.AsInstance.MetaclassType;
   FName := ARttiType.Name;
-  FTestMethods := TList<TRttiMethod>.Create;
+  FTestMethods := TCollections.CreateList<TRttiMethod>;
 
   // Get description from attribute
   for Attr in ARttiType.GetAttributes do
@@ -566,7 +565,6 @@ end;
 
 destructor TTestFixtureInfo.Destroy;
 begin
-  FTestMethods.Free;
   inherited;
 end;
 
@@ -575,7 +573,7 @@ end;
 class procedure TTestRunner.Discover;
 begin
   if FFixtures = nil then
-    FFixtures := TObjectList<TTestFixtureInfo>.Create(True);
+    FFixtures := TCollections.CreateObjectList<TTestFixtureInfo>(True);
 
   FFixtures.Clear;
   FSummary.Reset;
@@ -831,16 +829,16 @@ class function TTestRunner.GetAttributes<T>(
   const Attrs: TArray<TCustomAttribute>): TArray<T>;
 var
   Attr: TCustomAttribute;
-  List: TList<T>;
+  List: IList<T>;
 begin
-  List := TList<T>.Create;
+  List := TCollections.CreateList<T>;
   try
     for Attr in Attrs do
       if Attr is T then
         List.Add(T(Attr));
     Result := List.ToArray;
   finally
-    List.Free;
+    // List is ARC
   end;
 end;
 
@@ -848,10 +846,10 @@ class function TTestRunner.GetCategories(Method: TRttiMethod): TArray<string>;
 var
   Attrs: TArray<TCustomAttribute>;
   Attr: TCustomAttribute;
-  Categories: TList<string>;
+  Categories: IList<string>;
 begin
   Attrs := Method.GetAttributes;
-  Categories := TList<string>.Create;
+  Categories := TCollections.CreateList<string>;
   try
     for Attr in Attrs do
     begin
@@ -862,7 +860,7 @@ begin
     end;
     Result := Categories.ToArray;
   finally
-    Categories.Free;
+    // Categories is ARC
   end;
 end;
 
@@ -944,7 +942,7 @@ var
   SourceAttrs: TArray<TestCaseSourceAttribute>;
   Attr: TestCaseAttribute;
   SourceAttr: TestCaseSourceAttribute;
-  List: TList<TArray<TValue>>;
+  List: IList<TArray<TValue>>;
   SourceType: TRttiType;
   SourceMethod: TRttiMethod;
   SourceResult: TValue;
@@ -962,7 +960,7 @@ begin
     Exit;
   end;
 
-  List := TList<TArray<TValue>>.Create;
+  List := TCollections.CreateList<TArray<TValue>>;
   try
     // 1. [TestCase]
     for Attr in TestCaseAttrs do
@@ -997,7 +995,7 @@ begin
 
     Result := List.ToArray;
   finally
-    List.Free;
+    // List is ARC
   end;
 end;
 
@@ -1007,7 +1005,7 @@ var
   SourceAttrs: TArray<TestCaseSourceAttribute>;
   Attr: TestCaseAttribute;
   SourceAttr: TestCaseSourceAttribute;
-  List: TList<string>;
+  List: IList<string>;
   I: Integer;
   Values: string;
   V: TValue;
@@ -1027,7 +1025,7 @@ begin
     Exit;
   end;
 
-  List := TList<string>.Create;
+  List := TCollections.CreateList<string>;
   try
     // 1. [TestCase] - Legacy handling
     for I := 0 to High(TestCaseAttrs) do
@@ -1086,7 +1084,7 @@ begin
 
     Result := List.ToArray;
   finally
-    List.Free;
+    // List is ARC
   end;
 end;
 
@@ -1462,7 +1460,7 @@ begin
 
     // Store result for report generation
     if FTestResults = nil then
-      FTestResults := TList<TTestInfo>.Create;
+      FTestResults := TCollections.CreateList<TTestInfo>;
     FTestResults.Add(Info);
 
     NotifyTestComplete(Info);
@@ -1634,14 +1632,12 @@ class procedure TTestRunner.Clear;
 begin
   if FFixtures <> nil then
   begin
-    FFixtures.Free;
     FFixtures := nil;
   end;
   
   // Free test results list
   if FTestResults <> nil then
   begin
-    FTestResults.Free;
     FTestResults := nil;
   end;
   
@@ -1654,7 +1650,7 @@ var
   Fixture: TTestFixtureInfo;
 begin
   if FFixtures = nil then
-    FFixtures := TObjectList<TTestFixtureInfo>.Create(True);
+    FFixtures := TCollections.CreateObjectList<TTestFixtureInfo>(True);
     
   FContext := TRttiContext.Create;
   RttiType := FContext.GetType(AClass);
@@ -1969,7 +1965,6 @@ class procedure TTestRunner.ClearListeners;
 begin
   if FListeners <> nil then
   begin
-    FListeners.Free;
     FListeners := nil;
   end;
 end;
@@ -1977,7 +1972,7 @@ end;
 class procedure TTestRunner.RegisterListener(const Listener: ITestListener);
 begin
   if FListeners = nil then
-    FListeners := TList<ITestListener>.Create;
+    FListeners := TCollections.CreateList<ITestListener>;
   FListeners.Add(Listener);
 end;
 
@@ -2032,7 +2027,7 @@ end;
 initialization
 
 finalization
-  TTestRunner.FListeners.Free;
+  TTestRunner.FListeners := nil;
   TTestRunner.Clear;
 
 end.

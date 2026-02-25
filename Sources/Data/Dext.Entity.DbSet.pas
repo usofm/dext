@@ -28,12 +28,13 @@ unit Dext.Entity.DbSet;
 interface
 
 uses
-  System.Generics.Collections,
+  Dext.Collections.Base,
+  Dext.Collections.Dict,
+  Dext.Collections,
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
   System.Variants,
-  Dext.Collections,
   Dext.Core.Reflection,
   Dext.Core.Activator,
   Dext.Core.ValueConverters,
@@ -69,12 +70,12 @@ type
     FContextPtr: Pointer;
     FRttiContext: TRttiContext; 
     FTableName: string;
-    FPKColumns: System.Generics.Collections.TList<string>; 
-    FProps: TDictionary<string, TRttiProperty>; 
-    FFields: TDictionary<string, TRttiField>; // Added for field mapping support
-    FColumns: TDictionary<string, string>;      
-    FIdentityMap: TObjectDictionary<string, T>; 
-    FOrphans: TObjectList<T>; // Stores detached objects until DbSet is destroyed
+    FPKColumns: IList<string>; 
+    FProps: IDictionary<string, TRttiProperty>; 
+    FFields: IDictionary<string, TRttiField>; 
+    FColumns: IDictionary<string, string>;      
+    FIdentityMap: IDictionary<string, T>; 
+    FOrphans: IList<T>; // Stores detached objects until DbSet is destroyed
     FMap: TEntityMap;
     // Filters control
     FIgnoreQueryFilters: Boolean;
@@ -85,7 +86,7 @@ type
     procedure MapEntity;
     function Hydrate(const Reader: IDbReader; const Tracking: Boolean = True): T;
     procedure ExtractForeignKeys(const AEntities: IList<T>; PropertyToCheck: string;
-      out IDs: TList<TValue>; out FKMap: TDictionary<T, TValue>);
+      out IDs: IList<TValue>; out FKMap: IDictionary<T, TValue>);
     procedure LoadAndAssign(const AEntities: IList<T>; const NavPropName: string);
     procedure LoadManyToMany(const AEntities: IList<T>; const NavPropName: string; const PropMap: TPropertyMap);
     procedure LoadOneToMany(const AEntities: IList<T>; const NavPropName: string; const PropMap: TPropertyMap);
@@ -138,13 +139,13 @@ type
     function Find(const AId: array of Variant): T; overload;
 
     procedure AddRange(const AEntities: TArray<T>); overload;
-    procedure AddRange(const AEntities: TEnumerable<T>); overload;
+    procedure AddRange(const AEntities: IEnumerable<T>); overload;
 
     procedure UpdateRange(const AEntities: TArray<T>); overload;
-    procedure UpdateRange(const AEntities: TEnumerable<T>); overload;
+    procedure UpdateRange(const AEntities: IEnumerable<T>); overload;
 
     procedure RemoveRange(const AEntities: TArray<T>); overload;
-    procedure RemoveRange(const AEntities: TEnumerable<T>); overload;
+    procedure RemoveRange(const AEntities: IEnumerable<T>); overload;
 
     function ToList: IList<T>; overload;
     function ToList(const ASpec: ISpecification<T>): IList<T>; overload;
@@ -315,13 +316,15 @@ end;
 { TSqlQueryIterator<T> }
 
 constructor TSqlQueryIterator<T>.Create(ADbSet: TDbSet<T>; const ASql: string; const AParams: array of TValue);
+var
+  I: Integer;
 begin
   inherited Create;
   FDbSet := ADbSet;
   FSql := ASql;
   SetLength(FParams, Length(AParams));
-  if Length(AParams) > 0 then
-    TArray.Copy<TValue>(AParams, FParams, Length(AParams));
+  for I := 0 to Length(AParams) - 1 do
+    FParams[I] := AParams[I];
 end;
 
 function TSqlQueryIterator<T>.MoveNextCore: Boolean;
@@ -359,13 +362,13 @@ constructor TDbSet<T>.Create(const AContext: IDbContext);
 begin
   inherited Create;
   FContextPtr := Pointer(AContext);
-  FProps := TDictionary<string, TRttiProperty>.Create;
-  FFields := TDictionary<string, TRttiField>.Create; // Added for field mapping
-  FColumns := TDictionary<string, string>.Create;
-  FPKColumns := System.Generics.Collections.TList<string>.Create;
+  FProps := TCollections.CreateDictionary<string, TRttiProperty>;
+  FFields := TCollections.CreateDictionary<string, TRttiField>;
+  FColumns := TCollections.CreateDictionary<string, string>;
+  FPKColumns := TCollections.CreateList<string>;
   FRttiContext := TRttiContext.Create;
-  FIdentityMap := TObjectDictionary<string, T>.Create([doOwnsValues]);
-  FOrphans := TObjectList<T>.Create(True); // Owns objects - will free on destroy
+  FIdentityMap := TCollections.CreateDictionary<string, T>(True);
+  FOrphans := TCollections.CreateList<T>(True);
   FIgnoreQueryFilters := False;
   FOnlyDeleted := False;
   MapEntity;
@@ -374,12 +377,12 @@ end;
 destructor TDbSet<T>.Destroy;
 begin
   FRttiContext.Free;
-  FIdentityMap.Free;
-  FOrphans.Free; // Frees all detached objects
-  FProps.Free;
-  FFields.Free; // Free field mapping dictionary
-  FColumns.Free;
-  FPKColumns.Free;
+  FIdentityMap := nil;
+  FOrphans := nil;
+  FProps := nil;
+  FFields := nil;
+  FColumns := nil;
+  FPKColumns := nil;
   inherited;
 end;
 
@@ -629,13 +632,13 @@ var
   Prop: TRttiProperty;
   Field: TRttiField; // Added for field mapping hydration
   PKVal: string;
-  PKValues: TDictionary<string, string>;
+  PKValues: IDictionary<string, string>;
 begin
   PKVal := '';
   
   if FPKColumns.Count > 0 then
   begin
-    PKValues := TDictionary<string, string>.Create;
+    PKValues := TCollections.CreateDictionary<string, string>;
     try
       for i := 0 to Reader.GetColumnCount - 1 do
       begin
@@ -670,7 +673,7 @@ begin
         end;
       end;
     finally
-      PKValues.Free;
+      PKValues := nil;
     end;
   end;
   
@@ -870,7 +873,7 @@ var
   Id: string;
 begin
   Id := GetEntityId(AEntity);
-  FIdentityMap.ExtractPair(Id);
+  FIdentityMap.Remove(Id);
   FContext.ChangeTracker.Remove(AEntity);
   Result := Self;
 end;
@@ -883,7 +886,7 @@ begin
     Add(Entity);
 end;
 
-procedure TDbSet<T>.AddRange(const AEntities: TEnumerable<T>);
+procedure TDbSet<T>.AddRange(const AEntities: IEnumerable<T>);
 var
   Entity: T;
 begin
@@ -899,7 +902,7 @@ begin
     Update(Entity);
 end;
 
-procedure TDbSet<T>.UpdateRange(const AEntities: TEnumerable<T>);
+procedure TDbSet<T>.UpdateRange(const AEntities: IEnumerable<T>);
 var
   Entity: T;
 begin
@@ -915,7 +918,7 @@ begin
     Remove(Entity);
 end;
 
-procedure TDbSet<T>.RemoveRange(const AEntities: TEnumerable<T>);
+procedure TDbSet<T>.RemoveRange(const AEntities: IEnumerable<T>);
 var
   Entity: T;
 begin
@@ -1099,7 +1102,7 @@ var
   Cmd: IDbCommand;
   EntitiesT: TArray<T>;
   i: Integer;
-  Props: System.Generics.Collections.TList<TPair<TRttiProperty, string>>;
+  Props: IList<TPair<TRttiProperty, string>>;
   ParamValues: TArray<TValue>;
   Prop: TRttiProperty;
   ParamName: string;
@@ -1142,7 +1145,7 @@ begin
       end;
       Cmd.ExecuteBatch(Length(EntitiesT));
     finally
-      Props.Free;
+      Props := nil;
     end;
   finally
     Generator.Free;
@@ -1522,15 +1525,17 @@ procedure TDbSet<T>.DetachAll;
 var
   Key: string;
   Keys: TArray<string>;
-  Pair: TPair<string, T>;
+  Val: T;
 begin
-  Keys := FIdentityMap.Keys.ToArray;
+  Keys := FIdentityMap.Keys;
   for Key in Keys do
   begin
-    Pair := FIdentityMap.ExtractPair(Key);
-    // Move to orphans list so it gets freed when DbSet is destroyed
-    if Pair.Value <> nil then
-      FOrphans.Add(Pair.Value);
+    if FIdentityMap.TryGetValue(Key, Val) then
+    begin
+      FIdentityMap.Remove(Key);
+      if Val <> nil then
+        FOrphans.Add(Val);
+    end;
   end;
 end;
 
@@ -1555,16 +1560,18 @@ begin
   Result := ToList(ISpecification<T>(nil));
 end;
 
-function TDbSet<T>.ToListAsync: Dext.Threading.Async.TAsyncBuilder<Dext.Collections.IList<T>>;
+function TDbSet<T>.ToListAsync: TAsyncBuilder<IList<T>>;
 begin
   if not FContext.Connection.Pooled then
     raise Exception.Create('ToListAsync requires a pooled connection to ensure thread safety.');
 
-  Result := Dext.Threading.Async.TAsyncTask.Run<Dext.Collections.IList<T>>(
-    function: Dext.Collections.IList<T>
-    begin
-      Result := ToList;
-    end
+  Result := TAsyncTask.Run<IList<T>>(
+    TFunc<IList<T>>(
+      function: IList<T>
+      begin
+        Result := Self.ToList;
+      end
+    )
   );
 end;
 
@@ -1651,16 +1658,19 @@ end;
 function TDbSet<T>.FromSql(const ASql: string; const AParams: array of TValue): TFluentQuery<T>;
 var
   LParams: TArray<TValue>;
+  I: Integer;
 begin
   SetLength(LParams, Length(AParams));
-  if Length(AParams) > 0 then
-    TArray.Copy<TValue>(AParams, LParams, Length(AParams));
+  for I := 0 to Length(AParams) - 1 do
+    LParams[I] := AParams[I];
 
   Result := TFluentQuery<T>.Create(
-    function: TQueryIterator<T>
-    begin
-      Result := TSqlQueryIterator<T>.Create(Self, ASql, LParams);
-    end,
+    TFunc<TQueryIterator<T>>(
+      function: TQueryIterator<T>
+      begin
+        Result := TSqlQueryIterator<T>.Create(Self, ASql, LParams);
+      end
+    ),
     FContext.Connection
   );
 end;
@@ -1691,15 +1701,15 @@ begin
 end;
 
 procedure TDbSet<T>.ExtractForeignKeys(const AEntities: IList<T>; PropertyToCheck: string;
-  out IDs: TList<TValue>; out FKMap: TDictionary<T, TValue>);
+  out IDs: IList<TValue>; out FKMap: IDictionary<T, TValue>);
 var
   Ent: T;
   Val: TValue;
   Ctx: TRttiContext;
   Typ: TRttiType;
 begin
-  IDs := TList<TValue>.Create;
-  FKMap := TDictionary<T, TValue>.Create;
+  IDs := TCollections.CreateList<TValue>;
+  FKMap := TCollections.CreateDictionary<T, TValue>;
   Ctx := TRttiContext.Create;
   try
     Typ := Ctx.GetType(T);
@@ -1739,11 +1749,11 @@ end;
 
 procedure TDbSet<T>.LoadAndAssign(const AEntities: IList<T>; const NavPropName: string);
 var
-  IDs: TList<TValue>;
-  FKMap: TDictionary<T, TValue>;
+  IDs: IList<TValue>;
+  FKMap: IDictionary<T, TValue>;
   TargetType: TRttiType;
   TargetDbSet: IDbSet;
-  LoadedMap: TDictionary<string, TObject>;
+  LoadedMap: IDictionary<string, TObject>;
   NavProp: TRttiProperty;
   TargetList: IList<TObject>;
   Obj: TObject;
@@ -1772,7 +1782,7 @@ begin
 
     TargetList := TargetDbSet.ListObjects(Expr);
 
-    LoadedMap := TDictionary<string, TObject>.Create;
+    LoadedMap := TCollections.CreateDictionary<string, TObject>;
     for Obj in TargetList do
     begin
       var TargetRefId := TargetDbSet.GetEntityId(Obj);
@@ -1799,9 +1809,9 @@ begin
     end;
 
   finally
-    IDs.Free;
-    FKMap.Free;
-    LoadedMap.Free;
+    IDs := nil;
+    FKMap := nil;
+    LoadedMap := nil;
   end;
 end;
 
@@ -1834,8 +1844,8 @@ end;
 
 procedure TDbSet<T>.LoadOneToMany(const AEntities: IList<T>; const NavPropName: string; const PropMap: TPropertyMap);
 var
-  ParentIds: TList<TValue>;
-  ParentMap: TDictionary<string, T>;
+  ParentIds: IList<TValue>;
+  ParentMap: IDictionary<string, T>;
   Ent: T;
   EntId: TValue;
   TargetDbSet: IDbSet;
@@ -1858,8 +1868,8 @@ begin
   if NavProp = nil then Exit;
 
   // 1. Collect Parent IDs and build map
-  ParentIds := TList<TValue>.Create;
-  ParentMap := TDictionary<string, T>.Create;
+  ParentIds := TCollections.CreateList<TValue>;
+  ParentMap := TCollections.CreateDictionary<string, T>;
   try
     for Ent in AEntities do
     begin
@@ -2011,8 +2021,8 @@ begin
     end;
 
   finally
-    ParentIds.Free;
-    ParentMap.Free;
+    ParentIds := nil;
+    ParentMap := nil;
   end;
 end;
 
@@ -2020,25 +2030,33 @@ procedure TDbSet<T>.LoadManyToMany(const AEntities: IList<T>; const NavPropName:
 var
   NavProp: TRttiProperty;
   SQL: string;
-  EntityIds: TList<TValue>;
   Ent: T;
   EntId: TValue;
+  EntityIds: IList<TValue>;
   Reader: IDbReader;
-  TargetIds: TDictionary<string, TList<TValue>>; // EntityId -> List of RelatedIds
-  RelatedDbSet: IDbSet;
-  TargetType: TRttiType;
-  AllRelatedIds: TList<TValue>;
-  RelatedObjects: TDictionary<string, TObject>; // RelatedId -> Object
-  ListIntf: IInterface;
+  TargetIds: IDictionary<string, IList<TValue>>; // EntityId -> List of RelatedIds
+  AllRelatedIds: IList<TValue>;
+  RelatedObjects: IDictionary<string, TObject>; // RelatedId -> Object
   Ctx: TRttiContext;
+  LTargetType: TRttiType;
+  RelatedDbSet: IDbSet;
+  IdValues: TArray<Variant>;
+  RelatedExpr: IExpression;
+  LoadedList: IList<TObject>;
+  CollValue: TValue;
+  TheList: IList<TObject>;
+  LEntIdStr, LObjId, LRelIdStr, LTypeName, LGenericTypeName: string;
+  LStartPos, LEndPos: Integer;
+  PropType: TRttiType;
+  NewList: IList<TObject>;
 begin
   if PropMap.JoinTableName = '' then Exit;
-  
+
   NavProp := FRttiContext.GetType(T).GetProperty(NavPropName);
   if NavProp = nil then Exit;
-  
+
   // Collect all entity IDs
-  EntityIds := TList<TValue>.Create;
+  EntityIds := TCollections.CreateList<TValue>;
   try
     for Ent in AEntities do
     begin
@@ -2047,9 +2065,8 @@ begin
         EntityIds.Add(EntId);
     end;
     if EntityIds.Count = 0 then Exit;
-    
+
     // Build SQL to query join table
-    // SELECT left_key, right_key FROM JoinTable WHERE left_key IN (?, ?, ...)
     var SB := TStringBuilder.Create;
     try
       SB.Append('SELECT ');
@@ -2071,120 +2088,105 @@ begin
     finally
       SB.Free;
     end;
-    
-    // Execute query
-    // Execute query
+
     var Cmd := FContext.Connection.CreateCommand(SQL);
     for var i := 0 to EntityIds.Count - 1 do
       Cmd.AddParam('p' + IntToStr(i + 1), EntityIds[i]);
-      
+
     Reader := Cmd.ExecuteQuery;
-    
-    // Build mapping: EntityId -> List of RelatedIds
-    TargetIds := TObjectDictionary<string, TList<TValue>>.Create([doOwnsValues]);
-    AllRelatedIds := TList<TValue>.Create;
+
+    TargetIds := TCollections.CreateDictionary<string, IList<TValue>>(True);
+    AllRelatedIds := TCollections.CreateList<TValue>;
     try
       while Reader.Next do
       begin
         var LeftKey := Reader.GetValue(0).ToString;
         var RightKey := Reader.GetValue(1);
-        
+
         if not TargetIds.ContainsKey(LeftKey) then
-          TargetIds.Add(LeftKey, TList<TValue>.Create);
+          TargetIds.Add(LeftKey, TCollections.CreateList<TValue>);
         TargetIds[LeftKey].Add(RightKey);
-        
+
         if not AllRelatedIds.Contains(RightKey) then
           AllRelatedIds.Add(RightKey);
       end;
-      
+
       if AllRelatedIds.Count = 0 then Exit;
-      
-      // Get target type from collection's generic argument
+
       Ctx := TRttiContext.Create;
       try
-        TargetType := nil;
-        var PropType := NavProp.PropertyType;
+        LTargetType := nil;
+        PropType := NavProp.PropertyType;
         if PropType.TypeKind = tkInterface then
         begin
           // IList<TRelated> - extract TRelated
-          var TypeName := PropType.Name;
+          LTypeName := PropType.Name;
           // Parse generic: IList<TRelated>
-          var StartPos := Pos('<', TypeName);
-          var EndPos := Pos('>', TypeName);
-          if (StartPos > 0) and (EndPos > StartPos) then
+          LStartPos := Pos('<', LTypeName);
+          LEndPos := Pos('>', LTypeName);
+          if (LStartPos > 0) and (LEndPos > LStartPos) then
           begin
-            var GenericTypeName := Copy(TypeName, StartPos + 1, EndPos - StartPos - 1);
-            TargetType := Ctx.FindType(GenericTypeName);
+            LGenericTypeName := Copy(LTypeName, LStartPos + 1, LEndPos - LStartPos - 1);
+            LTargetType := Ctx.FindType(LGenericTypeName);
           end;
         end;
-        
-        if TargetType = nil then Exit;
-        
-        // Load all related objects
-        RelatedDbSet := FContext.DataSet(TargetType.Handle);
-        var IdValues: TArray<Variant>;
+
+        if LTargetType = nil then Exit;
+
+        RelatedDbSet := FContext.DataSet(LTargetType.Handle);
         SetLength(IdValues, AllRelatedIds.Count);
         for var i := 0 to AllRelatedIds.Count - 1 do
           IdValues[i] := TValueToVariant(AllRelatedIds[i]);
-        
-        var RelatedExpr: IExpression := TPropExpression.Create('Id').&In(IdValues);
-        var LoadedList := RelatedDbSet.ListObjects(RelatedExpr);
-        
-        // Build lookup map
-        RelatedObjects := TDictionary<string, TObject>.Create;
+
+        RelatedExpr := TPropExpression.Create('Id').&In(IdValues);
+        LoadedList := RelatedDbSet.ListObjects(RelatedExpr);
+
+        RelatedObjects := TCollections.CreateDictionary<string, TObject>;
         try
           for var Obj in LoadedList do
           begin
-            var ObjId := RelatedDbSet.GetEntityId(Obj);
-            RelatedObjects.AddOrSetValue(ObjId, Obj);
+            LObjId := RelatedDbSet.GetEntityId(Obj);
+            RelatedObjects.AddOrSetValue(LObjId, Obj);
           end;
-          
-          // Assign to each entity's collection
+
           for Ent in AEntities do
           begin
             EntId := GetRelatedId(Ent);
-            var EntIdStr := EntId.ToString;
-            
-            // Get or create collection
-            var CollValue := NavProp.GetValue(Pointer(Ent));
+            LEntIdStr := EntId.ToString;
 
-            if CollValue.IsEmpty or (CollValue.AsInterface = nil) then
+            CollValue := NavProp.GetValue(Pointer(Ent));
+            if CollValue.IsEmpty or (CollValue.Kind <> tkInterface) or (CollValue.AsType<IInterface> = nil) then
             begin
-              // Create new collection - use TSmartList<TObject> as fallback
-              var CollObj := TSmartList<TObject>.Create;
-              NavProp.SetValue(Pointer(Ent), CollObj);
+              NewList := TCollections.CreateList<TObject>;
+              NavProp.SetValue(Pointer(Ent), TValue.From<IList<TObject>>(NewList));
               CollValue := NavProp.GetValue(Pointer(Ent));
             end;
-            
-            // Get IList interface
-            if Supports(CollValue.AsInterface, IList<TObject>, ListIntf) then
+
+            if Supports(CollValue.AsType<IInterface>, IList<TObject>, TheList) then
             begin
-              var TheList := IList<TObject>(ListIntf);
-              
-              // Add related objects
-              if TargetIds.ContainsKey(EntIdStr) then
+              if TargetIds.ContainsKey(LEntIdStr) then
               begin
-                for var RelId in TargetIds[EntIdStr] do
+                for var RelId in TargetIds[LEntIdStr] do
                 begin
-                  var RelIdStr := RelId.ToString;
-                  if RelatedObjects.ContainsKey(RelIdStr) then
-                    TheList.Add(RelatedObjects[RelIdStr]);
+                  LRelIdStr := RelId.ToString;
+                  if RelatedObjects.ContainsKey(LRelIdStr) then
+                    TheList.Add(RelatedObjects[LRelIdStr]);
                 end;
               end;
             end;
           end;
         finally
-          RelatedObjects.Free;
+          RelatedObjects := nil;
         end;
       finally
         Ctx.Free;
       end;
     finally
-      TargetIds.Free;
-      AllRelatedIds.Free;
+      TargetIds := nil;
+      AllRelatedIds := nil;
     end;
   finally
-    EntityIds.Free;
+    EntityIds := nil;
   end;
 end;
 
@@ -2427,19 +2429,22 @@ begin
     end;
   Result := TFluentQuery<T>.Create(
     LFactory, 
-    LSpec,
-    function(S: ISpecification): Integer
-    begin
-      Result := LSelf.Count(S as ISpecification<T>);
-    end,
-    function(S: ISpecification): Boolean
-    begin
-      Result := LSelf.Any(S as ISpecification<T>);
-    end,
-    function(S: ISpecification): T
-    begin
-      Result := LSelf.FirstOrDefault(S as ISpecification<T>);
-    end,
+    LSpec as ISpecification,
+    TFunc<ISpecification, Integer>(
+      function(S: ISpecification): Integer
+      begin
+        Result := LSelf.Count(S as ISpecification<T>);
+      end),
+    TFunc<ISpecification, Boolean>(
+      function(S: ISpecification): Boolean
+      begin
+        Result := LSelf.Any(S as ISpecification<T>);
+      end),
+    TFunc<ISpecification, T>(
+      function(S: ISpecification): T
+      begin
+        Result := LSelf.FirstOrDefault(S as ISpecification<T>);
+      end),
     FContext.Connection
   );
 end;

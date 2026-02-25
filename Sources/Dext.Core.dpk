@@ -27,7 +27,7 @@ package Dext.Core;
 {$ENDIF IMPLICITBUILDING}
 {$DESCRIPTION 'Dext Framework - Core & Infrastructure'}
 {$RUNONLY}
-{$IMPLICITBUILD OFF}
+{$IMPLICITBUILD ON}
 
 requires
   rtl,
@@ -54,6 +54,11 @@ contains
   Dext.Collections.Factory in 'Core\Dext.Collections.Factory.pas',
   Dext.Collections.RawDict in 'Core\Dext.Collections.RawDict.pas',
   Dext.Collections.Dict in 'Core\Dext.Collections.Dict.pas',
+  Dext.Collections.Concurrent in 'Core\Dext.Collections.Concurrent.pas',
+  Dext.Collections.Channels in 'Core\Dext.Collections.Channels.pas',
+  Dext.Collections.Algorithms in 'Core\Dext.Collections.Algorithms.pas',
+  Dext.Collections.Simd in 'Core\Dext.Collections.Simd.pas',
+  Dext.Collections.Vector in 'Core\Dext.Collections.Vector.pas',
   Dext.Collections in 'Core\Dext.Collections.pas',
   Dext.Configuration.Binder in 'Core\Dext.Configuration.Binder.pas',
   Dext.Configuration.Core in 'Core\Dext.Configuration.Core.pas',
@@ -109,7 +114,9 @@ contains
   Dext.Interception.ClassProxy in 'Core\Interception\Dext.Interception.ClassProxy.pas',
   Dext.Logging in 'Core\Dext.Logging.pas',
   Dext.Telemetry.Context in 'Core\Dext.Telemetry.Context.pas',
-  Dext.Collections.Base in 'Core\Dext.Collections.Base.pas';
+  Dext.Collections.Comparers in 'Core\Dext.Collections.Comparers.pas',
+  Dext.Collections.Base in 'Core\Dext.Collections.Base.pas',
+  Dext.Collections.Frozen in 'Core\Dext.Collections.Frozen.pas';
 
 end.
 

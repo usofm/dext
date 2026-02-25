@@ -33,7 +33,7 @@ uses
   System.Variants,
   System.Rtti,
   System.TypInfo,
-  System.Generics.Collections,
+  Dext.Collections,
   System.DateUtils,
   Data.DB,
   Data.FmtBcd,

@@ -34,14 +34,15 @@ unit Dext.Web.Hubs.Context;
 interface
 
 uses
-  System.SysUtils,
   System.Rtti,
-  System.Generics.Collections,
-  Dext.Web.Hubs.Interfaces,
-  Dext.Web.Hubs.Connections,
-  Dext.Web.Hubs.Clients,
+  System.SysUtils,
+  Dext.Auth.Identity,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Threading.CancellationToken,
-  Dext.Auth.Identity;
+  Dext.Web.Hubs.Clients,
+  Dext.Web.Hubs.Connections,
+  Dext.Web.Hubs.Interfaces;
 
 type
   /// <summary>
@@ -71,7 +72,7 @@ type
   private
     FConnectionId: string;
     FUser: IClaimsPrincipal;
-    FItems: TDictionary<string, TValue>;
+    FItems: IDictionary<string, TValue>;
     FAbortToken: ICancellationToken;
     FTransportType: TTransportType;
   public
@@ -84,7 +85,7 @@ type
     function GetConnectionId: string;
     function GetUserIdentifier: string;
     function GetUser: IClaimsPrincipal;
-    function GetItems: TDictionary<string, TValue>;
+    function GetItems: IDictionary<string, TValue>;
     function GetConnectionAborted: ICancellationToken;
     function GetTransportType: TTransportType;
     procedure Abort;
@@ -92,7 +93,7 @@ type
     property ConnectionId: string read GetConnectionId;
     property UserIdentifier: string read GetUserIdentifier;
     property User: IClaimsPrincipal read GetUser;
-    property Items: TDictionary<string, TValue> read GetItems;
+    property Items: IDictionary<string, TValue> read GetItems;
     property ConnectionAborted: ICancellationToken read GetConnectionAborted;
     property TransportType: TTransportType read GetTransportType;
   end;
@@ -130,12 +131,12 @@ begin
   FTransportType := ATransportType;
   FUser := AUser;
   FAbortToken := AAbortToken;
-  FItems := TDictionary<string, TValue>.Create;
+  FItems := TCollections.CreateDictionary<string, TValue>;
 end;
 
 destructor THubCallerContext.Destroy;
 begin
-  FItems.Free;
+  // FItems is ARC
   inherited;
 end;
 
@@ -157,7 +158,7 @@ begin
   Result := FUser;
 end;
 
-function THubCallerContext.GetItems: TDictionary<string, TValue>;
+function THubCallerContext.GetItems: IDictionary<string, TValue>;
 begin
   Result := FItems;
 end;

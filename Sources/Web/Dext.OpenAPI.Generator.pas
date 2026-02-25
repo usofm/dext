@@ -1,13 +1,14 @@
-unit Dext.OpenAPI.Generator;
+﻿unit Dext.OpenAPI.Generator;
 
 interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
   System.Rtti,
   System.TypInfo,
   DextJsonDataObjects,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.OpenAPI.Types,
   Dext.OpenAPI.Attributes,
   Dext.Web.Interfaces,
@@ -157,8 +158,8 @@ type
   TOpenAPIGenerator = class
   private
     FOptions: TOpenAPIOptions;
-    FKnownTypes: TDictionary<PTypeInfo, string>;
-    FDefinitions: TDictionary<string, TOpenAPISchema>;
+    FKnownTypes: IDictionary<PTypeInfo, string>;
+    FDefinitions: IDictionary<string, TOpenAPISchema>;
     
     function CreateInfoSection: TOpenAPIInfo;
     function CreatePathItem(const AMetadata: TEndpointMetadata): TOpenAPIPathItem;
@@ -420,18 +421,16 @@ constructor TOpenAPIGenerator.Create(const AOptions: TOpenAPIOptions);
 begin
   inherited Create;
   FOptions := AOptions;
-  FKnownTypes := TDictionary<PTypeInfo, string>.Create;
-  FDefinitions := TDictionary<string, TOpenAPISchema>.Create;
+  FKnownTypes := TCollections.CreateDictionary<PTypeInfo, string>;
+  FDefinitions := TCollections.CreateDictionary<string, TOpenAPISchema>;
 end;
 
 destructor TOpenAPIGenerator.Destroy;
-var
-  Schema: TOpenAPISchema;
 begin
-  FKnownTypes.Free;
-  for Schema in FDefinitions.Values do
-    Schema.Free;
-  FDefinitions.Free;
+  // FKnownTypes is ARC
+  for var Key in FDefinitions.Keys do
+    FDefinitions[Key].Free;
+  // FDefinitions is ARC
   inherited;
 end;
 
@@ -1087,8 +1086,8 @@ begin
   begin
     for var SchemeName in AMetadata.Security do
     begin
-      var SecRequirement := TDictionary<string, TArray<string>>.Create;
-      SecRequirement.Add(SchemeName, []); // Empty array for scopes (OAuth2)
+      var SecRequirement := TCollections.CreateDictionary<string, TArray<string>>;
+      SecRequirement.Add(SchemeName, []);
       Result.Security.Add(SecRequirement);
     end;
   end;

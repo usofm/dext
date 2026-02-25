@@ -1,4 +1,4 @@
-unit Dext.Entity.Dialect.MSSQL.Test;
+﻿unit Dext.Entity.Dialect.MSSQL.Test;
 
 interface
 

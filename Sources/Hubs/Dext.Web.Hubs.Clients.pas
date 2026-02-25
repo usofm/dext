@@ -34,8 +34,8 @@ interface
 
 uses
   System.SysUtils,
+  Dext.Collections,
   System.Rtti,
-  System.Generics.Collections,
   Dext.Web.Hubs.Interfaces,
   Dext.Web.Hubs.Types,
   Dext.Web.Hubs.Protocol.Json;
@@ -359,15 +359,14 @@ end;
 
 function THubClients.Groups(const GroupNames: TArray<string>): IClientProxy;
 var
-  AllConnections: TList<string>;
+  AllConnections: IList<string>;
   GroupName: string;
   Connections: TArray<IHubConnection>;
   Conn: IHubConnection;
 begin
   // Collect all unique connection IDs from all groups
-  AllConnections := TList<string>.Create;
-  try
-    for GroupName in GroupNames do
+  AllConnections := TCollections.CreateList<string>;
+  for GroupName in GroupNames do
     begin
       Connections := FConnectionManager.GetByGroup(GroupName);
       for Conn in Connections do
@@ -375,9 +374,6 @@ begin
           AllConnections.Add(Conn.ConnectionId);
     end;
     Result := TClientProxy.Create(FConnectionManager, AllConnections.ToArray);
-  finally
-    AllConnections.Free;
-  end;
 end;
 
 function THubClients.User(const UserId: string): IClientProxy;
@@ -387,14 +383,13 @@ end;
 
 function THubClients.Users(const UserIds: TArray<string>): IClientProxy;
 var
-  AllConnections: TList<string>;
+  AllConnections: IList<string>;
   UserId: string;
   Connections: TArray<IHubConnection>;
   Conn: IHubConnection;
 begin
-  AllConnections := TList<string>.Create;
-  try
-    for UserId in UserIds do
+  AllConnections := TCollections.CreateList<string>;
+  for UserId in UserIds do
     begin
       Connections := FConnectionManager.GetByUser(UserId);
       for Conn in Connections do
@@ -402,9 +397,6 @@ begin
           AllConnections.Add(Conn.ConnectionId);
     end;
     Result := TClientProxy.Create(FConnectionManager, AllConnections.ToArray);
-  finally
-    AllConnections.Free;
-  end;
 end;
 
 function THubClients.AllExcept(const ExcludedConnectionIds: TArray<string>): IClientProxy;

@@ -1,4 +1,4 @@
-unit Dext.Logger.Service;
+﻿unit Dext.Logger.Service;
 
 interface
 

@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -28,11 +28,12 @@ unit Dext.Entity.Core;
 interface
 
 uses
-  System.Generics.Collections,
+  Dext.Collections.Base,
+  Dext.Collections,
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
-  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Entity.TypeSystem,
   Dext.Entity.Drivers.Interfaces,
   Dext.Entity.Dialects,
@@ -62,7 +63,7 @@ type
     function HasChanges: Boolean;
     procedure AcceptAllChanges;
     procedure Clear;
-    function GetTrackedEntities: TEnumerable<TPair<TObject, TEntityState>>;
+    function GetTrackedEntities: IDictionary<TObject, TEntityState>;
   end;
 
   /// <summary>
@@ -119,13 +120,13 @@ type
 
     // Bulk Operations
     procedure AddRange(const AEntities: TArray<T>); overload;
-    procedure AddRange(const AEntities: TEnumerable<T>); overload;
+    procedure AddRange(const AEntities: IEnumerable<T>); overload;
 
     procedure UpdateRange(const AEntities: TArray<T>); overload;
-    procedure UpdateRange(const AEntities: TEnumerable<T>); overload;
+    procedure UpdateRange(const AEntities: IEnumerable<T>); overload;
     
     procedure RemoveRange(const AEntities: TArray<T>); overload;
-    procedure RemoveRange(const AEntities: TEnumerable<T>); overload;
+    procedure RemoveRange(const AEntities: IEnumerable<T>); overload;
 
     // Queries via Specifications
     function Find(const AId: Variant): T; overload;

@@ -46,8 +46,7 @@ interface
 uses
   System.SysUtils,
   System.Rtti,
-  System.TypInfo,
-  System.Generics.Collections;
+  System.TypInfo;
 
 type
   // =========================================================================

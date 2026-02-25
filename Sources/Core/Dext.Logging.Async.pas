@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -13,8 +13,8 @@ uses
   System.SysUtils,
   System.Classes,
   System.SyncObjs,
-  System.Generics.Collections,
   Dext.Types.UUID,
+  Dext.Collections,
   Dext.Logging,
   Dext.Logging.RingBuffer,
   Dext.Telemetry.Context;
@@ -54,7 +54,7 @@ type
   TLogConsumerThread = class(TThread)
   private
     FBuffer: TRingBuffer;
-    FSinks: TList<ILogSink>;
+    FSinks: IList<ILogSink>;
     FLock: TObject;
     FShutdownEvent: TEvent;
     
@@ -177,7 +177,7 @@ constructor TLogConsumerThread.Create(ABuffer: TRingBuffer);
 begin
   inherited Create(True);
   FBuffer := ABuffer;
-  FSinks := TList<ILogSink>.Create;
+  FSinks := TCollections.CreateList<ILogSink>;
   FLock := TObject.Create;
   FShutdownEvent := TEvent.Create;
   FreeOnTerminate := False;
@@ -185,7 +185,7 @@ end;
 
 destructor TLogConsumerThread.Destroy;
 begin
-  FSinks.Free;
+  FSinks := nil;
   FLock.Free;
   FShutdownEvent.Free;
   inherited;
@@ -246,7 +246,11 @@ begin
   // Final flush
   TMonitor.Enter(FLock);
   try
-    for var Sink in FSinks do Sink.Flush;
+    FSinks.ForEach(
+      procedure(S: ILogSink)
+      begin
+        S.Flush;
+      end);
   finally
     TMonitor.Exit(FLock);
   end;
@@ -254,14 +258,14 @@ end;
 
 procedure TLogConsumerThread.DispatchEntry(const Entry: TLogEntry);
 var
-  Sink: ILogSink;
+  I: Integer;
 begin
   TMonitor.Enter(FLock);
   try
-    for Sink in FSinks do
+    for I := 0 to FSinks.Count - 1 do
     begin
       try
-        Sink.Emit(Entry);
+        FSinks[I].Emit(Entry);
       except
         // Swallow sink errors to protect pipeline
       end;

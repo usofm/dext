@@ -40,7 +40,13 @@ uses
   Dext.Collections.Dict,
   TestCollections.Lists in 'TestCollections.Lists.pas',
   TestCollections.Dictionaries in 'TestCollections.Dictionaries.pas',
-  TestCollections.Factory in 'TestCollections.Factory.pas';
+  TestCollections.Factory in 'TestCollections.Factory.pas',
+  TestCollections.Frozen in 'TestCollections.Frozen.pas',
+  TestCollections.Vector in 'TestCollections.Vector.pas',
+  TestCollections.Concurrent in 'TestCollections.Concurrent.pas',
+  TestCollections.Channels in 'TestCollections.Channels.pas',
+  TestCollections.Algorithms in 'TestCollections.Algorithms.pas',
+  TestCollections.Comparers in 'TestCollections.Comparers.pas';
 
 begin
   SetConsoleCharSet;
@@ -68,7 +74,13 @@ begin
           TDictionaryInterfaceTests,
           TDictionaryManagedRecordTests,
           TCollectionsFactoryTests,
-          TFactoryTests
+          TFactoryTests,
+          TFrozenDictionaryTests,
+          TVectorTests,
+          TConcurrentDictionaryTests,
+          TChannelTests,
+          TAlgorithmsTests,
+          TComparerTests
         ])
         .Run
     );

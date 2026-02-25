@@ -33,21 +33,22 @@ unit Dext.Web.Hubs.Middleware;
 interface
 
 uses
-  System.SysUtils,
   System.Classes,
-  System.Rtti,
   System.JSON,
-  System.Generics.Collections,
-  Dext.Web.Interfaces,
+  System.Rtti,
+  System.SysUtils,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.DI.Interfaces,
-  Dext.Web.Hubs.Interfaces,
-  Dext.Web.Hubs.Types,
-  Dext.Web.Hubs.Hub,
+  Dext.Web.Hubs.Clients,
   Dext.Web.Hubs.Connections,
   Dext.Web.Hubs.Context,
-  Dext.Web.Hubs.Clients,
+  Dext.Web.Hubs.Hub,
+  Dext.Web.Hubs.Interfaces,
   Dext.Web.Hubs.Protocol.Json,
-  Dext.Web.Hubs.Transport.SSE;
+  Dext.Web.Hubs.Transport.SSE,
+  Dext.Web.Hubs.Types,
+  Dext.Web.Interfaces;
 
 type
   /// <summary>
@@ -100,7 +101,7 @@ type
   /// </summary>
   THubMiddleware = class
   private
-    FHubs: TDictionary<string, THubDispatcher>;
+    FHubs: IDictionary<string, THubDispatcher>;
     FConnectionManager: TConnectionManager;
     FGroupManager: TGroupManager;
     FSSETransport: TSSETransport;
@@ -254,7 +255,7 @@ end;
 constructor THubMiddleware.Create;
 begin
   inherited Create;
-  FHubs := TDictionary<string, THubDispatcher>.Create;
+  FHubs := TCollections.CreateDictionary<string, THubDispatcher>;
   FGroupManager := TGroupManager.Create;
   FConnectionManager := TConnectionManager.Create;
   FConnectionManager.SetGroupManager(FGroupManager);
@@ -268,7 +269,7 @@ begin
   Shutdown; // Close all SSE connections first
   for Dispatcher in FHubs.Values do
     Dispatcher.Free;
-  FHubs.Free;
+  // FHubs is ARC
   FSSETransport.Free;
   // Note: TConnectionManager and TGroupManager are interfaced, will be freed automatically
   inherited;

@@ -4,7 +4,6 @@ interface
 
 uses
   System.Classes,
-  System.Generics.Collections,
   System.IOUtils,
   System.JSON,
   System.Net.HttpClient,

@@ -30,7 +30,7 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections;
+  Dext.Collections;
 
 type
   TOperationType = (
@@ -87,14 +87,14 @@ type
   TCreateTableOperation = class(TMigrationOperation)
   private
     FName: string;
-    FColumns: TObjectList<TColumnDefinition>;
+    FColumns: IList<TColumnDefinition>;
     FPrimaryKey: TArray<string>; // List of column names
   public
     constructor Create(const AName: string);
     destructor Destroy; override;
     
     property Name: string read FName;
-    property Columns: TObjectList<TColumnDefinition> read FColumns;
+    property Columns: IList<TColumnDefinition> read FColumns;
     property PrimaryKey: TArray<string> read FPrimaryKey write FPrimaryKey;
   end;
 
@@ -232,12 +232,12 @@ constructor TCreateTableOperation.Create(const AName: string);
 begin
   inherited Create(otCreateTable);
   FName := AName;
-  FColumns := TObjectList<TColumnDefinition>.Create;
+  FColumns := TCollections.CreateList<TColumnDefinition>(True);
 end;
 
 destructor TCreateTableOperation.Destroy;
 begin
-  FColumns.Free;
+  FColumns := nil;
   inherited;
 end;
 

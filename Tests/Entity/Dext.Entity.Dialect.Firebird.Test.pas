@@ -1,4 +1,4 @@
-unit Dext.Entity.Dialect.Firebird.Test;
+﻿unit Dext.Entity.Dialect.Firebird.Test;
 
 interface
 

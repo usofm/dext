@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -44,9 +44,10 @@ interface
 uses
   System.Classes,
   System.IOUtils,
-  System.Generics.Collections,
   System.RegularExpressions,
   System.SysUtils,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Http.Request;
 
 type
@@ -84,13 +85,13 @@ type
     ///   Replaces {{env:VAR_NAME}} with the environment variable value.
     /// </summary>
     class function InterpolateVariables(const AText: string; 
-      AVariables: TList<THttpVariable>): string; static;
+      AVariables: IList<THttpVariable>): string; static;
     
     /// <summary>
     ///   Resolves all variables in a request (URL, headers, body).
     /// </summary>
     class procedure ResolveRequest(ARequest: THttpRequestInfo; 
-      AVariables: TList<THttpVariable>); static;
+      AVariables: IList<THttpVariable>); static;
   end;
 
 implementation
@@ -406,7 +407,7 @@ begin
 end;
 
 class function THttpRequestParser.InterpolateVariables(const AText: string; 
-  AVariables: TList<THttpVariable>): string;
+  AVariables: IList<THttpVariable>): string;
 var
   Match: TMatch;
   VarName: string;
@@ -454,25 +455,21 @@ begin
 end;
 
 class procedure THttpRequestParser.ResolveRequest(ARequest: THttpRequestInfo; 
-  AVariables: TList<THttpVariable>);
+  AVariables: IList<THttpVariable>);
 var
-  NewHeaders: TDictionary<string, string>;
+  NewHeaders: IDictionary<string, string>;
 begin
   // Resolve URL
   ARequest.Url := InterpolateVariables(ARequest.Url, AVariables);
   
   // Resolve headers
-  NewHeaders := TDictionary<string, string>.Create;
-  try
-    for var LPair in ARequest.Headers do
-      NewHeaders.Add(LPair.Key, InterpolateVariables(LPair.Value, AVariables));
-    
-    ARequest.Headers.Clear;
-    for var LPair in NewHeaders do
-      ARequest.Headers.Add(LPair.Key, LPair.Value);
-  finally
-    NewHeaders.Free;
-  end;
+  NewHeaders := TCollections.CreateDictionary<string, string>;
+  for var LPair in ARequest.Headers do
+    NewHeaders.Add(LPair.Key, InterpolateVariables(LPair.Value, AVariables));
+  
+  ARequest.Headers.Clear;
+  for var LPair in NewHeaders do
+    ARequest.Headers.Add(LPair.Key, LPair.Value);
   
   // Resolve body
   if ARequest.Body <> '' then

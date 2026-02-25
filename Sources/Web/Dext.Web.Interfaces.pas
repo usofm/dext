@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -32,7 +32,8 @@ uses
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
-  System.Generics.Collections,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.DI.Interfaces,
   Dext.Auth.Identity,
   Dext.Configuration.Interfaces;
@@ -117,20 +118,20 @@ type
     function GetPath: string;
     function GetQuery: TStrings;
     function GetBody: TStream;
-    function GetRouteParams: TDictionary<string, string>;
-    function GetHeaders: TDictionary<string, string>;
+    function GetRouteParams: IDictionary<string, string>;
+    function GetHeaders: IDictionary<string, string>;
     function GetRemoteIpAddress: string;
     function GetHeader(const AName: string): string;
     function GetQueryParam(const AName: string): string;
-    function GetCookies: TDictionary<string, string>;
+    function GetCookies: IDictionary<string, string>;
     function GetFiles: IFormFileCollection;
     property Method: string read GetMethod;
     property Path: string read GetPath;
     property Query: TStrings read GetQuery;
     property Body: TStream read GetBody;
-    property RouteParams: TDictionary<string, string> read GetRouteParams;
-    property Headers: TDictionary<string, string> read GetHeaders;
-    property Cookies: TDictionary<string, string> read GetCookies;
+    property RouteParams: IDictionary<string, string> read GetRouteParams;
+    property Headers: IDictionary<string, string> read GetHeaders;
+    property Cookies: IDictionary<string, string> read GetCookies;
     property Files: IFormFileCollection read GetFiles;
     property RemoteIpAddress: string read GetRemoteIpAddress;
   end;
@@ -165,12 +166,12 @@ type
     procedure SetServices(const AValue: IServiceProvider);
     function GetUser: IClaimsPrincipal;
     procedure SetUser(const AValue: IClaimsPrincipal);
-    function GetItems: TDictionary<string, TValue>;
+    function GetItems: IDictionary<string, TValue>;
     property Request: IHttpRequest read GetRequest;
     property Response: IHttpResponse read GetResponse write SetResponse;
     property Services: IServiceProvider read GetServices write SetServices;
     property User: IClaimsPrincipal read GetUser write SetUser;
-    property Items: TDictionary<string, TValue> read GetItems;
+    property Items: IDictionary<string, TValue> read GetItems;
   end;
 
   IMiddleware = interface
@@ -278,9 +279,9 @@ type
 
   TFormFileCollection = class(TInterfacedObject, IFormFileCollection)
   private
-    FItems: TList<IFormFile>;
+    FItems: IList<IFormFile>;
   public
-    constructor Create(AItems: TList<IFormFile>);
+    constructor Create(AItems: IList<IFormFile>);
     destructor Destroy; override;
     function GetCount: Integer;
     function GetItem(AIndex: Integer): IFormFile;
@@ -295,7 +296,7 @@ uses
 
 { TFormFileCollection }
 
-constructor TFormFileCollection.Create(AItems: TList<IFormFile>);
+constructor TFormFileCollection.Create(AItems: IList<IFormFile>);
 begin
   inherited Create;
   FItems := AItems;
@@ -303,7 +304,7 @@ end;
 
 destructor TFormFileCollection.Destroy;
 begin
-  FItems.Free;
+  FItems := nil;
   inherited;
 end;
 

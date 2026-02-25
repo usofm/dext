@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -40,6 +40,14 @@ type
   {$M+}
   IEnumerable<T> = interface
     function GetEnumerator: IEnumerator<T>;
+  end;
+
+  {$M+}
+  IDextBufferProvider = interface
+    ['{F4A7CB6D-1393-4B9A-B0F6-764E8B0E85D4}']
+    function GetBuffer: Pointer;
+    function GetSize: NativeInt;
+    function GetElementSize: NativeInt;
   end;
 
 implementation

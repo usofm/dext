@@ -30,8 +30,9 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
-  System.Generics.Defaults,
+  Dext.Collections.Base,
+  Dext.Collections,
+  Dext.Collections.Comparers,
   Dext.Entity.Migrations.Builder;
 
 type
@@ -51,7 +52,7 @@ type
   TMigrationRegistry = class
   private
     class var FInstance: TMigrationRegistry;
-    FMigrations: TList<IMigration>;
+    FMigrations: IList<IMigration>;
     class function GetInstance: TMigrationRegistry; static;
   public
     constructor Create;
@@ -76,12 +77,12 @@ end;
 
 constructor TMigrationRegistry.Create;
 begin
-  FMigrations := TList<IMigration>.Create;
+  FMigrations := TCollections.CreateList<IMigration>(False);
 end;
 
 destructor TMigrationRegistry.Destroy;
 begin
-  FMigrations.Free;
+  FMigrations := nil;
   inherited;
 end;
 
@@ -95,12 +96,11 @@ end;
 function TMigrationRegistry.GetMigrations: TArray<IMigration>;
 begin
   // Sort by ID to ensure chronological order
-  FMigrations.Sort(TComparer<IMigration>.Construct(
+  FMigrations.Sort(Dext.Collections.Comparers.TComparer<IMigration>.Construct(
     function(const Left, Right: IMigration): Integer
     begin
       Result := CompareText(Left.GetId, Right.GetId);
-    end
-  ));
+    end));
   Result := FMigrations.ToArray;
 end;
 

@@ -30,7 +30,8 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
+  Dext.Collections.Base,
+  Dext.Collections,
   Dext.Json,
   Dext.Json.Types,
   Dext.Entity.Migrations.Operations;
@@ -44,8 +45,8 @@ type
     class function SerializeOperation(Op: TMigrationOperation): IDextJsonObject;
     class function DeserializeOperation(Obj: IDextJsonObject): TMigrationOperation;
   public
-    class function Serialize(Operations: TObjectList<TMigrationOperation>): string;
-    class function Deserialize(const Json: string): TObjectList<TMigrationOperation>;
+    class function Serialize(Operations: IList<TMigrationOperation>): string;
+    class function Deserialize(const Json: string): IList<TMigrationOperation>;
   end;
 
 implementation
@@ -55,7 +56,7 @@ uses
 
 { TMigrationJsonSerializer }
 
-class function TMigrationJsonSerializer.Serialize(Operations: TObjectList<TMigrationOperation>): string;
+class function TMigrationJsonSerializer.Serialize(Operations: IList<TMigrationOperation>): string;
 var
   Arr: IDextJsonArray;
   Op: TMigrationOperation;
@@ -72,7 +73,7 @@ begin
   Result := Arr.ToJson(True); // Indented
 end;
 
-class function TMigrationJsonSerializer.Deserialize(const Json: string): TObjectList<TMigrationOperation>;
+class function TMigrationJsonSerializer.Deserialize(const Json: string): IList<TMigrationOperation>;
 var
   Provider: IDextJsonProvider;
   Node: IDextJsonNode;
@@ -80,7 +81,7 @@ var
   i: Integer;
   OpObj: IDextJsonObject;
 begin
-  Result := TObjectList<TMigrationOperation>.Create;
+  Result := TCollections.CreateList<TMigrationOperation>(True);
   try
     Provider := TDextJson.Provider;
     Node := Provider.Parse(Json);
@@ -97,7 +98,7 @@ begin
         Result.Add(DeserializeOperation(OpObj));
     end;
   except
-    Result.Free;
+    Result := nil;
     raise;
   end;
 end;

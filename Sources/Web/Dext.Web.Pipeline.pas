@@ -1,4 +1,4 @@
-{***************************************************************************}
+Ôªø{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -29,7 +29,8 @@ unit Dext.Web.Pipeline;
 interface
 
 uses
-  System.Generics.Collections,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Web.Interfaces, Dext.Web.Routing;
 
 type
@@ -40,16 +41,16 @@ type
 
   TDextPipeline = class(TInterfacedObject, IDextPipeline)
   private
-    FMappedRoutes: TDictionary<string, TRequestDelegate>;       // Rotas fixas
-    FRoutePatterns: TDictionary<TRoutePattern, TRequestDelegate>; // ? NOVO: Padrıes com par‚metros
+    FMappedRoutes: IDictionary<string, TRequestDelegate>;       // Rotas fixas
+    FRoutePatterns: IDictionary<TRoutePattern, TRequestDelegate>; // ? NOVO: Padr√µes com par√¢metros
     FMiddlewarePipeline: TRequestDelegate;
 
 //    function FindMatchingRoute(const APath: string;
 //      out AHandler: TRequestDelegate;
-//      out ARouteParams: TDictionary<string, string>): Boolean;
+//      out ARouteParams: IDictionary<string, string>): Boolean;
   public
-    constructor Create(AMappedRoutes: TDictionary<string, TRequestDelegate>;
-      ARoutePatterns: TDictionary<TRoutePattern, TRequestDelegate>; // ? NOVO: Receber padrıes
+    constructor Create(AMappedRoutes: IDictionary<string, TRequestDelegate>;
+      ARoutePatterns: IDictionary<TRoutePattern, TRequestDelegate>; // ? NOVO: Receber padr√µes
       APipeline: TRequestDelegate);
     destructor Destroy; override;
     procedure Execute(AContext: IHttpContext);
@@ -62,8 +63,8 @@ uses
 
 { TDextPipeline }
 
-constructor TDextPipeline.Create(AMappedRoutes: TDictionary<string, TRequestDelegate>;
-  ARoutePatterns: TDictionary<TRoutePattern, TRequestDelegate>;
+constructor TDextPipeline.Create(AMappedRoutes: IDictionary<string, TRequestDelegate>;
+  ARoutePatterns: IDictionary<TRoutePattern, TRequestDelegate>;
   APipeline: TRequestDelegate);
 var
   Path: string;
@@ -73,20 +74,20 @@ begin
   inherited Create;
 
   // ? Clonar rotas fixas
-  FMappedRoutes := TDictionary<string, TRequestDelegate>.Create;
+  FMappedRoutes := TCollections.CreateDictionary<string, TRequestDelegate>;
   for Path in AMappedRoutes.Keys do
   begin
     if AMappedRoutes.TryGetValue(Path, Handler) then
       FMappedRoutes.Add(Path, Handler);
   end;
 
-  // ? NOVO: Clonar padrıes de rota
-  FRoutePatterns := TDictionary<TRoutePattern, TRequestDelegate>.Create;
+  // ? NOVO: Clonar padr√µes de rota
+  FRoutePatterns := TCollections.CreateDictionary<TRoutePattern, TRequestDelegate>;
   for RoutePattern in ARoutePatterns.Keys do
   begin
     if ARoutePatterns.TryGetValue(RoutePattern, Handler) then
     begin
-      // Criar nova inst‚ncia do padr„o (clone)
+      // Criar nova inst√¢ncia do padr√£o (clone)
       var NewPattern := TRoutePattern.Create(RoutePattern.Pattern);
       FRoutePatterns.Add(NewPattern, Handler);
     end;
@@ -99,20 +100,20 @@ destructor TDextPipeline.Destroy;
 var
   RoutePattern: TRoutePattern;
 begin
-  FMappedRoutes.Free;
+  FMappedRoutes := nil;
 
-  // ? NOVO: Liberar padrıes de rota
+  // ? NOVO: Liberar padr√µes de rota
   for RoutePattern in FRoutePatterns.Keys do
     RoutePattern.Free;
-  FRoutePatterns.Free;
+  FRoutePatterns := nil;
 
   inherited Destroy;
 end;
 
-// ? NOVO: MÈtodo para encontrar rota correspondente
+// ? NOVO: M√©todo para encontrar rota correspondente
 //function TDextPipeline.FindMatchingRoute(const APath: string;
 //  out AHandler: TRequestDelegate;
-//  out ARouteParams: TDictionary<string, string>): Boolean;
+//  out ARouteParams: IDictionary<string, string>): Boolean;
 //var
 //  RoutePattern: TRoutePattern;
 //begin
@@ -123,7 +124,7 @@ end;
 //  if FMappedRoutes.TryGetValue(APath, AHandler) then
 //    Exit(True);
 //
-//  // 2. ? NOVO: Tentar padrıes de rota com par‚metros
+//  // 2. ? NOVO: Tentar padr√µes de rota com par√¢metros
 //  for RoutePattern in FRoutePatterns.Keys do
 //  begin
 //    if RoutePattern.Match(APath, ARouteParams) then
@@ -137,23 +138,23 @@ end;
 procedure TDextPipeline.Execute(AContext: IHttpContext);
 begin
   // ? Apenas executa o pipeline completo
-  // O roteamento agora est· DENTRO do pipeline como um middleware
+  // O roteamento agora est√° DENTRO do pipeline como um middleware
   FMiddlewarePipeline(AContext);
 end;
 
 //procedure TDextPipeline.Execute(AContext: IHttpContext);
 //var
 //  Handler: TRequestDelegate;
-//  RouteParams: TDictionary<string, string>;
+//  RouteParams: IDictionary<string, string>;
 //  IndyContext: TIndyHttpContext;
 //begin
 //  var Path := AContext.Request.Path;
 //
-//  // ? USAR novo mÈtodo de busca
+//  // ? USAR novo m√©todo de busca
 //  if FindMatchingRoute(Path, Handler, RouteParams) then
 //  begin
 //    try
-//      // ? INJETAR par‚metros de rota se encontrados
+//      // ? INJETAR par√¢metros de rota se encontrados
 //      if Assigned(RouteParams) and (AContext is TIndyHttpContext) then
 //      begin
 //        IndyContext := TIndyHttpContext(AContext);
@@ -173,4 +174,5 @@ end;
 //end;
 
 end.
+
 

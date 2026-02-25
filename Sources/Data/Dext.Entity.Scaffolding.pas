@@ -30,7 +30,7 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
+  Dext.Collections,
   Dext.Entity.Drivers.Interfaces,
   Dext.Utils;
 
@@ -146,8 +146,8 @@ function TFireDACSchemaProvider.GetTableMetadata(const ATableName: string): TMet
 var
   FDConn: TFDConnection;
   Meta: TFDMetaInfoQuery;
-  Cols: TList<TMetaColumn>;
-  FKs: TList<TMetaForeignKey>;
+  Cols: IList<TMetaColumn>;
+  FKs: IList<TMetaForeignKey>;
   Col: TMetaColumn;
   FK: TMetaForeignKey;
 begin
@@ -193,7 +193,7 @@ begin
       end;
     end;
     
-    Cols := TList<TMetaColumn>.Create;
+    Cols := TCollections.CreateList<TMetaColumn>;
     try
       while not Meta.Eof do
       begin
@@ -219,7 +219,7 @@ begin
       end;
       Result.Columns := Cols.ToArray;
     finally
-      Cols.Free;
+      // Cols is ARC, no Free needed here
     end;
     
     Meta.Close;
@@ -279,7 +279,7 @@ begin
       end;
     end;
     
-    FKs := TList<TMetaForeignKey>.Create;
+    FKs := TCollections.CreateList<TMetaForeignKey>;
     try
 
       while not Meta.Eof do
@@ -348,7 +348,6 @@ begin
     end;
 
     Result.ForeignKeys := FKs.ToArray;
-    FKs.Free;
   finally
     Meta.Free;
   end;

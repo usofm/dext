@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -38,7 +38,8 @@ interface
 
 uses
   System.Character,
-  System.Generics.Collections,
+  Dext.Collections,
+  Dext.Collections.Dict,
   System.SysUtils,
   System.Rtti,
   System.TypInfo,
@@ -51,8 +52,8 @@ type
   /// </summary>
   Prototype = class
   private class var
-    FCache: TDictionary<PTypeInfo, TObject>;
-    FStack: TList<PTypeInfo>;
+    FCache: IDictionary<PTypeInfo, TObject>;
+    FStack: IList<PTypeInfo>;
     class constructor Create;
     class destructor Destroy;
     class function CreatePrototype(ATypeInfo: PTypeInfo): TObject; static;
@@ -83,8 +84,8 @@ uses
 
 class constructor Prototype.Create;
 begin
-  FCache := TDictionary<PTypeInfo, TObject>.Create;
-  FStack := TList<PTypeInfo>.Create;
+  FCache := TCollections.CreateDictionary<PTypeInfo, TObject>;
+  FStack := TCollections.CreateList<PTypeInfo>;
 end;
 
 class destructor Prototype.Destroy;
@@ -95,9 +96,9 @@ begin
   begin
     for Obj in FCache.Values do
       Obj.Free;
-    FCache.Free;
   end;
-  FStack.Free;
+  FCache := nil;
+  FStack := nil;
 end;
 
 class procedure Prototype.ClearCache;

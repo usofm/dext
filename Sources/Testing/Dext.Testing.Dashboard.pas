@@ -5,12 +5,12 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
   IdHTTPServer,
   IdContext,
   IdCustomHTTPServer,
   IdGlobal, // Added for ToBytes/TIdBytes
   System.Types, // Added for RT_RCDATA
+  Dext.Collections,
   Dext.Testing.Runner,
   Dext.Testing.History;
 
@@ -19,10 +19,10 @@ type
   TDashboardListener = class(TInterfacedObject, ITestListener)
   private
     FServer: TIdHTTPServer;
-    FClients: TList<TIdContext>;
+    FClients: IList<TIdContext>;
     FLock: TObject;
     FPort: Integer;
-    FEventBuffer: TList<string>; 
+    FEventBuffer: IList<string>; 
     
     // Server events
     procedure OnConnect(AContext: TIdContext);
@@ -63,8 +63,8 @@ begin
   inherited Create;
   FPort := Port;
   FLock := TObject.Create;
-  FClients := TList<TIdContext>.Create;
-  FEventBuffer := TList<string>.Create;
+  FClients := TCollections.CreateList<TIdContext>;
+  FEventBuffer := TCollections.CreateList<string>;
   
   FServer := TIdHTTPServer.Create(nil);
   FServer.OnConnect := OnConnect;
@@ -77,8 +77,6 @@ destructor TDashboardListener.Destroy;
 begin
   Stop;
   FServer.Free;
-  FClients.Free;
-  FEventBuffer.Free;
   FLock.Free;
   inherited;
 end;

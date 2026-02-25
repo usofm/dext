@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -30,9 +30,11 @@ unit Dext.Http.Request;
 interface
 
 uses
+  System.RegularExpressions,
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections;
+  Dext.Collections,
+  Dext.Collections.Dict;
 
 type
   /// <summary>
@@ -63,7 +65,7 @@ type
     FName: string;
     FMethod: string;
     FUrl: string;
-    FHeaders: TDictionary<string, string>;
+    FHeaders: IDictionary<string, string>;
     FBody: string;
     FLineNumber: Integer;
   public
@@ -88,7 +90,7 @@ type
     /// <summary>
     ///   Request headers.
     /// </summary>
-    property Headers: TDictionary<string, string> read FHeaders;
+    property Headers: IDictionary<string, string> read FHeaders;
     
     /// <summary>
     ///   Request body (for POST/PUT/PATCH).
@@ -106,8 +108,8 @@ type
   /// </summary>
   THttpRequestCollection = class
   private
-    FVariables: TList<THttpVariable>;
-    FRequests: TObjectList<THttpRequestInfo>;
+    FVariables: IList<THttpVariable>;
+    FRequests: IList<THttpRequestInfo>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -115,12 +117,12 @@ type
     /// <summary>
     ///   Variables defined in the file (@name = value).
     /// </summary>
-    property Variables: TList<THttpVariable> read FVariables;
+    property Variables: IList<THttpVariable> read FVariables;
     
     /// <summary>
     ///   HTTP requests parsed from the file.
     /// </summary>
-    property Requests: TObjectList<THttpRequestInfo> read FRequests;
+    property Requests: IList<THttpRequestInfo> read FRequests;
     
     /// <summary>
     ///   Finds a request by name.
@@ -168,28 +170,28 @@ end;
 constructor THttpRequestInfo.Create;
 begin
   inherited;
-  FHeaders := TDictionary<string, string>.Create;
+  FHeaders := TCollections.CreateDictionary<string, string>;
 end;
-
-destructor THttpRequestInfo.Destroy;
-begin
-  FHeaders.Free;
-  inherited;
-end;
+ 
+ destructor THttpRequestInfo.Destroy;
+ begin
+   FHeaders := nil;
+   inherited;
+ end;
 
 { THttpRequestCollection }
 
 constructor THttpRequestCollection.Create;
 begin
   inherited;
-  FVariables := TList<THttpVariable>.Create;
-  FRequests := TObjectList<THttpRequestInfo>.Create;
+  FVariables := TCollections.CreateList<THttpVariable>;
+  FRequests := TCollections.CreateList<THttpRequestInfo>;
 end;
 
 destructor THttpRequestCollection.Destroy;
 begin
-  FRequests.Free;
-  FVariables.Free;
+  FRequests := nil;
+  FVariables := nil;
   inherited;
 end;
 

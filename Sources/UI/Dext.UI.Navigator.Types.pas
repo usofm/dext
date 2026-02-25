@@ -39,10 +39,11 @@ unit Dext.UI.Navigator.Types;
 interface
 
 uses
-  System.SysUtils,
   System.Classes,
   System.Rtti,
-  System.Generics.Collections;
+  System.SysUtils,
+  Dext.Collections,
+  Dext.Collections.Dict;
 
 type
   /// <summary>
@@ -94,7 +95,7 @@ type
   /// </summary>
   TNavParams = class
   private
-    FParams: TDictionary<string, TValue>;
+    FParams: IDictionary<string, TValue>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -172,7 +173,7 @@ type
     FTargetViewClass: TClass;
     FSourceView: TObject;
     FTargetView: TObject;
-    FItems: TDictionary<string, TValue>;
+    FItems: IDictionary<string, TValue>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -300,12 +301,12 @@ end;
 constructor TNavParams.Create;
 begin
   inherited Create;
-  FParams := TDictionary<string, TValue>.Create;
+  FParams := TCollections.CreateDictionary<string, TValue>;
 end;
 
 destructor TNavParams.Destroy;
 begin
-  FParams.Free;
+  // FParams is ARC
   inherited;
 end;
 
@@ -370,7 +371,7 @@ end;
 
 function TNavParams.Keys: TArray<string>;
 begin
-  Result := FParams.Keys.ToArray;
+  Result := FParams.Keys;
 end;
 
 function TNavParams.Count: Integer;
@@ -393,13 +394,13 @@ end;
 constructor TNavigationContext.Create;
 begin
   inherited Create;
-  FItems := TDictionary<string, TValue>.Create;
+  FItems := TCollections.CreateDictionary<string, TValue>;
   FCanceled := False;
 end;
 
 destructor TNavigationContext.Destroy;
 begin
-  FItems.Free;
+  // FItems is ARC
   // Note: FParams ownership is external - do not free
   inherited;
 end;

@@ -1,4 +1,4 @@
-unit Dext.Entity.SqlGenerator.Tests;
+﻿unit Dext.Entity.SqlGenerator.Tests;
 
 interface
 

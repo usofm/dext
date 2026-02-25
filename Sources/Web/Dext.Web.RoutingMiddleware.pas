@@ -1,4 +1,4 @@
-{***************************************************************************}
+Ôªø{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -29,6 +29,7 @@ unit Dext.Web.RoutingMiddleware;
 interface
 
 uses
+  Dext.Collections, Dext.Collections.Dict,
   Dext.Web.Core,
   Dext.Web.Interfaces,
   Dext.Web.Routing;  // ? Para IRouteMatcher
@@ -46,7 +47,6 @@ type
 implementation
 
 uses
-  System.Generics.Collections,
   Dext.Web.Indy;
 
 { TRoutingMiddleware }
@@ -65,18 +65,18 @@ end;
 procedure TRoutingMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
 var
   Handler: TRequestDelegate;
-  RouteParams: TDictionary<string, string>;
+  RouteParams: IDictionary<string, string>;
   Metadata: TEndpointMetadata;
   IndyContext: TIndyHttpContext;
 begin
   var Path := AContext.Request.Path;
   var Method := AContext.Request.Method;
 
-  // ? USAR RouteMatcher via interface com suporte a MÈtodo
+  // ? USAR RouteMatcher via interface com suporte a M√©todo
   if FRouteMatcher.FindMatchingRoute(AContext, Handler, RouteParams, Metadata) then
   begin
     try
-      // ? INJETAR par‚metros de rota se encontrados
+      // ? INJETAR par√¢metros de rota se encontrados
       if Assigned(RouteParams) and (AContext is TIndyHttpContext) then
       begin
         IndyContext := TIndyHttpContext(AContext);
@@ -87,7 +87,7 @@ begin
 
       Handler(AContext);
     finally
-      RouteParams.Free;
+      RouteParams := nil;
     end;
   end
   else
@@ -98,4 +98,5 @@ begin
 end;
 
 end.
+
 

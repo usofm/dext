@@ -27,9 +27,9 @@ uses
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
-  System.Generics.Collections,
   Dext.Interception,
   Dext.Interception.ClassProxy,
+  Dext.Collections,
   Dext.Mocks;
 
 type
@@ -73,8 +73,8 @@ type
   private
     FBehavior: TMockBehavior;
     FState: TMockState;
-    FSetups: TObjectList<TMethodSetup>;
-    FReceivedCalls: TObjectList<TMethodCall>;
+    FSetups: IList<TMethodSetup>;
+    FReceivedCalls: IList<TMethodCall>;
     FPendingSetup: TMethodSetup;
     FVerifyTimes: Times;
     FCallBase: Boolean;
@@ -89,8 +89,8 @@ type
     procedure Reset;
     property Behavior: TMockBehavior read FBehavior write FBehavior;
     property State: TMockState read FState;
-    property Setups: TObjectList<TMethodSetup> read FSetups;
-    property ReceivedCalls: TObjectList<TMethodCall> read FReceivedCalls;
+    property Setups: IList<TMethodSetup> read FSetups;
+    property ReceivedCalls: IList<TMethodCall> read FReceivedCalls;
     property CallBase: Boolean read FCallBase write FCallBase;
   end;
 
@@ -239,14 +239,13 @@ begin
   inherited Create;
   FBehavior := ABehavior;
   FState := TMockState.Acting;
-  FSetups := TObjectList<TMethodSetup>.Create(True);
-  FReceivedCalls := TObjectList<TMethodCall>.Create(True);
+  FSetups := TCollections.CreateObjectList<TMethodSetup>(True);
+  FReceivedCalls := TCollections.CreateObjectList<TMethodCall>(True);
 end;
 
 destructor TMockInterceptor.Destroy;
 begin
-  FSetups.Free;
-  FReceivedCalls.Free;
+  // Lists are ARC
   inherited;
 end;
 

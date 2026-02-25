@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -31,14 +31,15 @@ uses
   System.SysUtils,
   System.Classes,
   System.IOUtils,
-  System.Generics.Collections,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Web.Interfaces,
   Dext.Web.Core;
 
 type
   TContentTypeProvider = class
   private
-    FMimeTypes: TDictionary<string, string>;
+    FMimeTypes: IDictionary<string, string>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -78,14 +79,13 @@ type
 implementation
 
 uses
-  System.Generics.Defaults,
   System.Rtti;
 
 { TContentTypeProvider }
 
 constructor TContentTypeProvider.Create;
 begin
-  FMimeTypes := TDictionary<string, string>.Create(TStringComparer.Ordinal);
+  FMimeTypes := TCollections.CreateDictionary<string, string>;
   // Common Web Types
   FMimeTypes.Add('.html', 'text/html');
   FMimeTypes.Add('.htm', 'text/html');
@@ -118,7 +118,7 @@ end;
 
 destructor TContentTypeProvider.Destroy;
 begin
-  FMimeTypes.Free;
+  FMimeTypes := nil;
   inherited;
 end;
 
@@ -185,7 +185,7 @@ begin
       AContext.Response.SetContentType(GetContentType(AFilePath));
       AContext.Response.SetContentLength(FileStream.Size);
       
-      // ✅ Use efficient Stream writing
+      // âœ… Use efficient Stream writing
       AContext.Response.Write(FileStream);
     finally
       FileStream.Free;
@@ -232,7 +232,7 @@ end;
 class function TApplicationBuilderStaticFilesExtensions.UseStaticFiles(
   const ABuilder: IApplicationBuilder): IApplicationBuilder;
 begin
-  // ✅ Instantiate Singleton Middleware
+  // âœ… Instantiate Singleton Middleware
   var Middleware := TStaticFileMiddleware.Create(TStaticFileOptions.Create);
   Result := ABuilder.UseMiddleware(Middleware);
 end;
@@ -241,7 +241,7 @@ class function TApplicationBuilderStaticFilesExtensions.UseStaticFiles(
   const ABuilder: IApplicationBuilder;
   const AOptions: TStaticFileOptions): IApplicationBuilder;
 begin
-  // ✅ Instantiate Singleton Middleware
+  // âœ… Instantiate Singleton Middleware
   var Middleware := TStaticFileMiddleware.Create(AOptions);
   Result := ABuilder.UseMiddleware(Middleware);
 end;
@@ -255,10 +255,11 @@ begin
   Options := TStaticFileOptions.Create;
   Options.RootPath := ARootPath;
   
-  // ✅ Instantiate Singleton Middleware
+  // âœ… Instantiate Singleton Middleware
   var Middleware := TStaticFileMiddleware.Create(Options);
   Result := ABuilder.UseMiddleware(Middleware);
 end;
 
 end.
+
 

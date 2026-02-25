@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -30,13 +30,14 @@ unit Dext.Http.Executor;
 interface
 
 uses
-  System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
-  Dext.Threading.Async,
-  Dext.Http.Request,
+  System.SysUtils,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Http.Parser,
-  Dext.Net.RestClient;
+  Dext.Http.Request,
+  Dext.Net.RestClient,
+  Dext.Threading.Async;
 
 type
   /// <summary>
@@ -49,7 +50,7 @@ type
     StatusCode: Integer;
     StatusText: string;
     ResponseBody: string;
-    ResponseHeaders: TDictionary<string, string>;
+    ResponseHeaders: IDictionary<string, string>;
     DurationMs: Int64;
     Success: Boolean;
     ErrorMessage: string;
@@ -71,14 +72,14 @@ type
     ///   Executes a request with variables resolved from the collection.
     /// </summary>
     class function ExecuteWithVariablesAsync(ARequest: THttpRequestInfo; 
-      AVariables: TList<THttpVariable>): TAsyncBuilder<IRestResponse>; static;
+      AVariables: IList<THttpVariable>): TAsyncBuilder<IRestResponse>; static;
     
     /// <summary>
     ///   Executes a request and returns a detailed result record.
     ///   This is a synchronous wrapper for use in Dashboard UI.
     /// </summary>
     class function ExecuteSync(ARequest: THttpRequestInfo; 
-      AVariables: TList<THttpVariable>): THttpExecutionResult; static;
+      AVariables: IList<THttpVariable>): THttpExecutionResult; static;
   end;
 
 implementation
@@ -125,7 +126,7 @@ begin
 end;
 
 class function THttpExecutor.ExecuteWithVariablesAsync(ARequest: THttpRequestInfo; 
-  AVariables: TList<THttpVariable>): TAsyncBuilder<IRestResponse>;
+  AVariables: IList<THttpVariable>): TAsyncBuilder<IRestResponse>;
 begin
   // Resolve variables first
   THttpRequestParser.ResolveRequest(ARequest, AVariables);
@@ -133,7 +134,7 @@ begin
 end;
 
 class function THttpExecutor.ExecuteSync(ARequest: THttpRequestInfo; 
-  AVariables: TList<THttpVariable>): THttpExecutionResult;
+  AVariables: IList<THttpVariable>): THttpExecutionResult;
 var
   Stopwatch: TStopwatch;
   Response: IRestResponse;

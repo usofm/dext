@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -30,7 +30,6 @@ interface
 uses
   System.SysUtils,
   System.DateUtils,
-  System.Generics.Collections,
   System.SyncObjs,
   Dext.Web.Interfaces;
 

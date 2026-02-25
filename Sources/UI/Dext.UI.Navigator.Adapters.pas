@@ -40,9 +40,10 @@ unit Dext.UI.Navigator.Adapters;
 interface
 
 uses
-  System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
+  System.SysUtils,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.UI.Navigator.Interfaces;
 
 type
@@ -53,7 +54,7 @@ type
   protected
     FContainer: TComponent;
     FActiveView: TObject;
-    FViews: TDictionary<string, TObject>;
+    FViews: IDictionary<string, TObject>;
     
     /// <summary>
     /// Template method: actually show the view in the container
@@ -106,7 +107,7 @@ type
   /// </summary>
   TPageControlAdapter = class(TBaseNavigatorAdapter)
   private
-    FTabSheets: TDictionary<TObject, TTabSheet>;
+    FTabSheets: IDictionary<TObject, TTabSheet>;
   protected
     procedure DoShowView(View: TObject); override;
     procedure DoHideView(View: TObject); override;
@@ -153,12 +154,12 @@ constructor TBaseNavigatorAdapter.Create(AContainer: TComponent);
 begin
   inherited Create;
   FContainer := AContainer;
-  FViews := TDictionary<string, TObject>.Create;
+  FViews := TCollections.CreateDictionary<string, TObject>;
 end;
 
 destructor TBaseNavigatorAdapter.Destroy;
 begin
-  FViews.Free;
+  // FViews is ARC
   inherited;
 end;
 
@@ -176,16 +177,15 @@ end;
 
 procedure TBaseNavigatorAdapter.RemoveView(View: TObject);
 var
-  Pair: TPair<string, TObject>;
   RouteToRemove: string;
 begin
   // Find and remove from dictionary
   RouteToRemove := '';
-  for Pair in FViews do
+  for var Key in FViews.Keys do
   begin
-    if Pair.Value = View then
+    if FViews[Key] = View then
     begin
-      RouteToRemove := Pair.Key;
+      RouteToRemove := Key;
       Break;
     end;
   end;
@@ -322,12 +322,12 @@ end;
 constructor TPageControlAdapter.Create(APageControl: TPageControl);
 begin
   inherited Create(APageControl);
-  FTabSheets := TDictionary<TObject, TTabSheet>.Create;
+  FTabSheets := TCollections.CreateDictionary<TObject, TTabSheet>;
 end;
 
 destructor TPageControlAdapter.Destroy;
 begin
-  FTabSheets.Free;
+  // FTabSheets is ARC
   inherited;
 end;
 

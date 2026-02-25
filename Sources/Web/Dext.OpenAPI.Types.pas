@@ -28,8 +28,9 @@ unit Dext.OpenAPI.Types;
 interface
 
 uses
-  System.Generics.Collections,
-  System.SysUtils;
+  System.SysUtils,
+  Dext.Collections,
+  Dext.Collections.Dict;
 
 type
   /// <summary>
@@ -53,7 +54,7 @@ type
     FFormat: string;
     FDescription: string;
     FRequired: TArray<string>;
-    FProperties: TDictionary<string, TOpenAPISchema>;
+    FProperties: IDictionary<string, TOpenAPISchema>;
     FItems: TOpenAPISchema;
     FRef: string; // For $ref references
     FEnum: TArray<string>;
@@ -66,7 +67,7 @@ type
     property Format: string read FFormat write FFormat;
     property Description: string read FDescription write FDescription;
     property Required: TArray<string> read FRequired write FRequired;
-    property Properties: TDictionary<string, TOpenAPISchema> read FProperties;
+    property Properties: IDictionary<string, TOpenAPISchema> read FProperties;
     property Items: TOpenAPISchema read FItems write FItems;
     property Ref: string read FRef write FRef;
     property Enum: TArray<string> read FEnum write FEnum;
@@ -103,14 +104,14 @@ type
   private
     FDescription: string;
     FRequired: Boolean;
-    FContent: TDictionary<string, TOpenAPISchema>; // MediaType -> Schema
+    FContent: IDictionary<string, TOpenAPISchema>; // MediaType -> Schema
   public
     constructor Create;
     destructor Destroy; override;
     
     property Description: string read FDescription write FDescription;
     property Required: Boolean read FRequired write FRequired;
-    property Content: TDictionary<string, TOpenAPISchema> read FContent;
+    property Content: IDictionary<string, TOpenAPISchema> read FContent;
   end;
 
   /// <summary>
@@ -119,13 +120,13 @@ type
   TOpenAPIResponse = class
   private
     FDescription: string;
-    FContent: TDictionary<string, TOpenAPISchema>; // MediaType -> Schema
+    FContent: IDictionary<string, TOpenAPISchema>; // MediaType -> Schema
   public
     constructor Create;
     destructor Destroy; override;
     
     property Description: string read FDescription write FDescription;
-    property Content: TDictionary<string, TOpenAPISchema> read FContent;
+    property Content: IDictionary<string, TOpenAPISchema> read FContent;
   end;
 
   /// <summary>
@@ -137,10 +138,10 @@ type
     FDescription: string;
     FOperationId: string;
     FTags: TArray<string>;
-    FParameters: TObjectList<TOpenAPIParameter>;
+    FParameters: IList<TOpenAPIParameter>;
     FRequestBody: TOpenAPIRequestBody;
-    FResponses: TDictionary<string, TOpenAPIResponse>; // Status Code -> Response
-    FSecurity: TList<TDictionary<string, TArray<string>>>;
+    FResponses: IDictionary<string, TOpenAPIResponse>; // Status Code -> Response
+    FSecurity: IList<IDictionary<string, TArray<string>>>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -149,10 +150,10 @@ type
     property Description: string read FDescription write FDescription;
     property OperationId: string read FOperationId write FOperationId;
     property Tags: TArray<string> read FTags write FTags;
-    property Parameters: TObjectList<TOpenAPIParameter> read FParameters;
+    property Parameters: IList<TOpenAPIParameter> read FParameters;
     property RequestBody: TOpenAPIRequestBody read FRequestBody write FRequestBody;
-    property Responses: TDictionary<string, TOpenAPIResponse> read FResponses;
-    property Security: TList<TDictionary<string, TArray<string>>> read FSecurity;
+    property Responses: IDictionary<string, TOpenAPIResponse> read FResponses;
+    property Security: IList<IDictionary<string, TArray<string>>> read FSecurity;
   end;
 
   /// <summary>
@@ -267,20 +268,20 @@ type
   private
     FOpenAPI: string;
     FInfo: TOpenAPIInfo;
-    FServers: TList<TOpenAPIServer>;
-    FPaths: TDictionary<string, TOpenAPIPathItem>;
-    FSchemas: TDictionary<string, TOpenAPISchema>;
-    FSecuritySchemes: TDictionary<string, TOpenAPISecurityScheme>;
+    FServers: IList<TOpenAPIServer>;
+    FPaths: IDictionary<string, TOpenAPIPathItem>;
+    FSchemas: IDictionary<string, TOpenAPISchema>;
+    FSecuritySchemes: IDictionary<string, TOpenAPISecurityScheme>;
   public
     constructor Create;
     destructor Destroy; override;
     
     property OpenAPI: string read FOpenAPI write FOpenAPI;
     property Info: TOpenAPIInfo read FInfo write FInfo;
-    property Servers: TList<TOpenAPIServer> read FServers;
-    property Paths: TDictionary<string, TOpenAPIPathItem> read FPaths;
-    property Schemas: TDictionary<string, TOpenAPISchema> read FSchemas;
-    property SecuritySchemes: TDictionary<string, TOpenAPISecurityScheme> read FSecuritySchemes;
+    property Servers: IList<TOpenAPIServer> read FServers;
+    property Paths: IDictionary<string, TOpenAPIPathItem> read FPaths;
+    property Schemas: IDictionary<string, TOpenAPISchema> read FSchemas;
+    property SecuritySchemes: IDictionary<string, TOpenAPISecurityScheme> read FSecuritySchemes;
   end;
 
 implementation
@@ -290,16 +291,14 @@ implementation
 constructor TOpenAPISchema.Create;
 begin
   inherited;
-  FProperties := TDictionary<string, TOpenAPISchema>.Create;
+  FProperties := TCollections.CreateDictionary<string, TOpenAPISchema>;
 end;
 
 destructor TOpenAPISchema.Destroy;
-var
-  Schema: TOpenAPISchema;
 begin
-  for Schema in FProperties.Values do
-    Schema.Free;
-  FProperties.Free;
+  for var Pair in FProperties do
+    Pair.Value.Free;
+  // FProperties is ARC
   
   if Assigned(FItems) then
     FItems.Free;
@@ -326,16 +325,14 @@ end;
 constructor TOpenAPIRequestBody.Create;
 begin
   inherited;
-  FContent := TDictionary<string, TOpenAPISchema>.Create;
+  FContent := TCollections.CreateDictionary<string, TOpenAPISchema>;
 end;
 
 destructor TOpenAPIRequestBody.Destroy;
-var
-  Schema: TOpenAPISchema;
 begin
-  for Schema in FContent.Values do
-    Schema.Free;
-  FContent.Free;
+  for var Pair in FContent do
+    Pair.Value.Free;
+  // FContent is ARC
   inherited;
 end;
 
@@ -344,16 +341,14 @@ end;
 constructor TOpenAPIResponse.Create;
 begin
   inherited;
-  FContent := TDictionary<string, TOpenAPISchema>.Create;
+  FContent := TCollections.CreateDictionary<string, TOpenAPISchema>;
 end;
 
 destructor TOpenAPIResponse.Destroy;
-var
-  Schema: TOpenAPISchema;
 begin
-  for Schema in FContent.Values do
-    Schema.Free;
-  FContent.Free;
+  for var Pair in FContent do
+    Pair.Value.Free;
+  // FContent is ARC
   inherited;
 end;
 
@@ -362,24 +357,21 @@ end;
 constructor TOpenAPIOperation.Create;
 begin
   inherited;
-  FParameters := TObjectList<TOpenAPIParameter>.Create(True);
-  FResponses := TDictionary<string, TOpenAPIResponse>.Create;
-  FSecurity := TList<TDictionary<string, TArray<string>>>.Create;
+  FParameters := TCollections.CreateObjectList<TOpenAPIParameter>(True);
+  FResponses := TCollections.CreateDictionary<string, TOpenAPIResponse>;
+  FSecurity := TCollections.CreateList<IDictionary<string, TArray<string>>>(True);
 end;
 
 destructor TOpenAPIOperation.Destroy;
-var
-  Response: TOpenAPIResponse;
 begin
-  FParameters.Free;
+  // FParameters is ARC
   
-  for Response in FResponses.Values do
-    Response.Free;
-  FResponses.Free;
+  for var Pair in FResponses do
+    Pair.Value.Free;
+  // FResponses is ARC
   
-  for var Sec in FSecurity do
-    Sec.Free;
-  FSecurity.Free;
+  // FSecurity items are freed by ARC since it's an object list
+
   
   if Assigned(FRequestBody) then
     FRequestBody.Free;
@@ -417,32 +409,28 @@ begin
   inherited;
   FOpenAPI := '3.0.0';
   FInfo := TOpenAPIInfo.Create;
-  FServers := TList<TOpenAPIServer>.Create;
-  FPaths := TDictionary<string, TOpenAPIPathItem>.Create;
-  FSchemas := TDictionary<string, TOpenAPISchema>.Create;
-  FSecuritySchemes := TDictionary<string, TOpenAPISecurityScheme>.Create;
+  FServers := TCollections.CreateList<TOpenAPIServer>;
+  FPaths := TCollections.CreateDictionary<string, TOpenAPIPathItem>;
+  FSchemas := TCollections.CreateDictionary<string, TOpenAPISchema>;
+  FSecuritySchemes := TCollections.CreateDictionary<string, TOpenAPISecurityScheme>;
 end;
 
 destructor TOpenAPIDocument.Destroy;
-var
-  PathItem: TOpenAPIPathItem;
-  Schema: TOpenAPISchema;
-  SecurityScheme: TOpenAPISecurityScheme;
 begin
   FInfo.Free;
-  FServers.Free;
+  // FServers is ARC
   
-  for PathItem in FPaths.Values do
-    PathItem.Free;
-  FPaths.Free;
+  for var Pair in FPaths do
+    Pair.Value.Free;
+  // FPaths is ARC
   
-  for Schema in FSchemas.Values do
-    Schema.Free;
-  FSchemas.Free;
+  for var Pair in FSchemas do
+    Pair.Value.Free;
+  // FSchemas is ARC
   
-  for SecurityScheme in FSecuritySchemes.Values do
-    SecurityScheme.Free;
-  FSecuritySchemes.Free;
+  for var Pair in FSecuritySchemes do
+    Pair.Value.Free;
+  // FSecuritySchemes is ARC
   
   inherited;
 end;

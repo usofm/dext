@@ -43,13 +43,13 @@ type
   ///   A and B point to the raw element data.
   ///   Returns: negative if A < B, 0 if equal, positive if A > B.
   /// </summary>
-  TRawCompareFunc = function(A, B: Pointer): Integer;
+  TRawCompareFunc = reference to function(A, B: Pointer): Integer;
 
   /// <summary>
   ///   Callback for comparing two raw elements for equality.
   ///   Returns True if A and B represent the same value.
   /// </summary>
-  TRawEqualityFunc = function(A, B: Pointer): Boolean;
+  TRawEqualityFunc = reference to function(A, B: Pointer): Boolean;
 
   /// <summary>
   ///   Notification type for list changes (used by TTrackingList etc.)

@@ -24,11 +24,11 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
+  Dext.Collections,
   System.Rtti,
   System.TypInfo,
-  Dext.Collections,
   Dext.Collections.Base,
+  Dext.Collections.Dict,
   Dext.Entity.Core;
 
 type

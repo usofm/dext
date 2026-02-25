@@ -1,4 +1,4 @@
-unit Dext.Web.Indy.SSL.Taurus;
+﻿unit Dext.Web.Indy.SSL.Taurus;
 {$I ..\..\Dext.inc}
 
 interface

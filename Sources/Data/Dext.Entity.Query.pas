@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -33,11 +33,12 @@ interface
 
 uses
   System.Classes,
-  System.Generics.Collections,
-  System.Generics.Defaults,
+  Dext.Collections.Base,
+  Dext.Collections,
+  Dext.Collections.Comparers,
+  Dext.Collections.Dict,
   System.Rtti,
   System.SysUtils,
-  Dext.Collections,
   Dext.Specifications.Base,
   Dext.Specifications.Interfaces,
   Dext.Specifications.Types,
@@ -87,14 +88,15 @@ type
   ///   Base iterator for lazy query execution.
   ///   Inherits from TEnumerator<T> to integrate with Delphi's collection system.
   /// </summary>
-  TQueryIterator<T> = class(System.Generics.Collections.TEnumerator<T>)
+  TQueryIterator<T> = class(TInterfacedObject, Dext.Collections.Base.IEnumerator<T>)
   protected
     FCurrent: T;
-    function DoGetCurrent: T; override;
-    function DoMoveNext: Boolean; override;
     function MoveNextCore: Boolean; virtual; abstract;
   public
     constructor Create;
+    function GetCurrent: T;
+    function MoveNext: Boolean;
+    property Current: T read GetCurrent;
   end;
 
   /// <summary>
@@ -134,7 +136,7 @@ type
       const AConnection: IDbConnection = nil
     ); overload;
     
-    function GetEnumerator: System.Generics.Collections.TEnumerator<T>;
+    function GetEnumerator: IEnumerator<T>;
     
     /// <summary>
     ///   Projects each element of a sequence into a new form.
@@ -271,12 +273,12 @@ type
 
   TProjectingIterator<TSource, TResult> = class(TQueryIterator<TResult>)
   private
-    FEnumerator: System.Generics.Collections.TEnumerator<TSource>;
+    FEnumerator: IEnumerator<TSource>;
     FSelector: TFunc<TSource, TResult>;
   protected
     function MoveNextCore: Boolean; override;
   public
-    constructor Create(AEnumerator: System.Generics.Collections.TEnumerator<TSource>; const ASelector: TFunc<TSource, TResult>);
+    constructor Create(AEnumerator: IEnumerator<TSource>; const ASelector: TFunc<TSource, TResult>);
     destructor Destroy; override;
   end;
 
@@ -285,12 +287,12 @@ type
   /// </summary>
   TFilteringIterator<T> = class(TQueryIterator<T>)
   private
-    FEnumerator: System.Generics.Collections.TEnumerator<T>;
+    FEnumerator: IEnumerator<T>;
     FPredicate: TPredicate<T>;
   protected
     function MoveNextCore: Boolean; override;
   public
-    constructor Create(AEnumerator: System.Generics.Collections.TEnumerator<T>; const APredicate: TPredicate<T>);
+    constructor Create(AEnumerator: IEnumerator<T>; const APredicate: TPredicate<T>);
     destructor Destroy; override;
   end;
 
@@ -299,13 +301,13 @@ type
   /// </summary>
   TSkipIterator<T> = class(TQueryIterator<T>)
   private
-    FEnumerator: System.Generics.Collections.TEnumerator<T>;
+    FEnumerator: IEnumerator<T>;
     FCount: Integer;
     FIndex: Integer;
   protected
     function MoveNextCore: Boolean; override;
   public
-    constructor Create(AEnumerator: System.Generics.Collections.TEnumerator<T>; const ACount: Integer);
+    constructor Create(AEnumerator: IEnumerator<T>; const ACount: Integer);
     destructor Destroy; override;
   end;
 
@@ -314,13 +316,13 @@ type
   /// </summary>
   TTakeIterator<T> = class(TQueryIterator<T>)
   private
-    FEnumerator: System.Generics.Collections.TEnumerator<T>;
+    FEnumerator: IEnumerator<T>;
     FCount: Integer;
     FIndex: Integer;
   protected
     function MoveNextCore: Boolean; override;
   public
-    constructor Create(AEnumerator: System.Generics.Collections.TEnumerator<T>; const ACount: Integer);
+    constructor Create(AEnumerator: IEnumerator<T>; const ACount: Integer);
     destructor Destroy; override;
   end;
 
@@ -329,12 +331,12 @@ type
   /// </summary>
   TDistinctIterator<T> = class(TQueryIterator<T>)
   private
-    FEnumerator: System.Generics.Collections.TEnumerator<T>;
-    FSeen: TDictionary<T, Byte>;
+    FEnumerator: IEnumerator<T>;
+    FSeen: IDictionary<T, Byte>;
   protected
     function MoveNextCore: Boolean; override;
   public
-    constructor Create(AEnumerator: System.Generics.Collections.TEnumerator<T>);
+    constructor Create(AEnumerator: IEnumerator<T>);
     destructor Destroy; override;
   end;
 
@@ -419,12 +421,12 @@ begin
   inherited Create;
 end;
 
-function TQueryIterator<T>.DoGetCurrent: T;
+function TQueryIterator<T>.GetCurrent: T;
 begin
   Result := FCurrent;
 end;
 
-function TQueryIterator<T>.DoMoveNext: Boolean;
+function TQueryIterator<T>.MoveNext: Boolean;
 begin
   Result := MoveNextCore;
 end;
@@ -489,7 +491,7 @@ begin
   Result := FConnection;
 end;
 
-function TFluentQuery<T>.GetEnumerator: System.Generics.Collections.TEnumerator<T>;
+function TFluentQuery<T>.GetEnumerator: IEnumerator<T>;
 begin
   if Assigned(FIteratorFactory) then
      Result := FIteratorFactory()
@@ -862,7 +864,7 @@ end;
 
 function TFluentQuery<T>.ToList: IList<T>;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
   OwnsObjects: Boolean;
 begin
   // DEFAULT BEHAVIOR:
@@ -880,9 +882,9 @@ begin
   // This avoids a copy AND solves the double-free issue where iterator frees the list which frees objects.
   Enumerator := GetEnumerator;
   try
-    if Enumerator is TSpecificationQueryIterator<T> then
+    if TObject(Enumerator) is TSpecificationQueryIterator<T> then
     begin
-      Result := TSpecificationQueryIterator<T>(Enumerator).GetList;
+      Result := TSpecificationQueryIterator<T>(TObject(Enumerator)).GetList;
       Exit;
     end;
     
@@ -899,7 +901,7 @@ begin
       raise;
     end;
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
 end;
 
@@ -1017,7 +1019,7 @@ end;
 
 function TFluentQuery<T>.Count: Integer;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
 begin
   if Assigned(FExecuteCount) and (FSpecification <> nil) then
     Exit(FExecuteCount(FSpecification));
@@ -1028,13 +1030,13 @@ begin
     while Enumerator.MoveNext do
       Inc(Result);
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
 end;
 
 function TFluentQuery<T>.Count(const APredicate: TPredicate<T>): Integer;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
 begin
   Result := 0;
   Enumerator := GetEnumerator;
@@ -1043,13 +1045,13 @@ begin
       if APredicate(Enumerator.Current) then
         Inc(Result);
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
 end;
 
 function TFluentQuery<T>.Any: Boolean;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
 begin
   if Assigned(FExecuteAny) and (FSpecification <> nil) then
     Exit(FExecuteAny(FSpecification));
@@ -1058,13 +1060,13 @@ begin
   try
     Result := Enumerator.MoveNext;
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
 end;
 
 function TFluentQuery<T>.Any(const APredicate: TPredicate<T>): Boolean;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
 begin
   Result := False;
   Enumerator := GetEnumerator;
@@ -1076,13 +1078,13 @@ begin
         Break;
       end;
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
 end;
 
 function TFluentQuery<T>.First: T;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
 begin
   Enumerator := GetEnumerator;
   try
@@ -1091,13 +1093,13 @@ begin
     else
       raise Exception.Create('Sequence contains no elements');
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
 end;
 
 function TFluentQuery<T>.First(const APredicate: TPredicate<T>): T;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
 begin
   Enumerator := GetEnumerator;
   try
@@ -1105,14 +1107,14 @@ begin
       if APredicate(Enumerator.Current) then
         Exit(Enumerator.Current);
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
   raise Exception.Create('Sequence contains no matching element');
 end;
 
 function TFluentQuery<T>.FirstOrDefault: T;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
 begin
   if Assigned(FExecuteFirstOrDefault) and (FSpecification <> nil) then
     Exit(FExecuteFirstOrDefault(FSpecification));
@@ -1124,13 +1126,13 @@ begin
     else
       Result := Default(T);
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
 end;
 
 function TFluentQuery<T>.FirstOrDefault(const APredicate: TPredicate<T>): T;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
 begin
   Enumerator := GetEnumerator;
   try
@@ -1138,14 +1140,14 @@ begin
       if APredicate(Enumerator.Current) then
         Exit(Enumerator.Current);
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
   Result := Default(T);
 end;
 
 function TFluentQuery<T>.Sum(const ASelector: TFunc<T, Double>): Double;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
 begin
   Result := 0;
   Enumerator := GetEnumerator;
@@ -1153,13 +1155,13 @@ begin
     while Enumerator.MoveNext do
       Result := Result + ASelector(Enumerator.Current);
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
 end;
 
 function TFluentQuery<T>.Sum(const APropertyName: string): Double;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
   Val: Double;
   Ctx: TRttiContext;
   Obj: TObject;
@@ -1182,13 +1184,13 @@ begin
       Result := Result + Val;
     end;
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
 end;
 
 function TFluentQuery<T>.Average(const ASelector: TFunc<T, Double>): Double;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
   SumVal: Double;
   CountVal: Integer;
 begin
@@ -1202,7 +1204,7 @@ begin
       Inc(CountVal);
     end;
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
   
   if CountVal = 0 then
@@ -1213,7 +1215,7 @@ end;
 
 function TFluentQuery<T>.Average(const APropertyName: string): Double;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
   Val: Double;
   SumVal: Double;
   CountVal: Integer;
@@ -1240,7 +1242,7 @@ begin
       Inc(CountVal);
     end;
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
   
   if CountVal = 0 then
@@ -1251,7 +1253,7 @@ end;
 
 function TFluentQuery<T>.Min(const ASelector: TFunc<T, Double>): Double;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
   Val: Double;
   HasValue: Boolean;
 begin
@@ -1271,7 +1273,7 @@ begin
       end;
     end;
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
   
   if not HasValue then
@@ -1280,7 +1282,7 @@ end;
 
 function TFluentQuery<T>.Min(const APropertyName: string): Double;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
   Val: Double;
   HasValue: Boolean;
   Ctx: TRttiContext;
@@ -1310,7 +1312,7 @@ begin
       end;
     end;
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
   
   if not HasValue then
@@ -1319,7 +1321,7 @@ end;
 
 function TFluentQuery<T>.Max(const ASelector: TFunc<T, Double>): Double;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
   Val: Double;
   HasValue: Boolean;
 begin
@@ -1339,7 +1341,7 @@ begin
       end;
     end;
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
   
   if not HasValue then
@@ -1348,7 +1350,7 @@ end;
 
 function TFluentQuery<T>.Max(const APropertyName: string): Double;
 var
-  Enumerator: System.Generics.Collections.TEnumerator<T>;
+  Enumerator: IEnumerator<T>;
   Val: Double;
   HasValue: Boolean;
   Ctx: TRttiContext;
@@ -1378,7 +1380,7 @@ begin
       end;
     end;
   finally
-    Enumerator.Free;
+    Enumerator := nil;
   end;
   
   if not HasValue then
@@ -1452,10 +1454,7 @@ begin
     Result := False;
 end;
 
-{ TProjectingIterator<TSource, TResult> }
-
-constructor TProjectingIterator<TSource, TResult>.Create(AEnumerator: System.Generics.Collections.TEnumerator<TSource>;
-  const ASelector: TFunc<TSource, TResult>);
+constructor TProjectingIterator<TSource, TResult>.Create(AEnumerator: IEnumerator<TSource>; const ASelector: TFunc<TSource, TResult>);
 begin
   inherited Create;
   FEnumerator := AEnumerator;
@@ -1464,7 +1463,7 @@ end;
 
 destructor TProjectingIterator<TSource, TResult>.Destroy;
 begin
-  FEnumerator.Free;
+  FEnumerator := nil;
   inherited;
 end;
 
@@ -1481,7 +1480,7 @@ end;
 
 { TFilteringIterator<T> }
 
-constructor TFilteringIterator<T>.Create(AEnumerator: System.Generics.Collections.TEnumerator<T>; const APredicate: TPredicate<T>);
+constructor TFilteringIterator<T>.Create(AEnumerator: IEnumerator<T>; const APredicate: TPredicate<T>);
 begin
   inherited Create;
   FEnumerator := AEnumerator;
@@ -1490,7 +1489,7 @@ end;
 
 destructor TFilteringIterator<T>.Destroy;
 begin
-  FEnumerator.Free;
+  FEnumerator := nil;
   inherited;
 end;
 
@@ -1509,7 +1508,7 @@ end;
 
 { TSkipIterator<T> }
 
-constructor TSkipIterator<T>.Create(AEnumerator: System.Generics.Collections.TEnumerator<T>; const ACount: Integer);
+constructor TSkipIterator<T>.Create(AEnumerator: IEnumerator<T>; const ACount: Integer);
 begin
   inherited Create;
   FEnumerator := AEnumerator;
@@ -1519,7 +1518,7 @@ end;
 
 destructor TSkipIterator<T>.Destroy;
 begin
-  FEnumerator.Free;
+  FEnumerator := nil;
   inherited;
 end;
 
@@ -1543,7 +1542,7 @@ end;
 
 { TTakeIterator<T> }
 
-constructor TTakeIterator<T>.Create(AEnumerator: System.Generics.Collections.TEnumerator<T>; const ACount: Integer);
+constructor TTakeIterator<T>.Create(AEnumerator: IEnumerator<T>; const ACount: Integer);
 begin
   inherited Create;
   FEnumerator := AEnumerator;
@@ -1553,7 +1552,7 @@ end;
 
 destructor TTakeIterator<T>.Destroy;
 begin
-  FEnumerator.Free;
+  FEnumerator := nil;
   inherited;
 end;
 
@@ -1573,17 +1572,17 @@ end;
 
 { TDistinctIterator<T> }
 
-constructor TDistinctIterator<T>.Create(AEnumerator: System.Generics.Collections.TEnumerator<T>);
+constructor TDistinctIterator<T>.Create(AEnumerator: IEnumerator<T>);
 begin
   inherited Create;
   FEnumerator := AEnumerator;
-  FSeen := TDictionary<T, Byte>.Create; 
+  FSeen := TCollections.CreateDictionary<T, Byte>;
 end;
 
 destructor TDistinctIterator<T>.Destroy;
 begin
-  FSeen.Free;
-  FEnumerator.Free;
+  FSeen := nil;
+  FEnumerator := nil;
   inherited;
 end;
 

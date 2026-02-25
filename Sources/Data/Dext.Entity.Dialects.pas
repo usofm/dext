@@ -30,7 +30,7 @@ interface
 uses
   System.SysUtils,
   System.TypInfo,
-  System.Generics.Collections,
+  Dext.Collections,
   Data.DB,
   Dext.Types.UUID,
   Dext.Entity.Attributes,

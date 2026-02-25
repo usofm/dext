@@ -27,7 +27,6 @@ uses
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
-  System.Generics.Collections,
   Dext.Interception;
 
 type

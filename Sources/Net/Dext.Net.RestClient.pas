@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -28,18 +28,19 @@ unit Dext.Net.RestClient;
 interface
 
 uses
-  System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
-  System.Rtti,
   System.Net.HttpClient,
   System.Net.URLClient,
+  System.Rtti,
   System.SyncObjs,
-  Dext.Threading.Async,
-  Dext.Threading.CancellationToken,
-  Dext.Net.ConnectionPool,
+  System.SysUtils,
+  Dext.Collections,
+  Dext.Collections.Dict,
+  Dext.Http.Request,
   Dext.Net.Authentication,
-  Dext.Http.Request;
+  Dext.Net.ConnectionPool,
+  Dext.Threading.Async,
+  Dext.Threading.CancellationToken;
 
  type
   /// <summary>
@@ -120,7 +121,7 @@ uses
     
     function ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
       const ABody: TStream = nil; AOwnsBody: Boolean = False;
-      AHeaders: TDictionary<string, string> = nil): TAsyncBuilder<IRestResponse>;
+      AHeaders: IDictionary<string, string> = nil): TAsyncBuilder<IRestResponse>;
   end;
 
   TRestClientImpl = class(TInterfacedObject, IRestClient)
@@ -128,7 +129,7 @@ uses
     FBaseUrl: string;
     FTimeout: Integer;
     FMaxRetries: Integer;
-    FHeaders: TDictionary<string, string>;
+    FHeaders: IDictionary<string, string>;
     FContentType: TDextContentType;
     FAuthProvider: IAuthenticationProvider;
     FPool: TConnectionPool;
@@ -149,7 +150,7 @@ uses
 
     function ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
       const ABody: TStream = nil; AOwnsBody: Boolean = False;
-      AHeaders: TDictionary<string, string> = nil): TAsyncBuilder<IRestResponse>;
+      AHeaders: IDictionary<string, string> = nil): TAsyncBuilder<IRestResponse>;
   end;
 
   /// <summary>
@@ -193,7 +194,7 @@ uses
     
     function ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
       const ABody: TStream = nil; AOwnsBody: Boolean = False;
-      AHeaders: TDictionary<string, string> = nil): TAsyncBuilder<IRestResponse>;
+      AHeaders: IDictionary<string, string> = nil): TAsyncBuilder<IRestResponse>;
 
     /// <summary>
     ///   Executes a request defined by a THttpRequestInfo object (from .http parser).
@@ -301,7 +302,7 @@ begin
   inherited Create;
   FBaseUrl := ABaseUrl;
   FTimeout := 30000;
-  FHeaders := TDictionary<string, string>.Create;
+  FHeaders := TCollections.CreateDictionary<string, string>;
   FContentType := ctJson;
   FPool := TConnectionPool(TRestClient.FSharedPool);
   FLock := TCriticalSection.Create;
@@ -309,7 +310,7 @@ end;
 
 destructor TRestClientImpl.Destroy;
 begin
-  FHeaders.Free;
+  // FHeaders is ARC
   FLock.Free;
   inherited;
 end;
@@ -371,7 +372,7 @@ begin
 end;
 
 function TRestClientImpl.ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
-  const ABody: TStream; AOwnsBody: Boolean; AHeaders: TDictionary<string, string>): TAsyncBuilder<IRestResponse>;
+  const ABody: TStream; AOwnsBody: Boolean; AHeaders: IDictionary<string, string>): TAsyncBuilder<IRestResponse>;
 var
   Url: string;
   Retries: Integer;
@@ -415,61 +416,63 @@ begin
   end;
   
   Result := TAsyncTask.Run<IRestResponse>(
-    function: IRestResponse
-    var
-      HttpClient: THttpClient;
-      Response: IHTTPResponse;
-      Attempt: Integer;
-      LastError: Exception;
-      MethodStr: string;
-    begin
-      try
-        Attempt := 0;
-        LastError := nil;
-        
-        while Attempt <= Retries do
-        begin
-          HttpClient := TConnectionPool(TRestClient.FSharedPool).Acquire;
-          try
-            HttpClient.ConnectionTimeout := Timeout;
-            HttpClient.SendTimeout := Timeout;
-            HttpClient.ResponseTimeout := Timeout;
-            
-            case AMethod of
-              hmGET:    MethodStr := 'GET';
-              hmPOST:   MethodStr := 'POST';
-              hmPUT:    MethodStr := 'PUT';
-              hmDELETE: MethodStr := 'DELETE';
-              hmPATCH:  MethodStr := 'PATCH';
-              hmHEAD:   MethodStr := 'HEAD';
-              hmOPTIONS:MethodStr := 'OPTIONS';
-              else MethodStr := '';
-            end;
-
+    TFunc<IRestResponse>(
+      function: IRestResponse
+      var
+        HttpClient: THttpClient;
+        Response: IHTTPResponse;
+        Attempt: Integer;
+        LastError: Exception;
+        MethodStr: string;
+      begin
+        try
+          Attempt := 0;
+          LastError := nil;
+          
+          while Attempt <= Retries do
+          begin
+            HttpClient := TConnectionPool(TRestClient.FSharedPool).Acquire;
             try
-              Response := HttpClient.Execute(MethodStr, Url, ABody, nil, Headers) as IHTTPResponse;
-              Result := TRestResponse.Create(Response.StatusCode, Response.StatusText, Response.ContentStream);
-              Exit;
-            except
-              on E: Exception do
-              begin
-                LastError := E;
-                Inc(Attempt);
-                if Attempt > Retries then Break;
-                Sleep(Trunc(Power(2, Attempt) * 100));
+              HttpClient.ConnectionTimeout := Timeout;
+              HttpClient.SendTimeout := Timeout;
+              HttpClient.ResponseTimeout := Timeout;
+              
+              case AMethod of
+                hmGET:    MethodStr := 'GET';
+                hmPOST:   MethodStr := 'POST';
+                hmPUT:    MethodStr := 'PUT';
+                hmDELETE: MethodStr := 'DELETE';
+                hmPATCH:  MethodStr := 'PATCH';
+                hmHEAD:   MethodStr := 'HEAD';
+                hmOPTIONS:MethodStr := 'OPTIONS';
+                else MethodStr := '';
               end;
+
+              try
+                Response := HttpClient.Execute(MethodStr, Url, ABody, nil, Headers) as IHTTPResponse;
+                Result := TRestResponse.Create(Response.StatusCode, Response.StatusText, Response.ContentStream);
+                Exit;
+              except
+                on E: Exception do
+                begin
+                  LastError := E;
+                  Inc(Attempt);
+                  if Attempt > Retries then Break;
+                  Sleep(Trunc(Power(2, Attempt) * 100));
+                end;
+              end;
+            finally
+              TConnectionPool(TRestClient.FSharedPool).Release(HttpClient);
             end;
-          finally
-            TConnectionPool(TRestClient.FSharedPool).Release(HttpClient);
           end;
+          
+          if Assigned(LastError) then raise LastError;
+        finally
+          if AOwnsBody and Assigned(ABody) then
+            ABody.Free;
         end;
-        
-        if Assigned(LastError) then raise LastError;
-      finally
-        if AOwnsBody and Assigned(ABody) then
-          ABody.Free;
-      end;
-    end
+      end
+    )
   );
 end;
 
@@ -558,10 +561,13 @@ var
 begin
   Builder := Get(AEndpoint);
   Result := Builder.ThenBy<T>(
-    function(LRes: IRestResponse): T
-    begin
-      Result := TDextJson.Deserialize<T>(LRes.ContentString);
-    end);
+    TFunc<IRestResponse, T>(
+      function(LRes: IRestResponse): T
+      begin
+        Result := TDextJson.Deserialize<T>(LRes.ContentString);
+      end
+    )
+  );
 end;
 
 function TRestClient.Post(const AEndpoint: string): TAsyncBuilder<IRestResponse>;
@@ -626,10 +632,13 @@ var
 begin
   Builder := Put(AEndpoint);
   Result := Builder.ThenBy<T>(
-    function(LRes: IRestResponse): T
-    begin
-      Result := TDextJson.Deserialize<T>(LRes.ContentString);
-    end);
+    TFunc<IRestResponse, T>(
+      function(LRes: IRestResponse): T
+      begin
+        Result := TDextJson.Deserialize<T>(LRes.ContentString);
+      end
+    )
+  );
 end;
 
 function TRestClient.Delete(const AEndpoint: string): TAsyncBuilder<IRestResponse>;
@@ -643,10 +652,13 @@ var
 begin
   Builder := Delete(AEndpoint);
   Result := Builder.ThenBy<T>(
-    function(LRes: IRestResponse): T
-    begin
-      Result := TDextJson.Deserialize<T>(LRes.ContentString);
-    end);
+    TFunc<IRestResponse, T>(
+      function(LRes: IRestResponse): T
+      begin
+        Result := TDextJson.Deserialize<T>(LRes.ContentString);
+      end
+    )
+  );
 end;
 
 function TRestClient.Execute(RequestInfo: THttpRequestInfo): TAsyncBuilder<IRestResponse>;
@@ -677,7 +689,7 @@ begin
 end;
 
 function TRestClient.ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
-  const ABody: TStream; AOwnsBody: Boolean; AHeaders: TDictionary<string, string>): TAsyncBuilder<IRestResponse>;
+  const ABody: TStream; AOwnsBody: Boolean; AHeaders: IDictionary<string, string>): TAsyncBuilder<IRestResponse>;
 begin
   Result := FInstance.ExecuteAsync(AMethod, AEndpoint, ABody, AOwnsBody, AHeaders);
 end;

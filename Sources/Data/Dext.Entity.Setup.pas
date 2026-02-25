@@ -5,7 +5,9 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
+  Dext.Collections.Base,
+  Dext.Collections.Dict,
+  Dext.Collections,
   Dext.Entity.Drivers.Interfaces,
   Dext.Entity.Dialects,
   Dext.Entity.Naming,
@@ -23,7 +25,7 @@ type
     FConnectionString: string;
     FConnectionDefName: string;
     FConnectionDefString: string;
-    FParams: TDictionary<string, string>;
+    FParams: IDictionary<string, string>;
     FPooling: Boolean;
     FPoolMax: Integer;
     FOptimizations: TFireDACOptimizations; // Connect Optimizations
@@ -39,7 +41,7 @@ type
     property ConnectionString: string read FConnectionString write FConnectionString;
     property ConnectionDefName: string read FConnectionDefName write FConnectionDefName;
     property ConnectionDefString: string read FConnectionDefString write FConnectionDefString;
-    property Params: TDictionary<string, string> read FParams;
+    property Params: IDictionary<string, string> read FParams;
     property Pooling: Boolean read FPooling write FPooling;
     property PoolMax: Integer read FPoolMax write FPoolMax;
     property Optimizations: TFireDACOptimizations read FOptimizations write FOptimizations;
@@ -81,7 +83,7 @@ implementation
 
 constructor TDbContextOptions.Create;
 begin
-  FParams := TDictionary<string, string>.Create;
+  FParams := TCollections.CreateDictionary<string, string>;
   FPooling := False;
   FPoolMax := 50;
   // Default legacy optimization behavior (Matches original hardcoded logic)
@@ -90,7 +92,7 @@ end;
 
 destructor TDbContextOptions.Destroy;
 begin
-  FParams.Free;
+  FParams := nil;
   inherited;
 end;
 

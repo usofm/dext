@@ -34,15 +34,16 @@ unit Dext.Web.Hubs.Connections;
 interface
 
 uses
-  System.SysUtils,
   System.Classes,
   System.Rtti,
   System.SyncObjs,
-  System.Generics.Collections,
-  Dext.Web.Hubs.Interfaces,
-  Dext.Web.Hubs.Types,
+  System.SysUtils,
+  Dext.Auth.Identity,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Threading.CancellationToken,
-  Dext.Auth.Identity;
+  Dext.Web.Hubs.Interfaces,
+  Dext.Web.Hubs.Types;
 
 type
   /// <summary>
@@ -55,7 +56,7 @@ type
     FTransportType: TTransportType;
     FState: TConnectionState;
     FUser: IClaimsPrincipal;
-    FItems: TDictionary<string, TValue>;
+    FItems: IDictionary<string, TValue>;
     FAbortTokenSource: TCancellationTokenSource;
     FOnSend: TProc<string>;
     FOnClose: TProc<string>;
@@ -71,7 +72,7 @@ type
     function GetState: TConnectionState;
     function GetUser: IClaimsPrincipal;
     function GetUserIdentifier: string;
-    function GetItems: TDictionary<string, TValue>;
+    function GetItems: IDictionary<string, TValue>;
     function GetAbortToken: ICancellationToken;
     
     procedure SendAsync(const Message: string);
@@ -92,7 +93,7 @@ type
   /// </summary>
   TConnectionManager = class(TInterfacedObject, IConnectionManager)
   private
-    FConnections: TDictionary<string, IHubConnection>;
+    FConnections: IDictionary<string, IHubConnection>;
     FLock: TCriticalSection;
     FGroupManager: IGroupManager;
   public
@@ -120,9 +121,9 @@ type
   TGroupManager = class(TInterfacedObject, IGroupManager)
   private
     // GroupName -> Set of ConnectionIds
-    FGroups: TDictionary<string, TList<string>>;
+    FGroups: IDictionary<string, IList<string>>;
     // ConnectionId -> Set of GroupNames
-    FConnectionGroups: TDictionary<string, TList<string>>;
+    FConnectionGroups: IDictionary<string, IList<string>>;
     FLock: TCriticalSection;
   public
     constructor Create;
@@ -151,14 +152,14 @@ begin
   FTransportType := ATransportType;
   FState := csConnecting;
   FUser := AUser;
-  FItems := TDictionary<string, TValue>.Create;
+  FItems := TCollections.CreateDictionary<string, TValue>;
   FAbortTokenSource := TCancellationTokenSource.Create;
 end;
 
 destructor THubConnection.Destroy;
 begin
   FAbortTokenSource.Free;
-  FItems.Free;
+  // FItems is ARC
   inherited;
 end;
 
@@ -190,7 +191,7 @@ begin
     Result := '';
 end;
 
-function THubConnection.GetItems: TDictionary<string, TValue>;
+function THubConnection.GetItems: IDictionary<string, TValue>;
 begin
   Result := FItems;
 end;
@@ -237,7 +238,7 @@ end;
 constructor TConnectionManager.Create;
 begin
   inherited Create;
-  FConnections := TDictionary<string, IHubConnection>.Create;
+  FConnections := TCollections.CreateDictionary<string, IHubConnection>;
   FLock := TCriticalSection.Create;
 end;
 
@@ -245,7 +246,7 @@ destructor TConnectionManager.Destroy;
 begin
   FLock.Enter;
   try
-    FConnections.Free;
+    // FConnections is ARC
   finally
     FLock.Leave;
   end;
@@ -298,7 +299,7 @@ function TConnectionManager.GetAll: TArray<IHubConnection>;
 begin
   FLock.Enter;
   try
-    Result := FConnections.Values.ToArray;
+    Result := FConnections.Values;
   finally
     FLock.Leave;
   end;
@@ -309,13 +310,13 @@ var
   ConnectionIds: TArray<string>;
   Id: string;
   Conn: IHubConnection;
-  ResultList: TList<IHubConnection>;
+  ResultList: IList<IHubConnection>;
 begin
   if FGroupManager = nil then
     Exit(nil);
     
   ConnectionIds := (FGroupManager as TGroupManager).GetConnectionsInGroup(GroupName);
-  ResultList := TList<IHubConnection>.Create;
+  ResultList := TCollections.CreateList<IHubConnection>;
   try
     FLock.Enter;
     try
@@ -329,16 +330,16 @@ begin
     end;
     Result := ResultList.ToArray;
   finally
-    ResultList.Free;
+    // ResultList is ARC
   end;
 end;
 
 function TConnectionManager.GetByUser(const UserId: string): TArray<IHubConnection>;
 var
   Pair: TPair<string, IHubConnection>;
-  ResultList: TList<IHubConnection>;
+  ResultList: IList<IHubConnection>;
 begin
-  ResultList := TList<IHubConnection>.Create;
+  ResultList := TCollections.CreateList<IHubConnection>;
   try
     FLock.Enter;
     try
@@ -352,7 +353,7 @@ begin
     end;
     Result := ResultList.ToArray;
   finally
-    ResultList.Free;
+    // ResultList is ARC
   end;
 end;
 
@@ -386,24 +387,17 @@ end;
 constructor TGroupManager.Create;
 begin
   inherited Create;
-  FGroups := TDictionary<string, TList<string>>.Create;
-  FConnectionGroups := TDictionary<string, TList<string>>.Create;
+  FGroups := TCollections.CreateDictionary<string, IList<string>>;
+  FConnectionGroups := TCollections.CreateDictionary<string, IList<string>>;
   FLock := TCriticalSection.Create;
 end;
 
 destructor TGroupManager.Destroy;
-var
-  List: TList<string>;
 begin
   FLock.Enter;
   try
-    for List in FGroups.Values do
-      List.Free;
-    FGroups.Free;
-    
-    for List in FConnectionGroups.Values do
-      List.Free;
-    FConnectionGroups.Free;
+    // FGroups is ARC
+    // FConnectionGroups is ARC
   finally
     FLock.Leave;
   end;
@@ -413,14 +407,14 @@ end;
 
 procedure TGroupManager.AddToGroupAsync(const ConnectionId, GroupName: string);
 var
-  GroupConnections, ConnectionGroupsList: TList<string>;
+  GroupConnections, ConnectionGroupsList: IList<string>;
 begin
   FLock.Enter;
   try
     // Add to group's connection list
     if not FGroups.TryGetValue(GroupName, GroupConnections) then
     begin
-      GroupConnections := TList<string>.Create;
+      GroupConnections := TCollections.CreateList<string>;
       FGroups.Add(GroupName, GroupConnections);
     end;
     if not GroupConnections.Contains(ConnectionId) then
@@ -429,7 +423,7 @@ begin
     // Add to connection's group list
     if not FConnectionGroups.TryGetValue(ConnectionId, ConnectionGroupsList) then
     begin
-      ConnectionGroupsList := TList<string>.Create;
+      ConnectionGroupsList := TCollections.CreateList<string>;
       FConnectionGroups.Add(ConnectionId, ConnectionGroupsList);
     end;
     if not ConnectionGroupsList.Contains(GroupName) then
@@ -441,7 +435,7 @@ end;
 
 procedure TGroupManager.RemoveFromGroupAsync(const ConnectionId, GroupName: string);
 var
-  GroupConnections, ConnectionGroupsList: TList<string>;
+  GroupConnections, ConnectionGroupsList: IList<string>;
 begin
   FLock.Enter;
   try
@@ -452,7 +446,6 @@ begin
       if GroupConnections.Count = 0 then
       begin
         FGroups.Remove(GroupName);
-        GroupConnections.Free;
       end;
     end;
     
@@ -466,7 +459,7 @@ end;
 
 procedure TGroupManager.RemoveFromAllGroupsAsync(const ConnectionId: string);
 var
-  ConnectionGroupsList, GroupConnections: TList<string>;
+  ConnectionGroupsList, GroupConnections: IList<string>;
   GroupName: string;
   GroupsToRemove: TArray<string>;
 begin
@@ -485,13 +478,11 @@ begin
           if GroupConnections.Count = 0 then
           begin
             FGroups.Remove(GroupName);
-            GroupConnections.Free;
           end;
         end;
       end;
       
       FConnectionGroups.Remove(ConnectionId);
-      ConnectionGroupsList.Free;
     end;
   finally
     FLock.Leave;
@@ -500,7 +491,7 @@ end;
 
 function TGroupManager.GetGroupsForConnection(const ConnectionId: string): TArray<string>;
 var
-  ConnectionGroupsList: TList<string>;
+  ConnectionGroupsList: IList<string>;
 begin
   FLock.Enter;
   try
@@ -515,7 +506,7 @@ end;
 
 function TGroupManager.IsInGroup(const ConnectionId, GroupName: string): Boolean;
 var
-  GroupConnections: TList<string>;
+  GroupConnections: IList<string>;
 begin
   FLock.Enter;
   try
@@ -530,7 +521,7 @@ end;
 
 function TGroupManager.GetConnectionsInGroup(const GroupName: string): TArray<string>;
 var
-  GroupConnections: TList<string>;
+  GroupConnections: IList<string>;
 begin
   FLock.Enter;
   try

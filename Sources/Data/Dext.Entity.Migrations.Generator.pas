@@ -30,7 +30,8 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
+  Dext.Collections.Base,
+  Dext.Collections,
   System.StrUtils,
   System.TypInfo,
   Dext.Entity.Migrations.Operations,
@@ -51,8 +52,8 @@ type
     class function GenerateDropColumn(Op: TDropColumnOperation): string;
     class function QuoteString(const S: string): string;
   public
-    class function GenerateUnit(const AUnitName, AClassName: string; Ops: TObjectList<TMigrationOperation>): string;
-    class function GenerateJson(const AId, ADescription, AAuthor: string; Ops: TObjectList<TMigrationOperation>): string;
+    class function GenerateUnit(const AUnitName, AClassName: string; Ops: IList<TMigrationOperation>): string;
+    class function GenerateJson(const AId, ADescription, AAuthor: string; Ops: IList<TMigrationOperation>): string;
   end;
 
 implementation
@@ -60,7 +61,7 @@ implementation
 { TMigrationGenerator }
 
 class function TMigrationGenerator.GenerateJson(const AId, ADescription, AAuthor: string;
-  Ops: TObjectList<TMigrationOperation>): string;
+  Ops: IList<TMigrationOperation>): string;
 var
   Provider: IDextJsonProvider;
   Obj: IDextJsonObject;
@@ -88,7 +89,7 @@ begin
 end;
 
 class function TMigrationGenerator.GenerateUnit(const AUnitName, AClassName: string;
-  Ops: TObjectList<TMigrationOperation>): string;
+  Ops: IList<TMigrationOperation>): string;
 var
   SB: TStringBuilder;
   Op: TMigrationOperation;

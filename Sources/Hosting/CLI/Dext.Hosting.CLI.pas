@@ -29,21 +29,22 @@ interface
 
 uses
   System.Classes,
-  System.Generics.Collections,
   System.IOUtils,
   System.SysUtils,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Entity,
   Dext.Entity.Core,
-  Dext.Entity.Migrations,
-  Dext.Entity.Migrations.Runner,
-  Dext.Entity.Migrations.Json,
   Dext.Entity.Drivers.Interfaces,
+  Dext.Entity.Migrations,
+  Dext.Entity.Migrations.Json,
+  Dext.Entity.Migrations.Runner,
   Dext.Hosting.CLI.Args;
 
 type
   TDextCLI = class
   private
-    FCommands: TDictionary<string, IConsoleCommand>;
+    FCommands: IDictionary<string, IConsoleCommand>;
     FContextFactory: TFunc<IDbContext>;
     procedure ShowHelp;
   public
@@ -70,12 +71,12 @@ uses
 constructor TDextCLI.Create(AContextFactory: TFunc<IDbContext>);
 begin
   FContextFactory := AContextFactory;
-  FCommands := TDictionary<string, IConsoleCommand>.Create;
+  FCommands := TCollections.CreateDictionary<string, IConsoleCommand>;
 end;
 
 destructor TDextCLI.Destroy;
 begin
-  FCommands.Free;
+  // FCommands is ARC
   inherited;
 end;
 

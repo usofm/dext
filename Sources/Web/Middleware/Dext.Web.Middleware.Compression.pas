@@ -1,4 +1,4 @@
-unit Dext.Web.Middleware.Compression;
+﻿unit Dext.Web.Middleware.Compression;
 
 interface
 

@@ -29,7 +29,6 @@ unit Dext.Web.Core;
 interface
 
 uses
-  System.Generics.Collections,
   System.SysUtils,
   System.Rtti,
   System.TypInfo,
@@ -37,6 +36,8 @@ uses
   Dext.Web.HandlerInvoker,
   Dext.Core.Activator,
   Dext.Web.Interfaces,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Web.Routing;
 
 
@@ -60,10 +61,10 @@ type
 
   TApplicationBuilder = class(TInterfacedObject, IApplicationBuilder)
   private
-    FMiddlewares: TList<TMiddlewareRegistration>;
-    FRoutes: TList<TRouteDefinition>; // ✅ Changed to List of Definitions
+    FMiddlewares: IList<TMiddlewareRegistration>;
+    FRoutes: IList<TRouteDefinition>; // ✅ Changed to List of Definitions
     FServiceProvider: IServiceProvider;
-    FDisposables: TList<TObject>; // Objects to dispose on shutdown
+    FDisposables: IList<TObject>; // Objects to dispose on shutdown
 
     function CreateMiddlewarePipeline(const ARegistration: TMiddlewareRegistration; ANext: TRequestDelegate): TRequestDelegate;
   public
@@ -183,41 +184,25 @@ begin
     end;
 end;
 
-procedure InjectRouteParams(AContext: IHttpContext;
-  const AParams: TDictionary<string, string>);
-begin
-  // Precisamos estender as implementações concretas para suportar RouteParams
-  // Por enquanto, vamos adicionar suporte básico
-  // Esta é uma implementação temporária - precisaremos atualizar TIndyHttpRequest
-end;
-
 { TApplicationBuilder }
 
 constructor TApplicationBuilder.Create(AServiceProvider: IServiceProvider);
 begin
   inherited Create;
   FServiceProvider := AServiceProvider;
-  FMiddlewares := TList<TMiddlewareRegistration>.Create;
-  FRoutes := TList<TRouteDefinition>.Create;
-  FDisposables := TList<TObject>.Create;
+  FMiddlewares := TCollections.CreateList<TMiddlewareRegistration>;
+  FRoutes := TCollections.CreateList<TRouteDefinition>(True); // Added True to own objects
+  FDisposables := TCollections.CreateObjectList<TObject>(True);
 end;
 
 destructor TApplicationBuilder.Destroy;
-var
-  Route: TRouteDefinition;
-  Obj: TObject;
 begin
   FServiceProvider := nil;
-  FMiddlewares.Free;
-  for Route in FRoutes do
-    Route.Free;
-  FRoutes.Free;
-  
-  // Dispose all registered objects
-  for Obj in FDisposables do
-    Obj.Free;
-  FDisposables.Free;
-  
+  // FMiddlewares is ARC
+  FRoutes := nil;
+
+  // Dispose all registered objects handled by ObjectList
+  // FDisposables is ARC
   inherited Destroy;
 end;
 

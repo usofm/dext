@@ -32,7 +32,7 @@ uses
   System.Classes,
   System.Rtti,
   System.TypInfo,
-  System.Generics.Collections,
+  Dext.Collections,
   Dext.Entity.Context, // Add concrete TDbContext
   Dext.Entity.Core,
   Dext.Entity.Mapping,
@@ -74,7 +74,7 @@ var
   // Let's update TModelBuilder first.
   
   // Assuming TModelBuilder has a Maps property (I will add it).
-  Maps: TEnumerable<TEntityMap>; 
+  Maps: TArray<TEntityMap>; 
 begin
   Result := TSnapshotModel.Create;
   

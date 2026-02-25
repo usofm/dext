@@ -7,7 +7,7 @@ uses
   System.Classes,
   System.Rtti,
   System.TypInfo,
-  System.Generics.Collections,
+  Dext.Collections,
   Dext.Core.ValueConverters,
   Dext.Specifications.Types,
   Dext.Specifications.Interfaces; // For IPredicate/IExpression

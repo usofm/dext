@@ -35,10 +35,11 @@ unit Dext.UI.State;
 interface
 
 uses
-  System.Generics.Collections,
-  System.SysUtils,
   System.Rtti,
-  System.TypInfo;
+  System.SysUtils,
+  System.TypInfo,
+  Dext.Collections,
+  Dext.Collections.Dict;
 
 type
   /// <summary>
@@ -70,8 +71,8 @@ type
   /// </summary>
   TStateStore = class(TInterfacedObject, IStateStore)
   private
-    FStates: TDictionary<PTypeInfo, TValue>;
-    FSubscriptions: TDictionary<PTypeInfo, TList<TStateChangeHandler>>;
+    FStates: IDictionary<PTypeInfo, TValue>;
+    FSubscriptions: IDictionary<PTypeInfo, IList<TStateChangeHandler>>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -98,18 +99,14 @@ implementation
 constructor TStateStore.Create;
 begin
   inherited;
-  FStates := TDictionary<PTypeInfo, TValue>.Create;
-  FSubscriptions := TDictionary<PTypeInfo, TList<TStateChangeHandler>>.Create;
+  FStates := TCollections.CreateDictionary<PTypeInfo, TValue>;
+  FSubscriptions := TCollections.CreateDictionary<PTypeInfo, IList<TStateChangeHandler>>;
 end;
 
 destructor TStateStore.Destroy;
-var
-  List: TList<TStateChangeHandler>;
 begin
-  for List in FSubscriptions.Values do
-    List.Free;
-  FSubscriptions.Free;
-  FStates.Free;
+  // FSubscriptions is ARC
+  // FStates is ARC
   inherited;
 end;
 
@@ -121,7 +118,7 @@ end;
 
 procedure TStateStore.SetState(TypeInfo: PTypeInfo; const Value: TValue);
 var
-  Subscribers: TList<TStateChangeHandler>;
+  Subscribers: IList<TStateChangeHandler>;
   Handler: TStateChangeHandler;
 begin
   FStates.AddOrSetValue(TypeInfo, Value);
@@ -136,11 +133,11 @@ end;
 
 procedure TStateStore.Subscribe(TypeInfo: PTypeInfo; Handler: TStateChangeHandler);
 var
-  Subscribers: TList<TStateChangeHandler>;
+  Subscribers: IList<TStateChangeHandler>;
 begin
   if not FSubscriptions.TryGetValue(TypeInfo, Subscribers) then
   begin
-    Subscribers := TList<TStateChangeHandler>.Create;
+    Subscribers := TCollections.CreateList<TStateChangeHandler>;
     FSubscriptions.Add(TypeInfo, Subscribers);
   end;
   
@@ -149,7 +146,7 @@ end;
 
 procedure TStateStore.Unsubscribe(TypeInfo: PTypeInfo; Handler: TStateChangeHandler);
 var
-  Subscribers: TList<TStateChangeHandler>;
+  Subscribers: IList<TStateChangeHandler>;
 begin
   if FSubscriptions.TryGetValue(TypeInfo, Subscribers) then
   begin

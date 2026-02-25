@@ -28,27 +28,29 @@ unit Dext.Specifications.SQL.Generator;
 interface
 
 uses
-  System.SysUtils,
-  System.Classes,
   System.Character,
-  System.Generics.Collections,
+  System.Classes,
   System.Rtti,
+  System.SysUtils,
   System.TypInfo,
   System.Variants,
   Data.DB,
-  Dext.Utils,
-  Dext.Specifications.Interfaces,
-  Dext.Specifications.Types,
+  Dext.Collections,
+  Dext.Collections.Base,
+  Dext.Collections.Dict,
+  Dext.Entity.Attributes,
+  Dext.Entity.Cache,
   Dext.Entity.Core,
   Dext.Entity.Dialects,
-  Dext.Entity.Attributes,
   Dext.Entity.Mapping,
   Dext.Entity.Naming,
   Dext.Entity.TypeConverters,
+  Dext.MultiTenancy,
+  Dext.Specifications.Interfaces,
+  Dext.Specifications.Types,
   Dext.Types.Nullable,
   Dext.Types.UUID,
-  Dext.Entity.Cache,
-  Dext.MultiTenancy;
+  Dext.Utils;
 
 type
   ISQLColumnMapper = interface
@@ -62,11 +64,11 @@ type
   TSQLWhereGenerator = class
   private
     FSQL: TStringBuilder;
-    FParams: TDictionary<string, TValue>;
+    FParams: IDictionary<string, TValue>;
     FParamCount: Integer;
     FDialect: ISQLDialect;
     FColumnMapper: ISQLColumnMapper;
-    
+
     procedure ProcessBinary(const C: TBinaryExpression);
     procedure ProcessArithmetic(const C: TArithmeticExpression);
     procedure ProcessLogical(const C: TLogicalExpression);
@@ -92,7 +94,7 @@ type
     
     function Generate(const AExpression: IExpression): string;
     
-    property Params: TDictionary<string, TValue> read FParams;
+    property Params: IDictionary<string, TValue> read FParams;
     property ParamCount: Integer read FParamCount write FParamCount;
   end;
 
@@ -133,8 +135,8 @@ type
   TSQLGenerator<T: class> = class
   private
     FDialect: ISQLDialect;
-    FParams: TDictionary<string, TValue>;
-    FParamTypes: TDictionary<string, TFieldType>;  // Explicit types from [DbType] attribute
+    FParams: IDictionary<string, TValue>;
+    FParamTypes: IDictionary<string, TFieldType>;  // Explicit types from [DbType] attribute
     FParamCount: Integer;
     FMap: TEntityMap;
     FNamingStrategy: INamingStrategy;
@@ -171,7 +173,7 @@ type
     property NamingStrategy: INamingStrategy read FNamingStrategy write FNamingStrategy;
     
     function GenerateInsert(const AEntity: T): string;
-    function GenerateInsertTemplate(out AProps: TList<TPair<TRttiProperty, string>>): string;
+    function GenerateInsertTemplate(out AProps: IList<TPair<TRttiProperty, string>>): string;
     function GenerateUpdate(const AEntity: T): string;
     function GenerateDelete(const AEntity: T): string;
     
@@ -181,13 +183,13 @@ type
     function GenerateCount: string; overload;
     function GenerateCreateTable(const ATableName: string): string;
     
-    property Params: TDictionary<string, TValue> read FParams;
-    property ParamTypes: TDictionary<string, TFieldType> read FParamTypes;
+    property Params: IDictionary<string, TValue> read FParams;
+    property ParamTypes: IDictionary<string, TFieldType> read FParamTypes;
   end;
 
   TSQLParamCollector = class
   private
-    FParams: TDictionary<string, TValue>;
+    FParams: IDictionary<string, TValue>;
     FParamCount: Integer;
 
     function GetNextParamName: string;
@@ -198,7 +200,7 @@ type
     procedure ProcessUnary(const C: TUnaryExpression);
     procedure ProcessLiteral(const C: TLiteralExpression);
   public
-    constructor Create(AParams: TDictionary<string, TValue>);
+    constructor Create(AParams: IDictionary<string, TValue>);
     procedure Collect(const AExpression: IExpression);
   end;
 
@@ -209,7 +211,7 @@ uses
 
 { TSQLParamCollector }
 
-constructor TSQLParamCollector.Create(AParams: TDictionary<string, TValue>);
+constructor TSQLParamCollector.Create(AParams: IDictionary<string, TValue>);
 begin
   FParams := AParams;
   FParamCount := 0; 
@@ -421,7 +423,7 @@ end;
 constructor TSQLWhereGenerator.Create(ADialect: ISQLDialect; AMapper: ISQLColumnMapper = nil);
 begin
   FSQL := TStringBuilder.Create;
-  FParams := TDictionary<string, TValue>.Create;
+  FParams := TCollections.CreateDictionary<string, TValue>;
   FParamCount := 0;
   FDialect := ADialect;
   FColumnMapper := AMapper;
@@ -430,7 +432,7 @@ end;
 destructor TSQLWhereGenerator.Destroy;
 begin
   FSQL.Free;
-  FParams.Free;
+  FParams := nil;
   inherited;
 end;
 
@@ -826,16 +828,16 @@ begin
     FNamingStrategy := TDefaultNamingStrategy.Create;
 
   FTenantProvider := ATenantProvider;
-  FParams := TDictionary<string, TValue>.Create;
-  FParamTypes := TDictionary<string, TFieldType>.Create;
+  FParams := TCollections.CreateDictionary<string, TValue>;
+  FParamTypes := TCollections.CreateDictionary<string, TFieldType>;
   FParamCount := 0;
   FRttiContext := TRttiContext.Create;
 end;
 
 destructor TSQLGenerator<T>.Destroy;
 begin
-  FParams.Free;
-  FParamTypes.Free;
+  FParams := nil;
+  FParamTypes := nil;
   FRttiContext.Free;
   inherited;
 end;
@@ -1383,7 +1385,7 @@ begin
   end;
 end;
 
-function TSQLGenerator<T>.GenerateInsertTemplate(out AProps: TList<TPair<TRttiProperty, string>>): string;
+function TSQLGenerator<T>.GenerateInsertTemplate(out AProps: IList<TPair<TRttiProperty, string>>): string;
 var
   Typ: TRttiType;
   Prop: TRttiProperty;
@@ -1397,7 +1399,7 @@ begin
   
   SBCols := TStringBuilder.Create;
   SBVals := TStringBuilder.Create;
-  AProps := TList<TPair<TRttiProperty, string>>.Create;
+  AProps := TCollections.CreateList<TPair<TRttiProperty, string>>;
   
   try
     First := True;
@@ -2271,8 +2273,8 @@ var
   ColName, ColType, Body: string;
   SB: TStringBuilder;
   First, IsPK, IsAutoInc, IsMapped, HasAutoInc: Boolean;
-  PKCols: TList<string>;
-  FKConstraints: TList<string>;
+  PKCols: IList<string>;
+  FKConstraints: IList<string>;
   Constraint: string;
   TypeAttr: TCustomAttribute;
   PropMap: TPropertyMap;
@@ -2290,8 +2292,8 @@ var
   SoftDelAttr: SoftDeleteAttribute;
 begin
   SB := TStringBuilder.Create;
-  PKCols := TList<string>.Create;
-  FKConstraints := TList<string>.Create;
+  PKCols := TCollections.CreateList<string>;
+  FKConstraints := TCollections.CreateList<string>;
   try
     Typ := FRttiContext.GetType(T);
     First := True;
@@ -2519,8 +2521,8 @@ begin
     Body := SB.ToString;
     Result := FDialect.GetCreateTableSQL(ATableName, Body);
   finally
-    FKConstraints.Free;
-    PKCols.Free;
+    FKConstraints := nil;
+    PKCols := nil;
     SB.Free;
   end;
 end;

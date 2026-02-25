@@ -29,7 +29,7 @@ interface
 
 uses
   System.Classes,
-  System.Generics.Collections,
+  Dext.Collections,
   System.IOUtils,
   System.SysUtils,
   System.Types,
@@ -121,7 +121,7 @@ var
   Obj: IDextJsonObject;
   OpsArr: IDextJsonArray;
   OpsJson: string;
-  Ops: TObjectList<TMigrationOperation>;
+  Ops: IList<TMigrationOperation>;
   Op: TMigrationOperation;
 begin
   Provider := TDextJson.Provider;
@@ -145,15 +145,11 @@ begin
   OpsJson := OpsArr.ToJson(False);
   
   Ops := TMigrationJsonSerializer.Deserialize(OpsJson);
-  try
-    for Op in Ops do
-    begin
-      // Transfer ownership to Builder
-      Builder.Operations.Add(Op);
-    end;
-    Ops.OwnsObjects := False; // Don't free the operations we just moved
-  finally
-    Ops.Free;
+  while Ops.Count > 0 do
+  begin
+    Op := Ops.First;
+    Ops.Extract(Op); // Transfer ownership from Ops
+    Builder.Operations.Add(Op); // To Builder.Operations
   end;
 end;
 

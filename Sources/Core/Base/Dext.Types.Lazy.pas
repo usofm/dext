@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -31,8 +31,7 @@ uses
   System.SysUtils,
   System.Rtti,
   System.TypInfo,
-  System.SyncObjs,
-  System.Generics.Collections;
+  System.SyncObjs;
 
 type
   {$M+}

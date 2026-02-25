@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -29,10 +29,10 @@ interface
 
 uses
   System.Classes,
-  System.SysUtils,
+  System.Generics.Collections, // para TStack - TODO: migrar para Dext.Collections.Stack
+  System.Net.HttpClient,
   System.SyncObjs,
-  System.Generics.Collections,
-  System.Net.HttpClient;
+  System.SysUtils;
 
 type
   /// <summary>

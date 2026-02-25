@@ -30,7 +30,8 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections;
+  Dext.Collections.Base,
+  Dext.Collections;
 
 type
   TSnapshotColumn = class
@@ -64,8 +65,8 @@ type
   TSnapshotTable = class
   public
     Name: string;
-    Columns: TObjectList<TSnapshotColumn>;
-    ForeignKeys: TObjectList<TSnapshotForeignKey>;
+    Columns: IList<TSnapshotColumn>;
+    ForeignKeys: IList<TSnapshotForeignKey>;
     
     constructor Create;
     destructor Destroy; override;
@@ -75,7 +76,7 @@ type
 
   TSnapshotModel = class
   public
-    Tables: TObjectList<TSnapshotTable>;
+    Tables: IList<TSnapshotTable>;
     
     constructor Create;
     destructor Destroy; override;
@@ -156,14 +157,14 @@ end;
 
 constructor TSnapshotTable.Create;
 begin
-  Columns := TObjectList<TSnapshotColumn>.Create;
-  ForeignKeys := TObjectList<TSnapshotForeignKey>.Create;
+  Columns := TCollections.CreateList<TSnapshotColumn>(True);
+  ForeignKeys := TCollections.CreateList<TSnapshotForeignKey>(True);
 end;
 
 destructor TSnapshotTable.Destroy;
 begin
-  Columns.Free;
-  ForeignKeys.Free;
+  Columns := nil;
+  ForeignKeys := nil;
   inherited;
 end;
 
@@ -179,12 +180,12 @@ end;
 
 constructor TSnapshotModel.Create;
 begin
-  Tables := TObjectList<TSnapshotTable>.Create;
+  Tables := TCollections.CreateList<TSnapshotTable>(True);
 end;
 
 destructor TSnapshotModel.Destroy;
 begin
-  Tables.Free;
+  Tables := nil;
   inherited;
 end;
 

@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -14,7 +14,6 @@ uses
   System.Rtti,
   System.SysUtils,
   System.Character,
-  System.Generics.Collections,
   Dext.DI.Interfaces,
   Dext.Entity,
   Dext.Entity.Core,
@@ -129,7 +128,7 @@ implementation
 uses
   System.DateUtils,
   System.TypInfo,
-  Dext.Collections,
+  Dext.Collections, Dext.Collections.Dict,
   Dext.Core.DateUtils,
   Dext.Specifications.Types,
   Dext.Specifications.Interfaces,
@@ -543,7 +542,7 @@ var
   IntVal: Integer;
   BoolVal: Boolean;
   Limit, Offset: Integer;
-  OrderList: TList<IOrderBy>;
+  OrderList: IList<IOrderBy>;
   AuthResult: IResult;
   Map: TEntityMap;
   PropMap: TPropertyMap;
@@ -562,7 +561,7 @@ begin
     Limit := 0;
     Offset := 0;
     
-    OrderList := TList<IOrderBy>.Create;
+    OrderList := TCollections.CreateList<IOrderBy>;
     try
       Ctx := TRttiContext.Create;
       try
@@ -731,7 +730,7 @@ begin
          // Items will be freed automatically if the list returned by ToList owns them (AsNoTracking)
        end;
      finally
-       OrderList.Free;
+       OrderList := nil;
        if FilterExpr <> nil then
          FilterExpr := nil; // IExpression is an interface, will be released
      end;
@@ -1150,3 +1149,4 @@ begin
 end;
 
 end.
+

@@ -39,12 +39,13 @@ unit Dext.UI.Navigator;
 interface
 
 uses
-  System.SysUtils,
   System.Classes,
+  System.Generics.Collections, // para TStack - TODO: migrar para Dext.Collections.Stack
   System.Rtti,
-  System.Generics.Collections,
-  Dext.DI.Interfaces,
+  System.SysUtils,
   Dext.Collections,
+  Dext.Collections.Dict,
+  Dext.DI.Interfaces,
   Dext.UI.Navigator.Types,
   Dext.UI.Navigator.Interfaces;
 
@@ -89,7 +90,7 @@ type
   private
     FAdapter: INavigatorAdapter;
     FMiddlewares: IList<INavigationMiddleware>;
-    FRoutes: TDictionary<string, TRouteInfo>;
+    FRoutes: IDictionary<string, TRouteInfo>;
     FHistory: TStack<THistoryEntry>;
     FServiceProvider: IServiceProvider;
     FOnNavigating: TProc<TNavigationContext>;
@@ -204,7 +205,7 @@ constructor TNavigator.Create;
 begin
   inherited Create;
   FMiddlewares := TCollections.CreateList<INavigationMiddleware>(True);
-  FRoutes := TDictionary<string, TRouteInfo>.Create;
+  FRoutes := TCollections.CreateDictionary<string, TRouteInfo>;
   FHistory := TStack<THistoryEntry>.Create;
 end;
 
@@ -227,18 +228,16 @@ begin
   end;
   
   FHistory.Free;
-  FRoutes.Free;
+  // FRoutes is ARC
   inherited;
 end;
 
 function TNavigator.GetRouteName(ViewClass: TClass): string;
-var
-  Pair: TPair<string, TRouteInfo>;
 begin
   // First check if there's a registered route for this class
-  for Pair in FRoutes do
-    if Pair.Value.ViewClass = ViewClass then
-      Exit(Pair.Key);
+  for var Key in FRoutes.Keys do
+    if FRoutes[Key].ViewClass = ViewClass then
+      Exit(Key);
       
   // Default: use class name as route
   Result := '/' + ViewClass.ClassName;
@@ -293,12 +292,10 @@ begin
 end;
 
 function TNavigator.FindRouteByClass(ViewClass: TClass): TRouteInfo;
-var
-  Pair: TPair<string, TRouteInfo>;
 begin
-  for Pair in FRoutes do
-    if Pair.Value.ViewClass = ViewClass then
-      Exit(Pair.Value);
+  for var Key in FRoutes.Keys do
+    if FRoutes[Key].ViewClass = ViewClass then
+      Exit(FRoutes[Key]);
       
   // Return empty route info
   Result := Default(TRouteInfo);

@@ -4,8 +4,8 @@ interface
 
 uses
   System.SysUtils,
+  Dext.Collections,
   System.Classes,
-  System.Generics.Collections,
   System.IOUtils,
   // DelphiAST dependencies
   DelphiAST,
@@ -26,7 +26,7 @@ type
     Name: string;
     UnitName: string;
     LineNumber: Integer;
-    Methods: TObjectList<TTestMethodInfo>;
+    Methods: IList<TTestMethodInfo>;
     constructor Create;
     destructor Destroy; override;
   end;
@@ -34,7 +34,7 @@ type
   TTestProjectInfo = class
   public
     ProjectFile: string;
-    Fixtures: TObjectList<TTestFixtureInfo>;
+    Fixtures: IList<TTestFixtureInfo>;
     constructor Create;
     destructor Destroy; override;
   end;
@@ -42,7 +42,7 @@ type
   TTestScanner = class
   private
     class function ParseFile(const AFileName: string): TSyntaxNode;
-    class procedure ExtractTests(const AUnitName: string; ARoot: TSyntaxNode; AFixtures: TObjectList<TTestFixtureInfo>);
+    class procedure ExtractTests(const AUnitName: string; ARoot: TSyntaxNode; AFixtures: IList<TTestFixtureInfo>);
     class function HasAttribute(AttrsNode: TSyntaxNode; const AAttributeName: string): Boolean;
     class function GetAttributeName(ANode: TSyntaxNode): string;
   public
@@ -55,12 +55,12 @@ implementation
 
 constructor TTestFixtureInfo.Create;
 begin
-  Methods := TObjectList<TTestMethodInfo>.Create(True);
+  Methods := TCollections.CreateObjectList<TTestMethodInfo>(True);
 end;
 
 destructor TTestFixtureInfo.Destroy;
 begin
-  Methods.Free;
+  // Methods is ARC
   inherited;
 end;
 
@@ -68,12 +68,12 @@ end;
 
 constructor TTestProjectInfo.Create;
 begin
-  Fixtures := TObjectList<TTestFixtureInfo>.Create(True);
+  Fixtures := TCollections.CreateObjectList<TTestFixtureInfo>(True);
 end;
 
 destructor TTestProjectInfo.Destroy;
 begin
-  Fixtures.Free;
+  // Fixtures is ARC
   inherited;
 end;
 
@@ -185,7 +185,7 @@ begin
   end;
 end;
 
-class procedure TTestScanner.ExtractTests(const AUnitName: string; ARoot: TSyntaxNode; AFixtures: TObjectList<TTestFixtureInfo>);
+class procedure TTestScanner.ExtractTests(const AUnitName: string; ARoot: TSyntaxNode; AFixtures: IList<TTestFixtureInfo>);
 var
   InterfaceNode, TypeSection: TSyntaxNode;
   ChildNode, TypeDecl, ClassNode: TSyntaxNode;
@@ -212,8 +212,8 @@ var
 
     LastMethodAttrs := nil;
     
-    var Members: TList<TSyntaxNode>;
-    Members := TList<TSyntaxNode>.Create;
+    var Members: IList<TSyntaxNode>;
+    Members := TCollections.CreateList<TSyntaxNode>;
     try
       // Collect all members from all visibility sections
       for var Child in ActualClassNode.ChildNodes do
@@ -254,7 +254,7 @@ var
          end;
       end;
     finally
-      Members.Free;
+      // Members is ARC, no Free needed here.
     end;
     
     if Fixture.Methods.Count > 0 then

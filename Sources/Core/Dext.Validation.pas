@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -31,7 +31,7 @@ uses
   System.SysUtils,
   System.Rtti,
   System.TypInfo,
-  System.Generics.Collections,
+  Dext.Collections,
   System.RegularExpressions;
 
 type
@@ -45,7 +45,7 @@ type
 
   TValidationResult = class
   private
-    FErrors: TList<TValidationError>;
+    FErrors: IList<TValidationError>;
     function GetIsValid: Boolean;
   public
     constructor Create;
@@ -168,12 +168,12 @@ end;
 constructor TValidationResult.Create;
 begin
   inherited Create;
-  FErrors := TList<TValidationError>.Create;
+  FErrors := TCollections.CreateList<TValidationError>;
 end;
 
 destructor TValidationResult.Destroy;
 begin
-  FErrors.Free;
+  FErrors := nil;
   inherited;
 end;
 

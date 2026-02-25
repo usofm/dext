@@ -44,12 +44,12 @@ uses
   System.Classes,
   System.Rtti,
   System.TypInfo,
-  System.Generics.Collections,
   Vcl.Controls,
   Vcl.StdCtrls,
   Vcl.ExtCtrls,
   Vcl.Forms,
   Dext.UI.Attributes,
+  Dext.Collections,
   Dext.UI.Message;
 
 type
@@ -83,8 +83,8 @@ type
   private
     FFrame: TComponent;
     FDispatch: TProc<TMsg>;
-    FBindings: TList<TBindingInfo>;
-    FWirings: TList<TEventWiring>;
+    FBindings: IList<TBindingInfo>;
+    FWirings: IList<TEventWiring>;
     FContext: TRttiContext;
     FModel: Pointer; // Pointer to the current model instance
     
@@ -118,8 +118,8 @@ begin
   inherited Create;
   FFrame := AFrame;
   FDispatch := ADispatch;
-  FBindings := TList<TBindingInfo>.Create;
-  FWirings := TList<TEventWiring>.Create;
+  FBindings := TCollections.CreateList<TBindingInfo>;
+  FWirings := TCollections.CreateList<TEventWiring>;
   FContext := TRttiContext.Create;
   
   DiscoverBindings;
@@ -128,8 +128,7 @@ end;
 
 destructor TMVUBinder<TModel, TMsg>.Destroy;
 begin
-  FWirings.Free;
-  FBindings.Free;
+  // FWirings and FBindings are ARC
   FContext.Free;
   inherited;
 end;

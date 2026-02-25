@@ -38,14 +38,14 @@ uses
 
 type
   /// <summary>Key-value pair record</summary>
-  TDextPair<K, V> = record
+  TPair<K, V> = record
     Key: K;
     Value: V;
     constructor Create(const AKey: K; const AValue: V);
   end;
 
   /// <summary>Generic dictionary interface</summary>
-  IDextDictionary<K, V> = interface(IEnumerable<TDextPair<K, V>>)
+  IDictionary<K, V> = interface(IEnumerable<TPair<K, V>>)
     ['{A7E3F294-60B1-4C01-B8D5-4E5F3A2C1D70}']
     function GetCount: Integer;
     function GetItem(const Key: K): V;
@@ -60,15 +60,15 @@ type
 
     function Keys: TArray<K>;
     function Values: TArray<V>;
-    function ToArray: TArray<TDextPair<K, V>>;
-    function GetEnumerator: IEnumerator<TDextPair<K, V>>;
+    function ToArray: TArray<TPair<K, V>>;
+    function GetEnumerator: IEnumerator<TPair<K, V>>;
 
     property Count: Integer read GetCount;
     property Items[const Key: K]: V read GetItem write SetItem; default;
   end;
 
   /// <summary>Generic dictionary implementation backed by TRawDictionary</summary>
-  TDextDictionary<K, V> = class(TInterfacedObject, IDextDictionary<K, V>)
+  TDictionary<K, V> = class(TInterfacedObject, IDictionary<K, V>)
   private
     FCore: TRawDictionary;
     FOwnsValues: Boolean;
@@ -81,7 +81,7 @@ type
     constructor Create(AOwnsValues: Boolean; ACapacity: Integer = 0); overload;
     destructor Destroy; override;
 
-    function GetEnumerator: IEnumerator<TDextPair<K, V>>;
+    function GetEnumerator: IEnumerator<TPair<K, V>>;
 
     procedure Add(const Key: K; const Value: V);
     procedure AddOrSetValue(const Key: K; const Value: V);
@@ -92,48 +92,48 @@ type
 
     function Keys: TArray<K>;
     function Values: TArray<V>;
-    function ToArray: TArray<TDextPair<K, V>>;
+    function ToArray: TArray<TPair<K, V>>;
 
     property Count: Integer read GetCount;
     property Items[const Key: K]: V read GetItem write SetItem; default;
     property OwnsValues: Boolean read FOwnsValues write FOwnsValues;
   end;
 
-  /// <summary>Enumerator for TDextDictionary</summary>
-  TDictEnumerator<K, V> = class(TInterfacedObject, IEnumerator<TDextPair<K, V>>)
+  /// <summary>Enumerator for TDictionary</summary>
+  TDictEnumerator<K, V> = class(TInterfacedObject, IEnumerator<TPair<K, V>>)
   private
     FCore: TRawDictionary;
     FIndex: Integer;
   public
     constructor Create(ACore: TRawDictionary);
-    function GetCurrent: TDextPair<K, V>;
+    function GetCurrent: TPair<K, V>;
     function MoveNext: Boolean;
-    property Current: TDextPair<K, V> read GetCurrent;
+    property Current: TPair<K, V> read GetCurrent;
   end;
 
 implementation
 
-{ TDextPair<K, V> }
+{ TPair<K, V> }
 
-constructor TDextPair<K, V>.Create(const AKey: K; const AValue: V);
+constructor TPair<K, V>.Create(const AKey: K; const AValue: V);
 begin
   Key := AKey;
   Value := AValue;
 end;
 
-{ TDextDictionary<K, V> }
+{ TDictionary<K, V> }
 
-constructor TDextDictionary<K, V>.Create;
+constructor TDictionary<K, V>.Create;
 begin
   Create(False, 0);
 end;
 
-constructor TDextDictionary<K, V>.Create(ACapacity: Integer);
+constructor TDictionary<K, V>.Create(ACapacity: Integer);
 begin
   Create(False, ACapacity);
 end;
 
-constructor TDextDictionary<K, V>.Create(AOwnsValues: Boolean; ACapacity: Integer);
+constructor TDictionary<K, V>.Create(AOwnsValues: Boolean; ACapacity: Integer);
 var
   HF: TRawHashFunc;
   EF: TRawEqualFunc;
@@ -160,7 +160,7 @@ begin
   );
 end;
 
-destructor TDextDictionary<K, V>.Destroy;
+destructor TDictionary<K, V>.Destroy;
 begin
   if FOwnsValues and (PTypeInfo(System.TypeInfo(V)).Kind = tkClass) then
   begin
@@ -177,17 +177,17 @@ begin
   inherited;
 end;
 
-function TDextDictionary<K, V>.GetEnumerator: IEnumerator<TDextPair<K, V>>;
+function TDictionary<K, V>.GetEnumerator: IEnumerator<TPair<K, V>>;
 begin
   Result := TDictEnumerator<K, V>.Create(FCore);
 end;
 
-function TDextDictionary<K, V>.GetCount: Integer;
+function TDictionary<K, V>.GetCount: Integer;
 begin
   Result := FCore.Count;
 end;
 
-function TDextDictionary<K, V>.GetItem(const Key: K): V;
+function TDictionary<K, V>.GetItem(const Key: K): V;
 var
   VP: Pointer;
 begin
@@ -196,17 +196,17 @@ begin
   Result := V(VP^);
 end;
 
-procedure TDextDictionary<K, V>.SetItem(const Key: K; const Value: V);
+procedure TDictionary<K, V>.SetItem(const Key: K; const Value: V);
 begin
   AddOrSetValue(Key, Value);
 end;
 
-procedure TDextDictionary<K, V>.Add(const Key: K; const Value: V);
+procedure TDictionary<K, V>.Add(const Key: K; const Value: V);
 begin
   FCore.AddRaw(@Key, @Value);
 end;
 
-procedure TDextDictionary<K, V>.AddOrSetValue(const Key: K; const Value: V);
+procedure TDictionary<K, V>.AddOrSetValue(const Key: K; const Value: V);
 var
   VP: Pointer;
 begin
@@ -222,7 +222,7 @@ begin
   FCore.AddOrSetRaw(@Key, @Value);
 end;
 
-function TDextDictionary<K, V>.TryGetValue(const Key: K; out Value: V): Boolean;
+function TDictionary<K, V>.TryGetValue(const Key: K; out Value: V): Boolean;
 var
   VP: Pointer;
 begin
@@ -233,12 +233,12 @@ begin
     Value := Default(V);
 end;
 
-function TDextDictionary<K, V>.ContainsKey(const Key: K): Boolean;
+function TDictionary<K, V>.ContainsKey(const Key: K): Boolean;
 begin
   Result := FCore.ContainsKeyRaw(@Key);
 end;
 
-function TDextDictionary<K, V>.Remove(const Key: K): Boolean;
+function TDictionary<K, V>.Remove(const Key: K): Boolean;
 begin
   if FOwnsValues and (PTypeInfo(System.TypeInfo(V)).Kind = tkClass) then
   begin
@@ -252,7 +252,7 @@ begin
   Result := FCore.RemoveRaw(@Key);
 end;
 
-procedure TDextDictionary<K, V>.Clear;
+procedure TDictionary<K, V>.Clear;
 begin
   if FOwnsValues and (PTypeInfo(System.TypeInfo(V)).Kind = tkClass) then
   begin
@@ -267,7 +267,7 @@ begin
   FCore.Clear;
 end;
 
-function TDextDictionary<K, V>.Keys: TArray<K>;
+function TDictionary<K, V>.Keys: TArray<K>;
 var
   Arr: TArray<K>;
   Idx: Integer;
@@ -284,7 +284,7 @@ begin
   Result := Arr;
 end;
 
-function TDextDictionary<K, V>.Values: TArray<V>;
+function TDictionary<K, V>.Values: TArray<V>;
 var
   Arr: TArray<V>;
   Idx: Integer;
@@ -301,9 +301,9 @@ begin
   Result := Arr;
 end;
 
-function TDextDictionary<K, V>.ToArray: TArray<TDextPair<K, V>>;
+function TDictionary<K, V>.ToArray: TArray<TPair<K, V>>;
 var
-  Arr: TArray<TDextPair<K, V>>;
+  Arr: TArray<TPair<K, V>>;
   Idx: Integer;
 begin
   SetLength(Arr, FCore.Count);
@@ -328,7 +328,7 @@ begin
   FIndex := -1;
 end;
 
-function TDictEnumerator<K, V>.GetCurrent: TDextPair<K, V>;
+function TDictEnumerator<K, V>.GetCurrent: TPair<K, V>;
 begin
   Result.Key := K(FCore.GetKeyPtrAtIndex(FIndex)^);
   Result.Value := V(FCore.GetValuePtrAtIndex(FIndex)^);

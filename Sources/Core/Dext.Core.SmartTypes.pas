@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -45,8 +45,7 @@ unit Dext.Core.SmartTypes;
 interface
 
 uses
-  System.Generics.Collections,
-  System.Generics.Defaults,
+  Dext.Collections.Comparers,
   System.Rtti,
   System.SysUtils,
   System.TypInfo,

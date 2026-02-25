@@ -4,12 +4,12 @@ interface
 
 uses
   System.Classes,
-  System.Generics.Collections,
-  System.Generics.Defaults,
   System.IOUtils,
   System.Math,
   System.StrUtils,
   System.SysUtils,
+  System.Generics.Collections, // THashSet, TObjectList - TODO: migrar para Dext.Collections
+  System.Generics.Defaults,
   Dext.Collections,
   DelphiAST.Classes,
   DelphiAST.Consts,
@@ -17,7 +17,7 @@ uses
   Dext.Utils;
 
 type
-  TOrdinalIgnoreCaseComparer = class(TEqualityComparer<string>)
+  TOrdinalIgnoreCaseComparer = class(System.Generics.Defaults.TEqualityComparer<string>)
   public
     function Equals(const Left, Right: string): Boolean; override;
     function GetHashCode(const Value: string): Integer; override;
@@ -26,9 +26,9 @@ type
   TExtractedUnit = class
   public
     UnitName: string;
-    Types: TList<string>;
-    GenericTypes: TList<string>; 
-    Consts: TList<string>;
+    Types: IList<string>;
+    GenericTypes: IList<string>; 
+    Consts: IList<string>;
     constructor Create(const AName: string);
     destructor Destroy; override;
   end;
@@ -36,7 +36,7 @@ type
   TFacadeGenerator = class
   private
     FTargetUnitName: string;
-    FSkippedUnits: TList<string>;
+    FSkippedUnits: IList<string>;
     FProcessedUnits: Integer;
     function IsFieldName(const AName: string): Boolean;
     function IsUnitProcessed(const UnitName: string): Boolean;
@@ -92,7 +92,7 @@ end;
 
 function TOrdinalIgnoreCaseComparer.GetHashCode(const Value: string): Integer;
 begin
-  Result := TEqualityComparer<string>.Default.GetHashCode(UpperCase(Value));
+  Result := System.Generics.Defaults.TEqualityComparer<string>.Default.GetHashCode(UpperCase(Value));
 end;
 
 { TExtractedUnit }
@@ -100,16 +100,13 @@ end;
 constructor TExtractedUnit.Create(const AName: string);
 begin
   UnitName := AName;
-  Types := TList<string>.Create;
-  GenericTypes := TList<string>.Create;
-  Consts := TList<string>.Create;
+  Types := TCollections.CreateList<string>;
+  GenericTypes := TCollections.CreateList<string>;
+  Consts := TCollections.CreateList<string>;
 end;
 
 destructor TExtractedUnit.Destroy;
 begin
-  Types.Free;
-  GenericTypes.Free;
-  Consts.Free;
   inherited;
 end;
 
@@ -127,8 +124,7 @@ begin
     FExcludedUnits.Add(S);
     
   FParsedUnits := TObjectList<TExtractedUnit>.Create(True);
-  FSkippedUnits := TList<string>.Create;
-  FSkippedUnits := TList<string>.Create;
+  FSkippedUnits := TCollections.CreateList<string>;
   FProcessedUnits := 0;
   
   // Defaults
@@ -145,7 +141,6 @@ end;
 destructor TFacadeGenerator.Destroy;
 begin
   FParsedUnits.Free;
-  FSkippedUnits.Free;
   FExcludedUnits.Free;
   FGlobalTypeNames.Free;
   inherited;
@@ -513,13 +508,12 @@ var
   procedure AddUses;
   var
     LUnitInfo: TExtractedUnit;
-    LUnits: TList<string>;
+    LUnits: IList<string>;
     i: Integer;
   begin
       NewLines.Add('  // Generated Uses');
-      LUnits := TList<string>.Create;
-      try
-        for LUnitInfo in FParsedUnits do
+      LUnits := TCollections.CreateList<string>;
+      for LUnitInfo in FParsedUnits do
         begin
            if SameText(LUnitInfo.UnitName, TargetUnitName) then Continue;
 
@@ -534,9 +528,6 @@ var
           else
             NewLines.Add('  ' + LUnits[i]);
         end;
-      finally
-        LUnits.Free;
-      end;
   end;
   
 begin

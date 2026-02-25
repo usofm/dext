@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -31,12 +31,12 @@ interface
 uses
   System.Classes,
   System.DateUtils,
-  System.Generics.Collections,
   System.JSON,
   System.NetEncoding,
   System.Rtti,
   System.SysUtils,
   System.Hash,
+  Dext.Collections,
   IdGlobal,
   IdHashSHA,
   IdHMAC,
@@ -512,7 +512,7 @@ var
   PayloadJson: string;
   Payload: TJSONObject;
   Pair: TJSONPair;
-  Claims: TList<TClaim>;
+  Claims: IList<TClaim>;
   Claim: TClaim;
 begin
   SetLength(Result, 0);
@@ -528,27 +528,23 @@ begin
       Exit;
     
     try
-      Claims := TList<TClaim>.Create;
-      try
-        for Pair in Payload do
-        begin
-          Claim.ClaimType := Pair.JsonString.Value;
-          if Pair.JsonValue is TJSONString then
-            Claim.Value := TJSONString(Pair.JsonValue).Value
-          else if Pair.JsonValue is TJSONNumber then
-            Claim.Value := TJSONNumber(Pair.JsonValue).ToString
-          else if Pair.JsonValue is TJSONBool then
-            Claim.Value := BoolToStr(TJSONBool(Pair.JsonValue).AsBoolean, True)
-          else
-            Claim.Value := Pair.JsonValue.ToString;
-          
-          Claims.Add(Claim);
-        end;
+      Claims := TCollections.CreateList<TClaim>;
+      for Pair in Payload do
+      begin
+        Claim.ClaimType := Pair.JsonString.Value;
+        if Pair.JsonValue is TJSONString then
+          Claim.Value := TJSONString(Pair.JsonValue).Value
+        else if Pair.JsonValue is TJSONNumber then
+          Claim.Value := TJSONNumber(Pair.JsonValue).ToString
+        else if Pair.JsonValue is TJSONBool then
+          Claim.Value := BoolToStr(TJSONBool(Pair.JsonValue).AsBoolean, True)
+        else
+          Claim.Value := Pair.JsonValue.ToString;
         
-        Result := Claims.ToArray;
-      finally
-        Claims.Free;
+        Claims.Add(Claim);
       end;
+      
+      Result := Claims.ToArray;
     finally
       Payload.Free;
     end;

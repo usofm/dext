@@ -31,8 +31,8 @@ interface
 uses
   System.Classes,
   System.Diagnostics,
-  System.Generics.Collections,
   System.SysUtils,
+  Dext.Collections.Dict,
   Dext.Web.Core,
   Dext.Web.Interfaces,
   Dext.Logging,

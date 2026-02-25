@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -28,8 +28,7 @@ unit Dext.Specifications.Interfaces;
 interface
 
 uses
-  System.Rtti,
-  System.Generics.Collections;
+  System.Rtti;
 
 type
   TMatchMode = (mmExact, mmStart, mmEnd, mmAnywhere);

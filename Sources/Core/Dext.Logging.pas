@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -30,7 +30,7 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
+  Dext.Collections,
   Dext.Types.UUID;
 
 type
@@ -239,7 +239,7 @@ type
   /// </summary>
   TLoggerFactory = class(TInterfacedObject, ILoggerFactory)
   private
-    FProviders: TList<ILoggerProvider>;
+    FProviders: IList<ILoggerProvider>;
     FLock: TObject;
     FMinimumLevel: TLogLevel;
   public
@@ -352,7 +352,7 @@ end;
 constructor TLoggerFactory.Create;
 begin
   inherited;
-  FProviders := TList<ILoggerProvider>.Create;
+  FProviders := TCollections.CreateList<ILoggerProvider>;
   FLock := TObject.Create;
   FMinimumLevel := TLogLevel.Information; // Default
 end;
@@ -367,7 +367,7 @@ begin
     begin
       LProvider.Dispose;
     end;
-    FProviders.Free;
+    FProviders := nil;
   finally
     TMonitor.Exit(FLock);
     FLock.Free;

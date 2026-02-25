@@ -36,7 +36,6 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
   Vcl.Controls,
   Dext.UI.Message;
 

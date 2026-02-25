@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -31,35 +31,10 @@ unit Dext.DI.Core;
 interface
 
 uses
-  System.SysUtils, System.Generics.Collections, System.SyncObjs,
-  Dext.DI.Interfaces;
+  System.SysUtils, System.SyncObjs,
+  Dext.Collections, Dext.Collections.Dict, Dext.DI.Interfaces;
 
 type
-  /// <summary>
-  ///   Describes a service registration in the DI container.
-  ///   Contains metadata about how to create and manage the service instance.
-  /// </summary>
-  TServiceDescriptor = class
-  public
-    ServiceType: TServiceType;
-    ImplementationClass: TClass;
-    Lifetime: TServiceLifetime;
-    Factory: TFunc<IServiceProvider, TObject>;
-    Instance: TObject;  // Pre-created instance for instance registration
-    /// <summary>
-    ///   Indicates if this service was registered as an interface type.
-    ///   Interface services are managed by ARC (TInterfacedObject).
-    ///   Class services are managed explicitly by the DI container (Free).
-    /// </summary>
-    IsInterfaceService: Boolean;
-    
-    constructor Create(const AServiceType: TServiceType;
-      AImplementationClass: TClass; ALifetime: TServiceLifetime;
-      AFactory: TFunc<IServiceProvider, TObject>);
-    function Clone: TServiceDescriptor;
-    destructor Destroy; override;
-  end;
-
   TDextServiceScope = class;
 
   /// <summary>
@@ -70,15 +45,15 @@ type
   /// </summary>
   TDextServiceProvider = class(TInterfacedObject, IServiceProvider)
   private
-    FDescriptors: TObjectList<TServiceDescriptor>;
+    FDescriptors: IList<TServiceDescriptor>;
     
     // Class-based service storage (DI owns and frees these)
-    FSingletons: TDictionary<string, TObject>;
-    FScopedInstances: TDictionary<string, TObject>;
+    FSingletons: IDictionary<string, TObject>;
+    FScopedInstances: IDictionary<string, TObject>;
     
     // Interface-based service storage (ARC manages these)
-    FSingletonInterfaces: TDictionary<string, IInterface>;
-    FScopedInterfaces: TDictionary<string, IInterface>;
+    FSingletonInterfaces: IDictionary<string, IInterface>;
+    FScopedInterfaces: IDictionary<string, IInterface>;
     
     FIsRootProvider: Boolean;
     FParentProvider: IServiceProvider;
@@ -88,8 +63,8 @@ type
     function CreateInstance(ADescriptor: TServiceDescriptor): TObject;
     function FindDescriptor(const AServiceType: TServiceType): TServiceDescriptor;
   public
-    constructor Create(const ADescriptors: TObjectList<TServiceDescriptor>); overload;
-    constructor CreateScoped(AParent: IServiceProvider; const ADescriptors: TObjectList<TServiceDescriptor>); overload;
+    constructor Create(const ADescriptors: IList<TServiceDescriptor>); overload;
+    constructor CreateScoped(AParent: IServiceProvider; const ADescriptors: IList<TServiceDescriptor>); overload;
     destructor Destroy; override;
 
     function GetService(const AServiceType: TServiceType): TObject;
@@ -108,12 +83,13 @@ type
 
   TDextServiceCollection = class(TInterfacedObject, IServiceCollection)
   private
-    FDescriptors: TObjectList<TServiceDescriptor>;
+    FDescriptors: IList<TServiceDescriptor>;
     FLock: TCriticalSection;
   public
     constructor Create;
     destructor Destroy; override;
 
+    function GetDescriptors: IList<TServiceDescriptor>;
     function AddSingleton(const AServiceType: TServiceType;
                          const AImplementationClass: TClass;
                          const AFactory: TFunc<IServiceProvider, TObject> = nil): IServiceCollection; overload;
@@ -140,49 +116,24 @@ uses
   System.TypInfo,
   Dext.Core.Activator;
 
-{ TServiceDescriptor }
-
-constructor TServiceDescriptor.Create(const AServiceType: TServiceType;
-  AImplementationClass: TClass; ALifetime: TServiceLifetime;
-  AFactory: TFunc<IServiceProvider, TObject>);
-begin
-  inherited Create;
-  ServiceType := AServiceType;
-  ImplementationClass := AImplementationClass;
-  Lifetime := ALifetime;
-  Factory := AFactory;
-  Instance := nil;  // Initialize as nil (will be set for instance registration)
-  // Determine ownership model based on how the service was registered
-  IsInterfaceService := AServiceType.IsInterface;
-end;
-
-destructor TServiceDescriptor.Destroy;
-begin
-  Factory := nil; // Explicitly release the closure reference
-  inherited;
-end;
-
-function TServiceDescriptor.Clone: TServiceDescriptor;
-begin
-  Result := TServiceDescriptor.Create(ServiceType, ImplementationClass, Lifetime, Factory);
-  Result.IsInterfaceService := IsInterfaceService;
-  Result.Instance := Instance;  // Copy instance reference (for instance registration)
-end;
-
 { TDextServiceCollection }
 
 constructor TDextServiceCollection.Create;
 begin
   inherited Create;
-  FDescriptors := TObjectList<TServiceDescriptor>.Create(True);
+  FDescriptors := TCollections.CreateList<TServiceDescriptor>(True);
   FLock := TCriticalSection.Create;
 end;
 
 destructor TDextServiceCollection.Destroy;
 begin
-  FDescriptors.Free;
   FLock.Free;
   inherited Destroy;
+end;
+
+function TDextServiceCollection.GetDescriptors: IList<TServiceDescriptor>;
+begin
+  Result := FDescriptors;
 end;
 
 function TDextServiceCollection.AddSingleton(const AServiceType: TServiceType;
@@ -279,24 +230,24 @@ end;
 
 { TDextServiceProvider }
 
-constructor TDextServiceProvider.Create(const ADescriptors: TObjectList<TServiceDescriptor>);
+constructor TDextServiceProvider.Create(const ADescriptors: IList<TServiceDescriptor>);
 var
   Desc: TServiceDescriptor;
 begin
   inherited Create;
   // Create our own list container, but share the items (owned by Collection)
-  FDescriptors := TObjectList<TServiceDescriptor>.Create(False);
+  FDescriptors := TCollections.CreateList<TServiceDescriptor>(False);
   for Desc in ADescriptors do
     FDescriptors.Add(Desc);
   FOwnsDescriptors := True;
 
   // Class-based storage (DI owns these objects)
-  FSingletons := TDictionary<string, TObject>.Create;
-  FScopedInstances := TDictionary<string, TObject>.Create;
+  FSingletons := TCollections.CreateDictionary<string, TObject>;
+  FScopedInstances := TCollections.CreateDictionary<string, TObject>;
   
   // Interface-based storage (ARC owns these objects)
-  FSingletonInterfaces := TDictionary<string, IInterface>.Create;
-  FScopedInterfaces := TDictionary<string, IInterface>.Create;
+  FSingletonInterfaces := TCollections.CreateDictionary<string, IInterface>;
+  FScopedInterfaces := TCollections.CreateDictionary<string, IInterface>;
   
   FLock := TCriticalSection.Create;
   FIsRootProvider := True;
@@ -304,12 +255,12 @@ begin
 end;
 
 constructor TDextServiceProvider.CreateScoped(AParent: IServiceProvider; 
-  const ADescriptors: TObjectList<TServiceDescriptor>);
+  const ADescriptors: IList<TServiceDescriptor>);
 var
   Desc: TServiceDescriptor;
 begin
   inherited Create;
-  FDescriptors := TObjectList<TServiceDescriptor>.Create(False);
+  FDescriptors := TCollections.CreateList<TServiceDescriptor>(False);
   for Desc in ADescriptors do
     FDescriptors.Add(Desc);
   FOwnsDescriptors := True;
@@ -319,8 +270,8 @@ begin
   FSingletonInterfaces := nil;
   
   // But they do manage scoped instances
-  FScopedInstances := TDictionary<string, TObject>.Create;
-  FScopedInterfaces := TDictionary<string, IInterface>.Create;
+  FScopedInstances := TCollections.CreateDictionary<string, TObject>;
+  FScopedInterfaces := TCollections.CreateDictionary<string, IInterface>;
   
   FLock := TCriticalSection.Create;
   FIsRootProvider := False;
@@ -328,60 +279,43 @@ begin
 end;
 
 destructor TDextServiceProvider.Destroy;
-var
-  SingletonObj: TObject;
-  ScopedObj: TObject;
-  Key: string;
 begin
   // === SINGLETON CLEANUP (only for root provider) ===
   if FIsRootProvider then
   begin
     // 1. Free class-based singletons (non-TInterfacedObject)
-    //    TInterfacedObject instances are in FSingletonInterfaces and managed by ARC
     if Assigned(FSingletons) then
     begin
-      for Key in FSingletons.Keys do
+      for var Pair in FSingletons do
       begin
-        if FSingletons.TryGetValue(Key, SingletonObj) then
-          SingletonObj.Free;  // Safe to free - not TInterfacedObject
+        Pair.Value.Free;
       end;
-      FSingletons.Free;
+      FSingletons := nil;
     end;
     
-    // 2. Clear interface-based singletons (ARC manages the objects)
-    if Assigned(FSingletonInterfaces) then
-    begin
-      FSingletonInterfaces.Clear; // ARC will free TInterfacedObject instances
-      FSingletonInterfaces.Free;
-    end;
+    // 2. Clear interface-based singletons (ARC manages)
+    FSingletonInterfaces := nil;
   end;
 
   // === SCOPED CLEANUP ===
-  // 1. Free class-based scoped instances (non-TInterfacedObject only)
+  // Scoped providers or root provider clearing temporary scoped items used for resolution?
+  // Actually usually only TServiceScope calls this when it's destroyed.
   if Assigned(FScopedInstances) then
   begin
-    for Key in FScopedInstances.Keys do
+    for var Pair in FScopedInstances do
     begin
-      if FScopedInstances.TryGetValue(Key, ScopedObj) then
-      begin
-        if not (ScopedObj is TInterfacedObject) then
-          ScopedObj.Free;
-      end;
+       Pair.Value.Free;
     end;
-    FScopedInstances.Free;
+    FScopedInstances := nil;
   end;
   
-  // 2. Clear interface-based scoped instances (ARC manages)
-  if Assigned(FScopedInterfaces) then
-  begin
-    FScopedInterfaces.Clear;
-    FScopedInterfaces.Free;
-  end;
+  // 2. Clear interface-based scoped instances (ARC)
+  FScopedInterfaces := nil;
 
   FLock.Free;
   
-  if FOwnsDescriptors and Assigned(FDescriptors) then
-    FDescriptors.Free;
+  if FOwnsDescriptors then
+    FDescriptors := nil;
 
   inherited Destroy;
 end;

@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -28,9 +28,9 @@ unit Dext.Specifications.Base;
 interface
 
 uses
-  System.Generics.Collections,
   System.SysUtils,
   System.TypInfo,
+  Dext.Collections,
   Dext.Specifications.Interfaces,
   Dext.Specifications.Types;
   
@@ -57,16 +57,16 @@ type
   TSpecification<T: class> = class(TInterfacedObject, ISpecification<T>)
   protected
     FExpression: IExpression;
-    FIncludes: TList<string>;
-    FSelectedColumns: TList<string>;
-    FOrderBy: TList<IOrderBy>;
+    FIncludes: IList<string>;
+    FSelectedColumns: IList<string>;
+    FOrderBy: IList<IOrderBy>;
     FSkip: Integer;
     FTake: Integer;
     FIsPagingEnabled: Boolean;
     FIsTracking: Boolean;
     
-    FJoins: TList<IJoin>;
-    FGroupBy: TList<string>;
+    FJoins: IList<IJoin>;
+    FGroupBy: IList<string>;
     FIgnoreQueryFilters: Boolean;
     FOnlyDeleted: Boolean;
     FLockMode: TLockMode;
@@ -129,11 +129,11 @@ implementation
 constructor TSpecification<T>.Create;
 begin
   inherited;
-  FIncludes := TList<string>.Create;
-  FSelectedColumns := TList<string>.Create;
-  FOrderBy := TList<IOrderBy>.Create;
-  FJoins := TList<IJoin>.Create;
-  FGroupBy := TList<string>.Create;
+  FIncludes := TCollections.CreateList<string>;
+  FSelectedColumns := TCollections.CreateList<string>;
+  FOrderBy := TCollections.CreateList<IOrderBy>;
+  FJoins := TCollections.CreateList<IJoin>;
+  FGroupBy := TCollections.CreateList<string>;
   FLockMode := lmNone;
   FExpression := nil; // Empty expression matches all
   FIsTracking := True; // Tracking enabled by default
@@ -149,11 +149,12 @@ end;
 
 destructor TSpecification<T>.Destroy;
 begin
-  FIncludes.Free;
-  FSelectedColumns.Free;
-  FOrderBy.Free;
-  FJoins.Free;
-  FGroupBy.Free;
+  // IList<T> fields are interface-managed (ref-counted), no manual Free needed
+  FIncludes := nil;
+  FSelectedColumns := nil;
+  FOrderBy := nil;
+  FJoins := nil;
+  FGroupBy := nil;
   inherited;
 end;
 

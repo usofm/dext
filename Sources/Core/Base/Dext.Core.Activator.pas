@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -31,7 +31,8 @@ uses
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
-  System.Generics.Collections,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.DI.Interfaces,
   Dext.DI.Attributes;
 
@@ -65,7 +66,7 @@ type
     class procedure RegisterDefault(ABase: TClass; AImpl: TClass);
     class function ResolveImplementation(AClass: TClass): TClass;
   private
-    class var FDefaultImplementations: TDictionary<TClass, TClass>;
+    class var FDefaultImplementations: IDictionary<TClass, TClass>;
     class constructor Create;
     class destructor Destroy;
     class function TryResolveService(AProvider: IServiceProvider; AParamType: TRttiType; out AResolvedService: TValue): Boolean;
@@ -76,21 +77,20 @@ type
 implementation
 
 uses
-  System.Classes,
-  Dext.Collections;
+  System.Classes;
 
 { TActivator }
 
 class constructor TActivator.Create;
 begin
-  FDefaultImplementations := TDictionary<TClass, TClass>.Create;
+  FDefaultImplementations := TCollections.CreateDictionary<TClass, TClass>;
   // Default framework mappings
   RegisterDefault(TStrings, TStringList);
 end;
 
 class destructor TActivator.Destroy;
 begin
-  FDefaultImplementations.Free;
+  FDefaultImplementations := nil;
 end;
 
 class procedure TActivator.RegisterDefault(ABase: TClass; AImpl: TClass);
@@ -552,8 +552,7 @@ class function TActivator.IsListType(AType: PTypeInfo): Boolean;
 begin
   Result := (AType <> nil) and 
             ((AType.Kind = tkClass) or (AType.Kind = tkInterface)) and
-            ((Pos('System.Generics.Collections', string(AType.TypeData^.UnitName)) > 0) or
-             (Pos('Dext.Collections', string(AType.TypeData^.UnitName)) > 0));
+            (Pos('Dext.Collections', string(AType.TypeData^.UnitName)) > 0);
 end;
 
 class function TActivator.GetListElementType(AType: PTypeInfo): PTypeInfo;

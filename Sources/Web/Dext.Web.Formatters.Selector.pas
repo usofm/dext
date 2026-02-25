@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -30,9 +30,9 @@ interface
 uses
   System.Classes,
   System.SysUtils,
-  System.Generics.Collections,
-  System.Generics.Defaults,
   Dext.Web.Interfaces,
+  Dext.Collections,
+  Dext.Collections.Comparers,
   Dext.Web.Formatters.Interfaces;
 
 type
@@ -55,7 +55,7 @@ class function TMediaTypeHeaderValue.ParseList(const AHeaderValue: string): TArr
 var
   Parts: TArray<string>;
   Item: string;
-  List: TList<TMediaTypeHeaderValue>;
+  List: IList<TMediaTypeHeaderValue>;
   MediaRange: string;
   Params: TArray<string>;
   i: Integer;
@@ -68,7 +68,7 @@ begin
     Exit;
   end;
 
-  List := TList<TMediaTypeHeaderValue>.Create;
+  List := TCollections.CreateList<TMediaTypeHeaderValue>;
   try
     Parts := AHeaderValue.Split([',']);
     for Item in Parts do
@@ -112,7 +112,7 @@ begin
       
     Result := List.ToArray;
   finally
-    List.Free;
+    // List is ARC
   end;
 end;
 

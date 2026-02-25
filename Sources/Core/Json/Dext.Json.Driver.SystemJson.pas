@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -28,7 +28,6 @@ unit Dext.Json.Driver.SystemJson;
 interface
 
 uses
-  System.Generics.Collections,
   System.JSON,
   System.SysUtils,
   Dext.Json.Types;

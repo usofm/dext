@@ -31,7 +31,6 @@ interface
 uses
   System.SysUtils,
   System.Rtti,
-  System.Generics.Collections,
   Dext,
   // {BEGIN_DEXT_USES}
   // Generated Uses

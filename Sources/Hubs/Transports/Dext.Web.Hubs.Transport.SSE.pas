@@ -35,14 +35,16 @@ interface
 
 uses
   System.Classes,
-  System.Generics.Collections,
+  System.Rtti,
   System.SyncObjs,
   System.SysUtils,
-  System.Rtti,
+  System.Generics.Collections, // para TQueue - TODO: implementar no Dext.Collections e REMOVER URGENTE!
   Dext.Auth.Identity,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Threading.CancellationToken,
-  Dext.Web.Hubs.Interfaces,
   Dext.Web.Hubs.Connections,
+  Dext.Web.Hubs.Interfaces,
   Dext.Web.Hubs.Protocol.Json,
   Dext.Web.Interfaces;
 
@@ -54,7 +56,7 @@ type
   private
     FConnectionId: string;
     FState: TConnectionState;
-    FItems: TDictionary<string, TValue>;
+    FItems: IDictionary<string, TValue>;
     FMessageQueue: TQueue<string>;
     FQueueLock: TCriticalSection;
     FClosed: Int64; // 0 = open, 1 = closed (using Integer for TInterlocked)
@@ -68,7 +70,7 @@ type
     function GetState: TConnectionState;
     function GetUser: IClaimsPrincipal;
     function GetUserIdentifier: string;
-    function GetItems: TDictionary<string, TValue>;
+    function GetItems: IDictionary<string, TValue>;
     function GetAbortToken: ICancellationToken;
     
     procedure SendAsync(const Message: string);
@@ -91,7 +93,7 @@ type
   /// </summary>
   TSSETransport = class(TInterfacedObject, IHubTransport)
   private
-    FConnections: TDictionary<string, TSSEConnection>;
+    FConnections: IDictionary<string, TSSEConnection>;
     FLock: TCriticalSection;
     FOnMessageReceived: TOnMessageReceived;
     FOnConnected: TOnConnectionEvent;
@@ -153,7 +155,7 @@ begin
   inherited Create;
   FConnectionId := AConnectionId;
   FState := csConnecting;
-  FItems := TDictionary<string, TValue>.Create;
+  FItems := TCollections.CreateDictionary<string, TValue>;
   FMessageQueue := TQueue<string>.Create;
   FQueueLock := TCriticalSection.Create;
   FClosed := 0;
@@ -163,7 +165,7 @@ destructor TSSEConnection.Destroy;
 begin
   FQueueLock.Free;
   FMessageQueue.Free;
-  FItems.Free;
+  // FItems is ARC
   inherited;
 end;
 
@@ -192,7 +194,7 @@ begin
   Result := '';
 end;
 
-function TSSEConnection.GetItems: TDictionary<string, TValue>;
+function TSSEConnection.GetItems: IDictionary<string, TValue>;
 begin
   Result := FItems;
 end;
@@ -266,7 +268,7 @@ end;
 constructor TSSETransport.Create;
 begin
   inherited Create;
-  FConnections := TDictionary<string, TSSEConnection>.Create;
+  FConnections := TCollections.CreateDictionary<string, TSSEConnection>;
   FLock := TCriticalSection.Create;
   FShuttingDown := False;
 end;
@@ -289,7 +291,7 @@ begin
   // Now safe to free resources
   FLock.Enter;
   try
-    FConnections.Free;
+    // FConnections is ARC
   finally
     FLock.Leave;
   end;

@@ -33,8 +33,7 @@ unit Dext.Web.Hubs.Types;
 interface
 
 uses
-  System.SysUtils,
-  System.Generics.Collections;
+  System.SysUtils;
 
 type
   /// <summary>

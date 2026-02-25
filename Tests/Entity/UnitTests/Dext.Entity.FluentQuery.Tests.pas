@@ -1,4 +1,4 @@
-unit Dext.Entity.FluentQuery.Tests;
+﻿unit Dext.Entity.FluentQuery.Tests;
 
 interface
 

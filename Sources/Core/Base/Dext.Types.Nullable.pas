@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -32,7 +32,7 @@ uses
   System.Rtti,
   System.TypInfo,
   System.Variants,
-  System.Generics.Defaults;
+  Dext.Collections.Comparers;
 
 type
   /// <summary>

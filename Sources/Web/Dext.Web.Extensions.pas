@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -28,7 +28,6 @@ unit Dext.Web.Extensions;
 interface
 
 uses
-  System.Generics.Collections,
   System.SysUtils,
   System.TypInfo,
   Dext.DI.Interfaces,
@@ -37,6 +36,7 @@ uses
   Dext.Web.Formatters.Selector,
   Dext.Web.Formatters.Json,
   Dext.HealthChecks,
+  Dext.Collections,
   Dext.Web.ControllerScanner;
 
 type
@@ -70,7 +70,7 @@ type
 
   TOutputFormatterRegistry = class(TInterfacedObject, IOutputFormatterRegistry)
   private
-    FFormatters: TList<IOutputFormatter>;
+    FFormatters: IList<IOutputFormatter>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -85,12 +85,11 @@ implementation
 constructor TOutputFormatterRegistry.Create;
 begin
   inherited Create;
-  FFormatters := TList<IOutputFormatter>.Create;
+  FFormatters := TCollections.CreateList<IOutputFormatter>;
 end;
 
 destructor TOutputFormatterRegistry.Destroy;
 begin
-  FFormatters.Free;
   inherited;
 end;
 

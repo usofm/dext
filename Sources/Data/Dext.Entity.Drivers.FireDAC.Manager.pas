@@ -7,7 +7,9 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
+  Dext.Collections.Base,
+  Dext.Collections.Dict,
+  Dext.Collections,
   System.SyncObjs,
   FireDAC.Stan.Intf,
   FireDAC.Stan.Option,
@@ -49,7 +51,7 @@ type
     class var FCriticalSection: TCriticalSection;
     
     FManager: TFDManager;
-    FDefinitions: TDictionary<string, string>; // Hash -> DefName
+    FDefinitions: IDictionary<string, string>; // Hash -> DefName
     constructor Create;
   public
     class constructor Create;
@@ -131,12 +133,12 @@ end;
 constructor TDextFireDACManager.Create;
 begin
   FManager := TFDManager(FireDAC.Comp.Client.FDManager);
-  FDefinitions := TDictionary<string, string>.Create;
+  FDefinitions := TCollections.CreateDictionary<string, string>;
 end;
 
 destructor TDextFireDACManager.Destroy;
 begin
-  FDefinitions.Free;
+  FDefinitions := nil;
   inherited;
 end;
 

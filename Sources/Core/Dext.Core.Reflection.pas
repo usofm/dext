@@ -1,4 +1,4 @@
-unit Dext.Core.Reflection;
+﻿unit Dext.Core.Reflection;
 
 interface
 
@@ -6,7 +6,8 @@ uses
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
-  System.Generics.Collections;
+  Dext.Collections,
+  Dext.Collections.Dict;
 
 type
   TCustomAttributeClass = class of TCustomAttribute;
@@ -35,7 +36,7 @@ type
 
   TReflection = class
   private
-    class var FCache: TObjectDictionary<PTypeInfo, TTypeMetadata>;
+    class var FCache: IDictionary<PTypeInfo, TTypeMetadata>;
     class var FContext: TRttiContext;
     class constructor Create;
     class destructor Destroy;
@@ -114,12 +115,12 @@ end;
 class constructor TReflection.Create;
 begin
   FContext := TRttiContext.Create;
-  FCache := TObjectDictionary<PTypeInfo, TTypeMetadata>.Create([doOwnsValues]);
+  FCache := TCollections.CreateDictionary<PTypeInfo, TTypeMetadata>(True);
 end;
 
 class destructor TReflection.Destroy;
 begin
-  FCache.Free;
+  FCache := nil;
 end;
 
 class function TReflection.GetMetadata(AType: PTypeInfo): TTypeMetadata;

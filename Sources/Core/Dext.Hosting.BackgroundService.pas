@@ -30,7 +30,7 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
+  Dext.Collections,
   Dext.DI.Interfaces,
   Dext.Threading.CancellationToken; // ✅ Added
 
@@ -80,7 +80,7 @@ type
   /// </summary>
   THostedServiceManager = class(TInterfacedObject, IHostedServiceManager)
   private
-    FServices: TList<IHostedService>;
+    FServices: IList<IHostedService>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -93,7 +93,7 @@ type
   TBackgroundServiceBuilder = record
   private
     FServices: IServiceCollection;
-    FHostedServices: TList<TClass>;
+    FHostedServices: IList<TClass>;
   public
     constructor Create(Services: IServiceCollection);
     function AddHostedService<T: class, constructor>: TBackgroundServiceBuilder;
@@ -162,14 +162,14 @@ end;
 constructor THostedServiceManager.Create;
 begin
   inherited Create;
-  FServices := TList<IHostedService>.Create;
+  FServices := TCollections.CreateList<IHostedService>;
 end;
 
 destructor THostedServiceManager.Destroy;
 begin
   // Services are interfaces managed by ARC
   // Just free the list container, not the services themselves
-  FServices.Free;
+  FServices := nil;
   inherited;
 end;
 
@@ -217,7 +217,7 @@ end;
 constructor TBackgroundServiceBuilder.Create(Services: IServiceCollection);
 begin
   FServices := Services;
-  FHostedServices := TList<TClass>.Create;
+  FHostedServices := TCollections.CreateList<TClass>;
 end;
 
 function TBackgroundServiceBuilder.AddHostedService<T>: TBackgroundServiceBuilder;
@@ -234,7 +234,7 @@ end;
 procedure TBackgroundServiceBuilder.Build;
 var
   CapturedServices: TArray<TClass>;
-  LHostedServices: TList<TClass>;
+  LHostedServices: IList<TClass>;
 begin
   LHostedServices := FHostedServices;
   CapturedServices := LHostedServices.ToArray;
@@ -264,7 +264,7 @@ begin
   );
   
   // Safe to free the list now, the captured array keeps the classes
-  LHostedServices.Free;
+  LHostedServices := nil;
 end;
 
 end.

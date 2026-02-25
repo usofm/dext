@@ -1,10 +1,11 @@
-unit Dext.MultiTenancy;
+﻿unit Dext.MultiTenancy;
 
 interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections;
+  Dext.Collections,
+  Dext.Collections.Dict;
 
 type
   ITenant = interface
@@ -13,13 +14,13 @@ type
     function GetName: string;
     function GetConnectionString: string;
     function GetSchema: string;
-    function GetProperties: TDictionary<string, string>;
+    function GetProperties: IDictionary<string, string>;
     
     property Id: string read GetId;
     property Name: string read GetName;
     property ConnectionString: string read GetConnectionString;
     property Schema: string read GetSchema;
-    property Properties: TDictionary<string, string> read GetProperties;
+    property Properties: IDictionary<string, string> read GetProperties;
   end;
 
   ITenantProvider = interface
@@ -35,7 +36,7 @@ type
     FName: string;
     FConnectionString: string;
     FSchema: string;
-    FProperties: TDictionary<string, string>;
+    FProperties: IDictionary<string, string>;
   public
     constructor Create(const AId, AName, AConnectionString: string; const ASchema: string = '');
     destructor Destroy; override;
@@ -44,7 +45,7 @@ type
     function GetName: string;
     function GetConnectionString: string;
     function GetSchema: string;
-    function GetProperties: TDictionary<string, string>;
+    function GetProperties: IDictionary<string, string>;
   end;
 
   TTenantProvider = class(TInterfacedObject, ITenantProvider)
@@ -66,12 +67,12 @@ begin
   FName := AName;
   FConnectionString := AConnectionString;
   FSchema := ASchema;
-  FProperties := TDictionary<string, string>.Create;
+  FProperties := TCollections.CreateDictionary<string, string>;
 end;
 
 destructor TTenant.Destroy;
 begin
-  FProperties.Free;
+  FProperties := nil;
   inherited;
 end;
 
@@ -95,7 +96,7 @@ begin
   Result := FSchema;
 end;
 
-function TTenant.GetProperties: TDictionary<string, string>;
+function TTenant.GetProperties: IDictionary<string, string>;
 begin
   Result := FProperties;
 end;

@@ -71,9 +71,6 @@ type
 
 implementation
 
-uses
-  System.Generics.Collections;
-
 { TJsonHubProtocol }
 
 function TJsonHubProtocol.GetName: string;

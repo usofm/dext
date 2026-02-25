@@ -4,9 +4,11 @@ interface
 
 uses
   System.SysUtils,
+  System.Generics.Collections, // TObjectList - usado com TMonitor, TODO: migrar
+  Dext.Collections,
+  Dext.Collections.Dict,
   System.Classes,
   System.IOUtils,
-  System.Generics.Collections,
   System.DateUtils,
   System.JSON,
   System.Types,
@@ -61,7 +63,7 @@ uses
   IdGlobal;      // Access to ToBytes/IndyTextEncoding_UTF8
 
 var
-  FSSEClients: TList<IHttpContext>;
+  FSSEClients: IList<IHttpContext>;
   FLock: TObject;
 
 procedure BroadcastSSE(const EventName, Data: string); forward;
@@ -770,13 +772,12 @@ begin
     procedure(Ctx: IHttpContext)
     var
       Body: string;
+      Collection: THttpRequestCollection;
+      ExResult: THttpExecutionResult;
+      Json, ResJson, HeadersObj: TJSONObject;
+      RequestIndex: Integer;
       Res: IResult;
       SR: TStreamReader;
-      Json, ResJson, HeadersObj: TJSONObject;
-      Collection: THttpRequestCollection;
-      RequestIndex: Integer;
-      ExResult: THttpExecutionResult;
-      Pair: TPair<string, string>;
     begin
       SR := TStreamReader.Create(Ctx.Request.Body);
       try
@@ -809,8 +810,8 @@ begin
                   
                   HeadersObj := TJSONObject.Create;
                   if ExResult.ResponseHeaders <> nil then
-                    for Pair in ExResult.ResponseHeaders do
-                      HeadersObj.AddPair(Pair.Key, Pair.Value);
+                    for var HdrKey in ExResult.ResponseHeaders.Keys do
+                      HeadersObj.AddPair(HdrKey, ExResult.ResponseHeaders[HdrKey]);
                   ResJson.AddPair('responseHeaders', HeadersObj);
                   
                   Res := Results.Text(ResJson.ToString, 200);
@@ -1075,11 +1076,10 @@ end;
 
 initialization
   FHttpHistory := TObjectList<THttpHistoryItem>.Create(True);
-  FSSEClients := TList<IHttpContext>.Create;
+  FSSEClients := TCollections.CreateList<IHttpContext>;
   FLock := TObject.Create;
 
 finalization
-  FSSEClients.Free;
   FLock.Free;
   FHttpHistory.Free;
 

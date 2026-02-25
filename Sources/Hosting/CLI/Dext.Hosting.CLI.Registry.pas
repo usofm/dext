@@ -33,7 +33,7 @@ uses
   System.IOUtils,
   System.DateUtils,
   System.StrUtils,
-  System.Generics.Collections,
+  Dext.Collections,
   Dext.Yaml;
 
 type
@@ -200,51 +200,47 @@ var
   ProjectMap: TYamlMapping;
   Node: TYamlNode;
   I: Integer;
-  List: TList<TProjectInfo>;
+  List: IList<TProjectInfo>;
   Info: TProjectInfo;
 begin
-  List := TList<TProjectInfo>.Create;
+  List := TCollections.CreateList<TProjectInfo>;
+  Doc := LoadRegistry;
   try
-    Doc := LoadRegistry;
-    try
-      if (Doc.Root <> nil) and (Doc.Root.GetNodeType = yntMapping) then
+    if (Doc.Root <> nil) and (Doc.Root.GetNodeType = yntMapping) then
+    begin
+      Root := Doc.Root as TYamlMapping;
+      if Root.TryGet('projects', Node) and (Node.GetNodeType = yntSequence) then
       begin
-        Root := Doc.Root as TYamlMapping;
-        if Root.TryGet('projects', Node) and (Node.GetNodeType = yntSequence) then
+        ProjectsSeq := Node as TYamlSequence;
+        for I := 0 to ProjectsSeq.Items.Count - 1 do
         begin
-          ProjectsSeq := Node as TYamlSequence;
-          for I := 0 to ProjectsSeq.Items.Count - 1 do
+          ProjectNode := ProjectsSeq.Items[I];
+          if ProjectNode.GetNodeType = yntMapping then
           begin
-            ProjectNode := ProjectsSeq.Items[I];
-            if ProjectNode.GetNodeType = yntMapping then
-            begin
-              ProjectMap := ProjectNode as TYamlMapping;
-              Info.Path := '';
-              Info.Name := '';
-              Info.LastAccess := 0;
+            ProjectMap := ProjectNode as TYamlMapping;
+            Info.Path := '';
+            Info.Name := '';
+            Info.LastAccess := 0;
+            
+            if ProjectMap.TryGet('path', Node) and (Node is TYamlScalar) then
+              Info.Path := (Node as TYamlScalar).Value;
               
-              if ProjectMap.TryGet('path', Node) and (Node is TYamlScalar) then
-                Info.Path := (Node as TYamlScalar).Value;
-                
-              if ProjectMap.TryGet('name', Node) and (Node is TYamlScalar) then
-                Info.Name := (Node as TYamlScalar).Value;
-                
-              if ProjectMap.TryGet('last_access', Node) and (Node is TYamlScalar) then
-                Info.LastAccess := ISO8601ToDate((Node as TYamlScalar).Value);
-                
-              if Info.Path <> '' then
-                List.Add(Info);
-            end;
+            if ProjectMap.TryGet('name', Node) and (Node is TYamlScalar) then
+              Info.Name := (Node as TYamlScalar).Value;
+              
+            if ProjectMap.TryGet('last_access', Node) and (Node is TYamlScalar) then
+              Info.LastAccess := ISO8601ToDate((Node as TYamlScalar).Value);
+              
+            if Info.Path <> '' then
+              List.Add(Info);
           end;
         end;
       end;
-    finally
-      Doc.Free;
     end;
-    Result := List.ToArray;
   finally
-    List.Free;
+    Doc.Free;
   end;
+  Result := List.ToArray;
 end;
 
 end.

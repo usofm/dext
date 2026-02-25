@@ -127,6 +127,11 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCCReference Include="Core\Dext.Collections.Factory.pas"/>
         <DCCReference Include="Core\Dext.Collections.RawDict.pas"/>
         <DCCReference Include="Core\Dext.Collections.Dict.pas"/>
+        <DCCReference Include="Core\Dext.Collections.Concurrent.pas"/>
+        <DCCReference Include="Core\Dext.Collections.Channels.pas"/>
+        <DCCReference Include="Core\Dext.Collections.Algorithms.pas"/>
+        <DCCReference Include="Core\Dext.Collections.Simd.pas"/>
+        <DCCReference Include="Core\Dext.Collections.Vector.pas"/>
         <DCCReference Include="Core\Dext.Collections.pas"/>
         <DCCReference Include="Core\Dext.Configuration.Binder.pas"/>
         <DCCReference Include="Core\Dext.Configuration.Core.pas"/>
@@ -182,7 +187,9 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCCReference Include="Core\Interception\Dext.Interception.ClassProxy.pas"/>
         <DCCReference Include="Core\Dext.Logging.pas"/>
         <DCCReference Include="Core\Dext.Telemetry.Context.pas"/>
+        <DCCReference Include="Core\Dext.Collections.Comparers.pas"/>
         <DCCReference Include="Core\Dext.Collections.Base.pas"/>
+        <DCCReference Include="Core\Dext.Collections.Frozen.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

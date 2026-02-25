@@ -36,9 +36,9 @@ interface
 uses
   System.Rtti,
   System.SysUtils,
+  Dext.Collections,
+  Dext.Collections.Comparers,
   System.TypInfo,
-  System.Generics.Collections,
-  System.Generics.Defaults,
   System.RegularExpressions;
 
 type
@@ -49,7 +49,7 @@ type
   /// </summary>
   TMatcherFactory = class
   private class var
-    FMatcherStack: TList<TPredicate<TValue>>;
+    FMatcherStack: IList<TPredicate<TValue>>;
   public
     class constructor Create;
     class destructor Destroy;
@@ -122,17 +122,18 @@ implementation
 
 class constructor TMatcherFactory.Create;
 begin
-  FMatcherStack := TList<TPredicate<TValue>>.Create;
+  FMatcherStack := TCollections.CreateList<TPredicate<TValue>>;
 end;
 
 class destructor TMatcherFactory.Destroy;
 begin
-  FMatcherStack.Free;
+  // ARC will free it
 end;
 
 class function TMatcherFactory.AddMatcher(const Predicate: TPredicate<TValue>): Integer;
 begin
-  Result := FMatcherStack.Add(Predicate);
+  FMatcherStack.Add(Predicate);
+  Result := FMatcherStack.Count - 1;
 end;
 
 class function TMatcherFactory.GetMatchers: TArray<TPredicate<TValue>>;

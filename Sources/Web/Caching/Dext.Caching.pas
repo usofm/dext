@@ -32,8 +32,9 @@ uses
   System.Classes,
   System.Rtti,
   System.DateUtils,
-  System.Generics.Collections,
   System.SyncObjs,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Web.Core,
   Dext.Web.Interfaces;
 
@@ -78,7 +79,7 @@ type
   /// </summary>
   TMemoryCacheStore = class(TInterfacedObject, ICacheStore)
   private
-    FEntries: TDictionary<string, TCacheEntry>;
+    FEntries: IDictionary<string, TCacheEntry>;
     FLock: TCriticalSection;
     FMaxSize: Integer;
     
@@ -303,14 +304,14 @@ uses
 constructor TMemoryCacheStore.Create(AMaxSize: Integer);
 begin
   inherited Create;
-  FEntries := TDictionary<string, TCacheEntry>.Create;
+  FEntries := TCollections.CreateDictionary<string, TCacheEntry>;
   FLock := TCriticalSection.Create;
   FMaxSize := AMaxSize;
 end;
 
 destructor TMemoryCacheStore.Destroy;
 begin
-  FEntries.Free;
+  // FEntries is ARC
   FLock.Free;
   inherited;
 end;
@@ -388,12 +389,12 @@ end;
 
 procedure TMemoryCacheStore.CleanupExpired;
 var
-  KeysToRemove: TList<string>;
+  KeysToRemove: IList<string>;
   Key: string;
   Entry: TCacheEntry;
   Now: TDateTime;
 begin
-  KeysToRemove := TList<string>.Create;
+  KeysToRemove := TCollections.CreateList<string>;
   try
     Now := System.SysUtils.Now;
     
@@ -407,13 +408,13 @@ begin
     for Key in KeysToRemove do
       FEntries.Remove(Key);
   finally
-    KeysToRemove.Free;
+    // KeysToRemove is ARC
   end;
 end;
 
 procedure TMemoryCacheStore.EnforceMaxSize;
 var
-  KeysToRemove: TList<string>;
+  KeysToRemove: IList<string>;
   Key: string;
   RemoveCount: Integer;
 begin
@@ -422,7 +423,7 @@ begin
   if RemoveCount < 1 then
     RemoveCount := 1;
     
-  KeysToRemove := TList<string>.Create;
+  KeysToRemove := TCollections.CreateList<string>;
   try
     for Key in FEntries.Keys do
     begin
@@ -434,7 +435,7 @@ begin
     for Key in KeysToRemove do
       FEntries.Remove(Key);
   finally
-    KeysToRemove.Free;
+    // KeysToRemove is ARC
   end;
 end;
 

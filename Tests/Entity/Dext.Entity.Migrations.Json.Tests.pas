@@ -1,4 +1,4 @@
-unit Dext.Entity.Migrations.Json.Tests;
+﻿unit Dext.Entity.Migrations.Json.Tests;
 
 interface
 

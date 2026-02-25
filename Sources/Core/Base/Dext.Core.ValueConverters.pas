@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -31,7 +31,8 @@ uses
   System.SysUtils,
   System.Rtti,
   System.TypInfo,
-  System.Generics.Collections,
+  Dext.Collections,
+  Dext.Collections.Dict,
   System.Variants,
   System.DateUtils,
   System.Classes,
@@ -47,7 +48,7 @@ type
 
   TValueConverterRegistry = class
   private
-    class var FConverters: TDictionary<string, IValueConverter>; // Key: "SourceKind:TargetKind" or specific types
+    class var FConverters: IDictionary<string, IValueConverter>; // Key: "SourceKind:TargetKind" or specific types
     class constructor Create;
     class destructor Destroy;
     class function GetKey(ASource, ATarget: PTypeInfo): string;
@@ -159,7 +160,7 @@ uses
 
 class constructor TValueConverterRegistry.Create;
 begin
-  FConverters := TDictionary<string, IValueConverter>.Create;
+  FConverters := TCollections.CreateDictionary<string, IValueConverter>;
   
   // Register Default Converters
   
@@ -240,7 +241,7 @@ end;
 
 class destructor TValueConverterRegistry.Destroy;
 begin
-  FConverters.Free;
+  FConverters := nil;
 end;
 
 class function TValueConverterRegistry.GetKey(ASource, ATarget: PTypeInfo): string;

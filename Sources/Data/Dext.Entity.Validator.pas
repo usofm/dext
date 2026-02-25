@@ -7,6 +7,8 @@ uses
   System.Rtti,
   System.TypInfo,
   System.Classes,
+  Dext.Collections.Base,
+  Dext.Collections.Dict,
   Dext.Entity.Attributes,
   Dext.Entity.Mapping;
 

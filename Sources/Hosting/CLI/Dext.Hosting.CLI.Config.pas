@@ -4,13 +4,13 @@ interface
 
 uses
   System.Classes,
-  System.Generics.Collections,
   System.IOUtils,
   System.JSON,
   System.SysUtils,
   System.Win.Registry,
   Winapi.Windows,
   Dext.Yaml,
+  Dext.Collections,
   Dext.Configuration.Yaml;
 
 type
@@ -41,7 +41,7 @@ type
 
   TDextGlobalConfig = class
   private
-    FEnvironments: TList<TDextEnvironment>;
+    FEnvironments: IList<TDextEnvironment>;
     FDextPath: string;
     FCoveragePath: string;
     FStartMinimized: Boolean;
@@ -66,7 +66,7 @@ type
     property DextPath: string read FDextPath write FDextPath; // Added write
     property CoveragePath: string read FCoveragePath write FCoveragePath; // Added write
     property StartMinimized: Boolean read FStartMinimized write FStartMinimized;
-    property Environments: TList<TDextEnvironment> read FEnvironments;
+    property Environments: IList<TDextEnvironment> read FEnvironments;
   end;
 
 implementation
@@ -139,12 +139,11 @@ end;
 
 constructor TDextGlobalConfig.Create;
 begin
-  FEnvironments := TList<TDextEnvironment>.Create;
+  FEnvironments := TCollections.CreateList<TDextEnvironment>;
 end;
 
 destructor TDextGlobalConfig.Destroy;
 begin
-  FEnvironments.Free;
   inherited;
 end;
 

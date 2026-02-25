@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -33,7 +33,6 @@ uses
   {$ENDIF}
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
   System.IOUtils,
   Dext.Configuration.Interfaces,
   Dext.Configuration.Core;

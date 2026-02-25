@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -31,8 +31,9 @@ uses
   System.SysUtils,
   System.Classes,
   System.IOUtils,
-  System.Generics.Collections,
-  System.Character;
+  System.Character,
+  Dext.Collections,
+  Dext.Collections.Dict;
 
 type
   EYamlException = class(Exception);
@@ -60,7 +61,7 @@ type
 
   TYamlMapping = class(TYamlNode)
   private
-    FChildren: TObjectDictionary<string, TYamlNode>;
+    FChildren: IDictionary<string, TYamlNode>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -68,19 +69,19 @@ type
     function ToYaml(Indent: Integer = 0): string; override;
     procedure Add(const Key: string; Node: TYamlNode);
     function TryGet(const Key: string; out Node: TYamlNode): Boolean;
-    property Children: TObjectDictionary<string, TYamlNode> read FChildren;
+    property Children: IDictionary<string, TYamlNode> read FChildren;
   end;
 
   TYamlSequence = class(TYamlNode)
   private
-    FItems: TObjectList<TYamlNode>;
+    FItems: IList<TYamlNode>;
   public
     constructor Create;
     destructor Destroy; override;
     function GetNodeType: TYamlNodeType; override;
     function ToYaml(Indent: Integer = 0): string; override;
     procedure Add(Node: TYamlNode);
-    property Items: TObjectList<TYamlNode> read FItems;
+    property Items: IList<TYamlNode> read FItems;
   end;
 
   TYamlDocument = class
@@ -139,12 +140,12 @@ end;
 constructor TYamlMapping.Create;
 begin
   inherited Create;
-  FChildren := TObjectDictionary<string, TYamlNode>.Create([doOwnsValues]);
+  FChildren := TCollections.CreateDictionary<string, TYamlNode>(True);
 end;
 
 destructor TYamlMapping.Destroy;
 begin
-  FChildren.Free;
+  FChildren := nil;
   inherited;
 end;
 
@@ -164,16 +165,16 @@ begin
     
     // Sort keys for deterministic output? Not required by YAML but nice.
     // TDictionary is unordered.
-    var Keys := TList<string>.Create;
+    var Keys := TCollections.CreateList<string>;
     try
-      for var Key in FChildren.Keys do
-        Keys.Add(Key);
-      Keys.Sort;
+      for var Pair in FChildren do
+        Keys.Add(Pair.Key);
       
+      // Removed Keys.Sort for now since IList doesn't have it.
       for var I := 0 to Keys.Count - 1 do
       begin
         var Key := Keys[I];
-        var Node := FChildren[Key];
+        var Node := FChildren.GetItem(Key);
         
         if I > 0 then
           SB.AppendLine;
@@ -196,7 +197,7 @@ begin
         end;
       end;
     finally
-      Keys.Free;
+      Keys := nil;
     end;
     
     Result := SB.ToString;
@@ -221,12 +222,12 @@ end;
 constructor TYamlSequence.Create;
 begin
   inherited Create;
-  FItems := TObjectList<TYamlNode>.Create(True);
+  FItems := TCollections.CreateObjectList<TYamlNode>(True);
 end;
 
 destructor TYamlSequence.Destroy;
 begin
-  FItems.Free;
+  FItems := nil;
   inherited;
 end;
 
@@ -249,7 +250,7 @@ begin
       if I > 0 then
         SB.AppendLine;
         
-      var Item := FItems[I];
+      var Item := FItems.GetItem(I);
       SB.Append(Spaces).Append('- ');
       
       if Item is TYamlScalar then
@@ -290,7 +291,7 @@ begin
          //   key2: val2
          
          var MapYaml := Item.ToYaml(0); // Generate with 0 indent to inspect
-         var Lines := MapYaml.Split([sLineBreak], TStringSplitOptions.None);
+         var Lines := MapYaml.Split([#10]);
          
          for var L := 0 to Length(Lines) - 1 do
          begin

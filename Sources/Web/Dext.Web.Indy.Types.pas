@@ -1,4 +1,4 @@
-unit Dext.Web.Indy.Types;
+﻿unit Dext.Web.Indy.Types;
 
 interface
 

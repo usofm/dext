@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -31,7 +31,6 @@ uses
   System.SysUtils,
   System.Classes,
   System.IOUtils,
-  System.Generics.Collections,
   Dext.Configuration.Interfaces,
   Dext.Configuration.Core,
   Dext.Json,

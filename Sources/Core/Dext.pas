@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -199,7 +199,7 @@ type
   TServiceTypeComparer = Dext.DI.Comparers.TServiceTypeComparer;
 
   // Dext.DI.Core
-  TServiceDescriptor = Dext.DI.Core.TServiceDescriptor;
+  TServiceDescriptor = Dext.DI.Interfaces.TServiceDescriptor;
   TDextServiceScope = Dext.DI.Core.TDextServiceScope;
   TDextServiceProvider = Dext.DI.Core.TDextServiceProvider;
   TDextServiceCollection = Dext.DI.Core.TDextServiceCollection;

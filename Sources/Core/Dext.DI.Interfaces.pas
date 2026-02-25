@@ -29,6 +29,7 @@ interface
 
 uses
   System.SysUtils,
+  Dext.Collections,
   System.TypInfo;
 
 type
@@ -70,6 +71,31 @@ type
     class operator Implicit(A: PTypeInfo): TServiceType;
   end;
 
+  /// <summary>
+  ///   Describes a service registration in the DI container.
+  ///   Contains metadata about how to create and manage the service instance.
+  /// </summary>
+  TServiceDescriptor = class
+  public
+    ServiceType: TServiceType;
+    ImplementationClass: TClass;
+    Lifetime: TServiceLifetime;
+    Factory: TFunc<IServiceProvider, TObject>;
+    Instance: TObject;  // Pre-created instance for instance registration
+    /// <summary>
+    ///   Indicates if this service was registered as an interface type.
+    ///   Interface services are managed by ARC (TInterfacedObject).
+    ///   Class services are managed explicitly by the DI container (Free).
+    /// </summary>
+    IsInterfaceService: Boolean;
+    
+    constructor Create(const AServiceType: TServiceType;
+      AImplementationClass: TClass; ALifetime: TServiceLifetime;
+      AFactory: TFunc<IServiceProvider, TObject>);
+    function Clone: TServiceDescriptor;
+    destructor Destroy; override;
+  end;
+
   IServiceScope = interface
     ['{F2E7D3F4-9C6E-4B8A-8D2C-7F5A1B3E8D9F}']
     function GetServiceProvider: IServiceProvider;
@@ -78,6 +104,7 @@ type
 
   IServiceCollection = interface
     ['{A1F8C5D2-8B4E-4A7D-9C3B-6E8F4A2D1C7A}']
+    function GetDescriptors: IList<TServiceDescriptor>;
 
     function AddSingleton(const AServiceType: TServiceType;
                          const AImplementationClass: TClass;
@@ -181,6 +208,35 @@ implementation
 
 uses
   Dext.DI.Core;
+
+{ TServiceDescriptor }
+
+constructor TServiceDescriptor.Create(const AServiceType: TServiceType;
+  AImplementationClass: TClass; ALifetime: TServiceLifetime;
+  AFactory: TFunc<IServiceProvider, TObject>);
+begin
+  inherited Create;
+  ServiceType := AServiceType;
+  ImplementationClass := AImplementationClass;
+  Lifetime := ALifetime;
+  Factory := AFactory;
+  Instance := nil;  // Initialize as nil (will be set for instance registration)
+  // Determine ownership model based on how the service was registered
+  IsInterfaceService := AServiceType.IsInterface;
+end;
+
+destructor TServiceDescriptor.Destroy;
+begin
+  Factory := nil; // Explicitly release the closure reference
+  inherited;
+end;
+
+function TServiceDescriptor.Clone: TServiceDescriptor;
+begin
+  Result := TServiceDescriptor.Create(ServiceType, ImplementationClass, Lifetime, Factory);
+  Result.IsInterfaceService := IsInterfaceService;
+  Result.Instance := Instance;  // Copy instance reference (for instance registration)
+end;
 
 { TServiceType }
 

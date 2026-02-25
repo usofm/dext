@@ -6,7 +6,7 @@ uses
   System.SysUtils,
   System.TypInfo,
   System.Rtti,
-  System.Generics.Collections,
+  Dext.Collections,
   System.Classes,
   Dext.Core.Activator,
   Dext.Core.Reflection,
@@ -222,7 +222,7 @@ end;
 
 class function TEntityProxyFactory.CreateInstance<T>(AContext: IDbContext): T;
 var
-  Interceptors: TList<IInterceptor>;
+  Interceptors: IList<IInterceptor>;
   Map: TEntityMap;
   Prop: TPropertyMap;
   Proxy: TClassProxy;
@@ -231,8 +231,7 @@ begin
     Exit(T(TActivator.CreateInstance(TClass(T), [])));
 
   Map := TEntityMap(AContext.GetMapping(TypeInfo(T)));
-  Interceptors := TList<IInterceptor>.Create;
-  try
+  Interceptors := TCollections.CreateList<IInterceptor>;
     for Prop in Map.Properties.Values do
     begin
       if Prop.IsLazy then
@@ -242,9 +241,6 @@ begin
     Proxy := TClassProxy.Create(TClass(T), Interceptors.ToArray, True);
     AContext.TrackProxy(Proxy);
     Result := T(Proxy.Instance);
-  finally
-    Interceptors.Free;
-  end;
 end;
 
 end.

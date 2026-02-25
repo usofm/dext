@@ -3,15 +3,15 @@ unit Dext.Hosting.CLI.Tools.Sonar;
 interface
 
 uses
-  System.SysUtils, 
-  System.Classes, 
-  System.IOUtils, 
-  System.Generics.Collections,
-  System.Generics.Defaults,
+  System.Classes,
+  System.IOUtils,
+  System.SysUtils,
   System.Variants,
-  Xml.XMLIntf, 
-  Xml.XMLDoc,
   Winapi.ActiveX,
+  Xml.XMLDoc,
+  Xml.XMLIntf,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Utils;
 
 type
@@ -36,7 +36,7 @@ end;
 
 class procedure TSonarConverter.ConvertInternal(const DccXmlFile, SonarXmlFile, SourceDir: string; Threshold: Double);
 var
-  UnitMap: TDictionary<string, string>;
+  UnitMap: IDictionary<string, string>;
   Files: TArray<string>;
   FileName, UnitKey: string;
   
@@ -71,7 +71,7 @@ begin
   SafeWriteLn('Converting Coverage Report to Sonar Generic Format...');
   
   // 1. Build Unit Map (Case Insensitive via LowerCase keys)
-  UnitMap := TDictionary<string, string>.Create;
+  UnitMap := TCollections.CreateDictionary<string, string>;
   try
     Files := TDirectory.GetFiles(SourceDir, '*.pas', TSearchOption.SoAllDirectories);
     for FileName in Files do
@@ -182,7 +182,7 @@ begin
     end;
     
   finally
-    UnitMap.Free;
+    // UnitMap is ARC
   end;
 end;
 

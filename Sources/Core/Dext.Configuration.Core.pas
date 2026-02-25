@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -30,8 +30,10 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
-  System.Generics.Defaults,
+  Dext.Collections,
+  Dext.Collections.Dict,
+  Dext.Collections.Comparers,
+  Dext.Collections.Algorithms,
   Dext.Configuration.Interfaces;
 
 type
@@ -40,7 +42,7 @@ type
   /// </summary>
   TConfigurationProvider = class(TInterfacedObject, IConfigurationProvider)
   protected
-    FData: TDictionary<string, string>;
+    FData: IDictionary<string, string>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -74,13 +76,13 @@ type
 
   TConfigurationRoot = class(TInterfacedObject, IConfigurationRoot, IConfiguration)
   private
-    FProviders: TList<IConfigurationProvider>;
+    FProviders: IList<IConfigurationProvider>;
     
     function GetConfiguration(const Key: string): string;
     procedure SetConfiguration(const Key, Value: string);
 
   public
-    constructor Create(const Providers: TList<IConfigurationProvider>);
+    constructor Create(const Providers: IList<IConfigurationProvider>);
     destructor Destroy; override;
     
     procedure Reload;
@@ -95,14 +97,14 @@ type
 
   TConfigurationBuilder = class(TInterfacedObject, IConfigurationBuilder)
   private
-    FSources: TList<IConfigurationSource>;
-    FProperties: TDictionary<string, TObject>;
+    FSources: IList<IConfigurationSource>;
+    FProperties: IDictionary<string, TObject>;
   public
     constructor Create;
     destructor Destroy; override;
     
-    function GetSources: TList<IConfigurationSource>;
-    function GetProperties: TDictionary<string, TObject>;
+    function GetSources: IList<IConfigurationSource>;
+    function GetProperties: IDictionary<string, TObject>;
     
     function Add(Source: IConfigurationSource): IConfigurationBuilder;
     function Build: IConfigurationRoot;
@@ -110,15 +112,15 @@ type
 
   TMemoryConfigurationProvider = class(TConfigurationProvider)
   public
-    constructor Create(Data: TDictionary<string, string>);
+    constructor Create(Data: IDictionary<string, string>);
     procedure Load; override;
   end;
 
   TMemoryConfigurationSource = class(TInterfacedObject, IConfigurationSource)
   private
-    FData: TDictionary<string, string>;
+    FData: IDictionary<string, string>;
   public
-    constructor Create(Data: TEnumerable<TPair<string, string>>); overload;
+    constructor Create(Data: IEnumerable<TPair<string, string>>); overload;
     constructor Create(const Data: array of TPair<string, string>); overload;
     destructor Destroy; override;
     function Build(Builder: IConfigurationBuilder): IConfigurationProvider;
@@ -158,12 +160,12 @@ implementation
 constructor TConfigurationProvider.Create;
 begin
   inherited;
-  FData := TDictionary<string, string>.Create(TStringComparer.Ordinal);
+  FData := TCollections.CreateDictionary<string, string>;
 end;
 
 destructor TConfigurationProvider.Destroy;
 begin
-  FData.Free;
+  FData := nil;
   inherited;
 end;
 
@@ -184,13 +186,13 @@ end;
 
 function TConfigurationProvider.GetChildKeys(const EarlierKeys: TArray<string>; const ParentPath: string): TArray<string>;
 var
-  Results: TList<string>;
+  Results: IList<string>;
   Key: string;
   Segment: string;
   Prefix: string;
   Len: Integer;
 begin
-  Results := TList<string>.Create;
+  Results := TCollections.CreateList<string>;
   try
     Results.AddRange(EarlierKeys);
     
@@ -201,8 +203,9 @@ begin
       
     Len := Length(Prefix);
     
-    for Key in FData.Keys do
+    for var Pair in FData do
     begin
+      Key := Pair.Key;
       if (Len = 0) or (Key.StartsWith(Prefix, True)) then
       begin
         Segment := Key.Substring(Len);
@@ -216,9 +219,9 @@ begin
     end;
     
     Result := Results.ToArray;
-    TArray.Sort<string>(Result);
+    TDextSort.Sort<string>(Result, TComparer<string>.Default);
   finally
-    Results.Free;
+    Results := nil;
   end;
 end;
 
@@ -274,11 +277,12 @@ end;
 
 { TConfigurationRoot }
 
-constructor TConfigurationRoot.Create(const Providers: TList<IConfigurationProvider>);
+constructor TConfigurationRoot.Create(const Providers: IList<IConfigurationProvider>);
 begin
   inherited Create;
-  FProviders := TList<IConfigurationProvider>.Create;
-  FProviders.AddRange(Providers);
+  FProviders := TCollections.CreateList<IConfigurationProvider>;
+  for var Provider in Providers do
+    FProviders.Add(Provider);
   
   for var Provider in FProviders do
     Provider.Load;
@@ -286,12 +290,7 @@ end;
 
 destructor TConfigurationRoot.Destroy;
 begin
-  if FProviders <> nil then
-  begin
-    for var I := 0 to FProviders.Count - 1 do
-      FProviders[I] := nil;
-    FProviders.Free;
-  end;
+  FProviders := nil;
   inherited;
 end;
 
@@ -343,7 +342,6 @@ function TConfigurationRoot.GetSectionChildren(const Path: string): TArray<IConf
 var
   Keys: TArray<string>;
   Provider: IConfigurationProvider;
-  DistinctKeys: TList<string>;
   ChildPath: string;
 begin
   Keys := [];
@@ -352,8 +350,6 @@ begin
     Keys := Provider.GetChildKeys(Keys, Path);
   end;
   
-  DistinctKeys := TList<string>.Create;
-  try
     // Keys are already distinct per provider logic usually, but we merge them.
     // Provider.GetChildKeys usually adds to existing.
     
@@ -363,9 +359,6 @@ begin
       ChildPath := TConfigurationPath.Combine(Path, Keys[I]);
       Result[I] := TConfigurationSection.Create(Self, ChildPath);
     end;
-  finally
-    DistinctKeys.Free;
-  end;
 end;
 
 function TConfigurationRoot.GetChildren: TArray<IConfigurationSection>;
@@ -378,32 +371,23 @@ end;
 constructor TConfigurationBuilder.Create;
 begin
   inherited;
-  FSources := TList<IConfigurationSource>.Create;
-  FProperties := TDictionary<string, TObject>.Create;
+  FSources := TCollections.CreateList<IConfigurationSource>;
+  FProperties := TCollections.CreateDictionary<string, TObject>;
 end;
 
 destructor TConfigurationBuilder.Destroy;
 begin
-  if FSources <> nil then
-  begin
-    for var I := 0 to FSources.Count - 1 do
-      FSources[I] := nil;
-    FSources.Free;
-  end;
-  if FProperties <> nil then
-  begin
-    FProperties.Clear;
-    FProperties.Free;
-  end;
+  FSources := nil;
+  FProperties := nil;
   inherited;
 end;
 
-function TConfigurationBuilder.GetSources: TList<IConfigurationSource>;
+function TConfigurationBuilder.GetSources: IList<IConfigurationSource>;
 begin
   Result := FSources;
 end;
 
-function TConfigurationBuilder.GetProperties: TDictionary<string, TObject>;
+function TConfigurationBuilder.GetProperties: IDictionary<string, TObject>;
 begin
   Result := FProperties;
 end;
@@ -416,9 +400,9 @@ end;
 
 function TConfigurationBuilder.Build: IConfigurationRoot;
 var
-  Providers: TList<IConfigurationProvider>;
+  Providers: IList<IConfigurationProvider>;
 begin
-  Providers := TList<IConfigurationProvider>.Create;
+  Providers := TCollections.CreateList<IConfigurationProvider>;
   try
     for var Source in FSources do
     begin
@@ -429,7 +413,7 @@ begin
     
     Result := TConfigurationRoot.Create(Providers);
   finally
-    Providers.Free;
+    Providers := nil;
   end;
 end;
 
@@ -468,7 +452,7 @@ end;
 
 { TMemoryConfigurationProvider }
 
-constructor TMemoryConfigurationProvider.Create(Data: TDictionary<string, string>);
+constructor TMemoryConfigurationProvider.Create(Data: IDictionary<string, string>);
 begin
   inherited Create;
   if Data <> nil then
@@ -485,10 +469,10 @@ end;
 
 { TMemoryConfigurationSource }
 
-constructor TMemoryConfigurationSource.Create(Data: TEnumerable<TPair<string, string>>);
+constructor TMemoryConfigurationSource.Create(Data: IEnumerable<TPair<string, string>>);
 begin
   inherited Create;
-  FData := TDictionary<string, string>.Create;
+  FData := TCollections.CreateDictionary<string, string>;
   if Data <> nil then
   begin
     for var Pair in Data do
@@ -499,14 +483,14 @@ end;
 constructor TMemoryConfigurationSource.Create(const Data: array of TPair<string, string>);
 begin
   inherited Create;
-  FData := TDictionary<string, string>.Create;
+  FData := TCollections.CreateDictionary<string, string>;
   for var Pair in Data do
     FData.Add(Pair.Key, Pair.Value);
 end;
 
 destructor TMemoryConfigurationSource.Destroy;
 begin
-  FData.Free;
+  FData := nil;
   inherited;
 end;
 

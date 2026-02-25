@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -29,7 +29,7 @@ unit Dext.DI.Comparers;
 interface
 
 uses
-  System.Generics.Defaults,
+  Dext.Collections.Comparers,
   System.Hash,
   System.SysUtils,
   Dext.DI.Interfaces;

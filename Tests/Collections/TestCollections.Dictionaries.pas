@@ -1,8 +1,8 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework — Collections Unit Tests                         }
 {                                                                           }
-{           Tests for IDextDictionary<K,V>, TDextDictionary<K,V>,           }
+{           Tests for IDictionary<K,V>, TDictionary<K,V>,           }
 {           TCollections.CreateDictionary<K,V>                              }
 {                                                                           }
 {***************************************************************************}
@@ -234,7 +234,7 @@ end;
 
 procedure TDictionaryBasicTests.Add_ShouldIncreaseCount;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
 begin
   D := TCollections.CreateDictionary<Integer, Integer>;
   Should(D.Count).Be(0);
@@ -246,7 +246,7 @@ end;
 
 procedure TDictionaryBasicTests.TryGetValue_ShouldReturnTrue_WhenKeyExists;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
   V: Integer;
 begin
   D := TCollections.CreateDictionary<Integer, Integer>;
@@ -257,7 +257,7 @@ end;
 
 procedure TDictionaryBasicTests.TryGetValue_ShouldReturnFalse_WhenKeyMissing;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
   V: Integer;
 begin
   D := TCollections.CreateDictionary<Integer, Integer>;
@@ -267,7 +267,7 @@ end;
 
 procedure TDictionaryBasicTests.ContainsKey_ShouldReturnTrue_WhenExists;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
 begin
   D := TCollections.CreateDictionary<Integer, Integer>;
   D.Add(5, 50);
@@ -276,7 +276,7 @@ end;
 
 procedure TDictionaryBasicTests.ContainsKey_ShouldReturnFalse_WhenMissing;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
 begin
   D := TCollections.CreateDictionary<Integer, Integer>;
   D.Add(5, 50);
@@ -285,7 +285,7 @@ end;
 
 procedure TDictionaryBasicTests.Remove_ShouldDecreaseCount;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
 begin
   D := TCollections.CreateDictionary<Integer, Integer>;
   D.Add(1, 10);
@@ -297,7 +297,7 @@ end;
 
 procedure TDictionaryBasicTests.Remove_ShouldReturnFalse_WhenMissing;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
 begin
   D := TCollections.CreateDictionary<Integer, Integer>;
   Should(D.Remove(42)).BeFalse;
@@ -305,7 +305,7 @@ end;
 
 procedure TDictionaryBasicTests.Clear_ShouldResetCount;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
 begin
   D := TCollections.CreateDictionary<Integer, Integer>;
   D.Add(1, 10);
@@ -317,7 +317,7 @@ end;
 
 procedure TDictionaryBasicTests.Items_ShouldReadAndWrite;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
 begin
   D := TCollections.CreateDictionary<Integer, Integer>;
   D.Add(1, 100);
@@ -328,7 +328,7 @@ end;
 
 procedure TDictionaryBasicTests.AddOrSetValue_ShouldUpdateExisting;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
 begin
   D := TCollections.CreateDictionary<Integer, Integer>;
   D.AddOrSetValue(1, 100);
@@ -339,7 +339,7 @@ end;
 
 procedure TDictionaryBasicTests.Add_DuplicateKey_ShouldRaise;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
 begin
   D := TCollections.CreateDictionary<Integer, Integer>;
   D.Add(1, 100);
@@ -353,7 +353,7 @@ end;
 
 procedure TDictionaryBasicTests.Items_MissingKey_ShouldRaise;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
 begin
   D := TCollections.CreateDictionary<Integer, Integer>;
   Should(
@@ -368,7 +368,7 @@ end;
 
 procedure TDictionaryBasicTests.Keys_ShouldReturnAllKeys;
 var
-  D: IDextDictionary<Integer, string>;
+  D: IDictionary<Integer, string>;
   K: TArray<Integer>;
 begin
   D := TCollections.CreateDictionary<Integer, string>;
@@ -381,7 +381,7 @@ end;
 
 procedure TDictionaryBasicTests.Values_ShouldReturnAllValues;
 var
-  D: IDextDictionary<Integer, string>;
+  D: IDictionary<Integer, string>;
   V: TArray<string>;
 begin
   D := TCollections.CreateDictionary<Integer, string>;
@@ -393,8 +393,8 @@ end;
 
 procedure TDictionaryBasicTests.ToArray_ShouldReturnAllPairs;
 var
-  D: IDextDictionary<Integer, string>;
-  Pairs: TArray<TDextPair<Integer, string>>;
+  D: IDictionary<Integer, string>;
+  Pairs: TArray<TPair<Integer, string>>;
 begin
   D := TCollections.CreateDictionary<Integer, string>;
   D.Add(1, 'X');
@@ -407,7 +407,7 @@ end;
 
 procedure TDictionaryStringKeyTests.Add_StringKeyShouldWork;
 var
-  D: IDextDictionary<string, Integer>;
+  D: IDictionary<string, Integer>;
 begin
   D := TCollections.CreateDictionary<string, Integer>;
   D.Add('hello', 1);
@@ -419,7 +419,7 @@ end;
 
 procedure TDictionaryStringKeyTests.TryGetValue_StringKeyShouldWork;
 var
-  D: IDextDictionary<string, Integer>;
+  D: IDictionary<string, Integer>;
   V: Integer;
 begin
   D := TCollections.CreateDictionary<string, Integer>;
@@ -431,7 +431,7 @@ end;
 
 procedure TDictionaryStringKeyTests.Remove_StringKeyShouldWork;
 var
-  D: IDextDictionary<string, Integer>;
+  D: IDictionary<string, Integer>;
 begin
   D := TCollections.CreateDictionary<string, Integer>;
   D.Add('remove-me', 1);
@@ -441,7 +441,7 @@ end;
 
 procedure TDictionaryStringKeyTests.ContainsKey_StringKeyShouldWork;
 var
-  D: IDextDictionary<string, Integer>;
+  D: IDictionary<string, Integer>;
 begin
   D := TCollections.CreateDictionary<string, Integer>;
   D.Add('exists', 1);
@@ -451,7 +451,7 @@ end;
 
 procedure TDictionaryStringKeyTests.LargeStringKeys_ShouldNotCollide;
 var
-  D: IDextDictionary<string, Integer>;
+  D: IDictionary<string, Integer>;
   I: Integer;
   Key: string;
 begin
@@ -474,7 +474,7 @@ end;
 
 procedure TDictionaryStringKeyTests.EmptyStringKey_ShouldWork;
 var
-  D: IDextDictionary<string, Integer>;
+  D: IDictionary<string, Integer>;
 begin
   D := TCollections.CreateDictionary<string, Integer>;
   D.Add('', 42);
@@ -491,7 +491,7 @@ end;
 
 procedure TDictionaryOwnershipTests.OwnsValues_ShouldFreeOnRemove;
 var
-  D: IDextDictionary<Integer, TDummyValue>;
+  D: IDictionary<Integer, TDummyValue>;
 begin
   D := TCollections.CreateDictionary<Integer, TDummyValue>(True);
   D.Add(1, TDummyValue.Create('A'));
@@ -502,7 +502,7 @@ end;
 
 procedure TDictionaryOwnershipTests.OwnsValues_ShouldFreeOnClear;
 var
-  D: IDextDictionary<Integer, TDummyValue>;
+  D: IDictionary<Integer, TDummyValue>;
 begin
   D := TCollections.CreateDictionary<Integer, TDummyValue>(True);
   D.Add(1, TDummyValue.Create('A'));
@@ -515,7 +515,7 @@ end;
 
 procedure TDictionaryOwnershipTests.OwnsValues_ShouldFreeOnOverwrite;
 var
-  D: IDextDictionary<Integer, TDummyValue>;
+  D: IDictionary<Integer, TDummyValue>;
 begin
   D := TCollections.CreateDictionary<Integer, TDummyValue>(True);
   D.Add(1, TDummyValue.Create('Old'));
@@ -528,7 +528,7 @@ end;
 
 procedure TDictionaryOwnershipTests.NoOwnership_ShouldNotFreeOnClear;
 var
-  D: IDextDictionary<Integer, TDummyValue>;
+  D: IDictionary<Integer, TDummyValue>;
   V1, V2: TDummyValue;
 begin
   D := TCollections.CreateDictionary<Integer, TDummyValue>;
@@ -549,7 +549,7 @@ end;
 
 procedure TDictionaryStressTests.Insert1000_ShouldWork;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
   I: Integer;
   V: Integer;
 begin
@@ -565,7 +565,7 @@ end;
 
 procedure TDictionaryStressTests.InsertAndRemoveAll_ShouldBeEmpty;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
   I: Integer;
 begin
   D := TCollections.CreateDictionary<Integer, Integer>;
@@ -580,7 +580,7 @@ end;
 
 procedure TDictionaryStressTests.Rehash_ShouldPreserveAllEntries;
 var
-  D: IDextDictionary<Integer, Integer>;
+  D: IDictionary<Integer, Integer>;
   I, V: Integer;
 begin
   // Start with small capacity (4), insert enough to trigger multiple rehashes
@@ -620,7 +620,7 @@ end;
 
 procedure TCollectionsFactoryTests.CreateDictionary_ShouldReturnEmptyDict;
 var
-  D: IDextDictionary<string, Integer>;
+  D: IDictionary<string, Integer>;
 begin
   D := TCollections.CreateDictionary<string, Integer>;
   Should(D).NotBeNil;
@@ -629,7 +629,7 @@ end;
 
 procedure TCollectionsFactoryTests.CreateDictionary_WithOwnership_ShouldWork;
 var
-  D: IDextDictionary<Integer, TObject>;
+  D: IDictionary<Integer, TObject>;
 begin
   D := TCollections.CreateDictionary<Integer, TObject>(True);
   Should(D).NotBeNil;
@@ -640,8 +640,8 @@ end;
 
 procedure TDictionaryEnumeratorTests.ForIn_ShouldIterateAllPairs;
 var
-  D: IDextDictionary<Integer, string>;
-  Pair: TDextPair<Integer, string>;
+  D: IDictionary<Integer, string>;
+  Pair: TPair<Integer, string>;
   KeysSum: Integer;
   ValuesConcat: string;
 begin
@@ -666,8 +666,8 @@ end;
 
 procedure TDictionaryEnumeratorTests.ForIn_EmptyDictionary_ShouldNotIterate;
 var
-  D: IDextDictionary<Integer, string>;
-  Pair: TDextPair<Integer, string>;
+  D: IDictionary<Integer, string>;
+  Pair: TPair<Integer, string>;
   Count: Integer;
 begin
   D := TCollections.CreateDictionary<Integer, string>;
@@ -681,7 +681,7 @@ end;
 
 procedure TDictionaryInterfaceTests.InterfaceValues_ShouldBeRefCounted;
 var
-  D: IDextDictionary<Integer, IValueHolder>;
+  D: IDictionary<Integer, IValueHolder>;
 begin
   D := TCollections.CreateDictionary<Integer, IValueHolder>;
   D.Add(1, TValueHolder.Create(100));
@@ -692,7 +692,7 @@ end;
 
 procedure TDictionaryInterfaceTests.InterfaceKeys_ShouldWork;
 var
-  D: IDextDictionary<IValueHolder, string>;
+  D: IDictionary<IValueHolder, string>;
   K1, K2: IValueHolder;
 begin
   D := TCollections.CreateDictionary<IValueHolder, string>;
@@ -709,7 +709,7 @@ end;
 
 procedure TDictionaryManagedRecordTests.ManagedRecord_ShouldWork;
 var
-  D: IDextDictionary<string, TManagedRecord>;
+  D: IDictionary<string, TManagedRecord>;
   R: TManagedRecord;
 begin
   D := TCollections.CreateDictionary<string, TManagedRecord>;

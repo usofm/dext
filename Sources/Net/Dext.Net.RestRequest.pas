@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -29,12 +29,13 @@ interface
 
 uses
   System.Classes,
-  System.Generics.Collections,
   System.NetEncoding,
   System.SysUtils,
   Dext.Threading.Async,
   Dext.Threading.CancellationToken,
-  Dext.Net.RestClient;
+  Dext.Net.RestClient,
+  Dext.Collections.Dict,
+  Dext.Collections;
 
 type
   { Internal forward declarations }
@@ -72,8 +73,8 @@ type
     function GetClient: TRestClient;
     function GetMethod: TDextHttpMethod;
     function GetEndpoint: string;
-    function GetHeaders: TDictionary<string, string>;
-    function GetQueryParams: TDictionary<string, string>;
+    function GetHeaders: IDictionary<string, string>;
+    function GetQueryParams: IDictionary<string, string>;
     function GetBody: TStream;
     function GetToken: ICancellationToken;
     function GetOwnsBody: Boolean;
@@ -94,8 +95,8 @@ type
     FClient: TRestClient;
     FMethod: TDextHttpMethod;
     FEndpoint: string;
-    FHeaders: TDictionary<string, string>;
-    FQueryParams: TDictionary<string, string>;
+    FHeaders: IDictionary<string, string>;
+    FQueryParams: IDictionary<string, string>;
     FBody: TStream;
     FToken: ICancellationToken;
     FOwnsBody: Boolean;
@@ -106,8 +107,8 @@ type
     function GetClient: TRestClient;
     function GetMethod: TDextHttpMethod;
     function GetEndpoint: string;
-    function GetHeaders: TDictionary<string, string>;
-    function GetQueryParams: TDictionary<string, string>;
+    function GetHeaders: IDictionary<string, string>;
+    function GetQueryParams: IDictionary<string, string>;
     function GetBody: TStream;
     function GetToken: ICancellationToken;
     function GetOwnsBody: Boolean;
@@ -126,14 +127,13 @@ begin
   FClient := AClient;
   FMethod := AMethod;
   FEndpoint := AEndpoint;
-  FHeaders := TDictionary<string, string>.Create;
-  FQueryParams := TDictionary<string, string>.Create;
+  FHeaders := TCollections.CreateDictionary<string, string>;
+  FQueryParams := TCollections.CreateDictionary<string, string>;
 end;
 
 destructor TRestRequestData.Destroy;
 begin
-  FHeaders.Free;
-  FQueryParams.Free;
+  // FQueryParams is ARC
   if FOwnsBody then
     FBody.Free;
   inherited;
@@ -154,7 +154,7 @@ begin
   Result := FEndpoint;
 end;
 
-function TRestRequestData.GetHeaders: TDictionary<string, string>;
+function TRestRequestData.GetHeaders: IDictionary<string, string>;
 begin
   Result := FHeaders;
 end;
@@ -169,7 +169,7 @@ begin
   Result := FOwnsBody;
 end;
 
-function TRestRequestData.GetQueryParams: TDictionary<string, string>;
+function TRestRequestData.GetQueryParams: IDictionary<string, string>;
 begin
   Result := FQueryParams;
 end;
@@ -299,18 +299,26 @@ end;
 
 function TRestRequest.ExecuteAsString: TAsyncBuilder<string>;
 begin
-  Result := Execute.ThenBy<string>(function(LResp: IRestResponse): string
-    begin
-      Result := LResp.ContentString;
-    end);
+  Result := Execute.ThenBy<string>(
+    TFunc<IRestResponse, string>(
+      function(LResp: IRestResponse): string
+      begin
+        Result := LResp.ContentString;
+      end
+    )
+  );
 end;
 
 function TRestRequest.Execute<T>: TAsyncBuilder<T>;
 begin
-  Result := Execute.ThenBy<T>(function(LResp: IRestResponse): T
-    begin
-      Result := TDextJson.Deserialize<T>(LResp.ContentString);
-    end);
+  Result := Execute.ThenBy<T>(
+    TFunc<IRestResponse, T>(
+      function(LResp: IRestResponse): T
+      begin
+        Result := TDextJson.Deserialize<T>(LResp.ContentString);
+      end
+    )
+  );
 end;
 
 end.

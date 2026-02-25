@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -33,7 +33,9 @@ uses
   System.SysUtils,
   System.Rtti,
   System.TypInfo,
-  System.Generics.Collections,
+  Dext.Collections,
+  Dext.Collections.Base,
+  Dext.Collections.Dict,
   Dext.Types.UUID,
   Dext.Entity.Dialects,
   Dext.Entity.Attributes;
@@ -225,8 +227,8 @@ type
   private
     class var FInstance: TTypeConverterRegistry;
     FLock: TCriticalSection;
-    FConverters: TList<ITypeConverter>;
-    FCustomConverters: TDictionary<PTypeInfo, ITypeConverter>; // For property-specific converters
+    FConverters: IList<ITypeConverter>;
+    FCustomConverters: Dext.Collections.Dict.IDictionary<PTypeInfo, ITypeConverter>; // For property-specific converters
     class constructor Create;
     class destructor Destroy;
   public
@@ -643,8 +645,8 @@ constructor TTypeConverterRegistry.Create;
 begin
   inherited Create;
   FLock := TCriticalSection.Create;
-  FConverters := TList<ITypeConverter>.Create;
-  FCustomConverters := TDictionary<PTypeInfo, ITypeConverter>.Create;
+  FConverters := TCollections.CreateList<ITypeConverter>;
+  FCustomConverters := TCollections.CreateDictionary<PTypeInfo, ITypeConverter>;
   
   // Register built-in converters
   RegisterConverter(TGuidConverter.Create);
@@ -661,14 +663,8 @@ end;
 destructor TTypeConverterRegistry.Destroy;
 begin
   FLock.Free;
-
-  // Clear the lists first to release interface references properly
-  // before destroying the container objects
-  FCustomConverters.Clear;
-  FConverters.Clear;
-  
-  FCustomConverters.Free;
-  FConverters.Free;
+  FCustomConverters := nil;
+  FConverters := nil;
   inherited;
 end;
 

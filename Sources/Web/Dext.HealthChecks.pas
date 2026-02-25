@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -31,10 +31,11 @@ interface
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
-  Dext.DI.Attributes, // For [ServiceConstructor]
+  Dext.DI.Attributes,
   Dext.Web.Core,
   Dext.Web.Interfaces,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.DI.Interfaces;
 
 type
@@ -44,7 +45,7 @@ type
     Status: THealthStatus;
     Description: string;
     Exception: Exception;
-    Data: TDictionary<string, string>;
+    Data: IDictionary<string, string>;
     class function Healthy(const Description: string = ''): THealthCheckResult; static;
     class function Unhealthy(const Description: string = ''; Ex: Exception = nil): THealthCheckResult; static;
   end;
@@ -66,7 +67,7 @@ type
   IHealthCheckService = interface
     ['{8A9B7C3E-2D4F-4A1C-8E5B-9F0D3C6A7B8E}']
     procedure RegisterCheck(CheckClass: TClass);
-    function CheckHealth(AProvider: IServiceProvider): TDictionary<string, THealthCheckResult>;
+    function CheckHealth(AProvider: IServiceProvider): IDictionary<string, THealthCheckResult>;
     function GetCheckCount: Integer;
   end;
 
@@ -76,12 +77,12 @@ type
   /// </summary>
   THealthCheckService = class(TInterfacedObject, IHealthCheckService)
   private
-    FChecks: TList<TClass>;
+    FChecks: IList<TClass>;
   public
     constructor Create;
     destructor Destroy; override;
     procedure RegisterCheck(CheckClass: TClass);
-    function CheckHealth(AProvider: IServiceProvider): TDictionary<string, THealthCheckResult>;
+    function CheckHealth(AProvider: IServiceProvider): IDictionary<string, THealthCheckResult>;
     function GetCheckCount: Integer;
   end;
 
@@ -110,7 +111,7 @@ type
   THealthCheckBuilder = record
   private
     FServices: IServiceCollection;
-    FChecks: TList<TClass>;
+    FChecks: IList<TClass>;
   public
     constructor Create(AServices: IServiceCollection);
     function AddCheck<T: class, constructor>: THealthCheckBuilder;
@@ -145,12 +146,11 @@ end;
 constructor THealthCheckService.Create;
 begin
   inherited Create;
-  FChecks := TList<TClass>.Create;
+  FChecks := TCollections.CreateList<TClass>;
 end;
 
 destructor THealthCheckService.Destroy;
 begin
-  FChecks.Free;
   inherited;
 end;
 
@@ -165,14 +165,14 @@ begin
   Result := FChecks.Count;
 end;
 
-function THealthCheckService.CheckHealth(AProvider: IServiceProvider): TDictionary<string, THealthCheckResult>;
+function THealthCheckService.CheckHealth(AProvider: IServiceProvider): IDictionary<string, THealthCheckResult>;
 var
   CheckClass: TClass;
   Check: IHealthCheck;
   Obj: TObject;
   Res: THealthCheckResult;
 begin
-  Result := TDictionary<string, THealthCheckResult>.Create;
+  Result := TCollections.CreateDictionary<string, THealthCheckResult>;
   
   for CheckClass in FChecks do
   begin
@@ -212,10 +212,9 @@ end;
 
 procedure THealthCheckMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
 var
-  Results: TDictionary<string, THealthCheckResult>;
+  Results: IDictionary<string, THealthCheckResult>;
   OverallStatus: THealthStatus;
   Json: TStringBuilder;
-  Pair: TPair<string, THealthCheckResult>;
   StatusStr: string;
 begin
   if AContext.Request.Path <> '/health' then
@@ -226,13 +225,13 @@ begin
 
   // Use the scoped provider from the context to resolve health checks
   Results := FService.CheckHealth(AContext.Services);
-  try
-    OverallStatus := THealthStatus.Healthy;
-    for Pair in Results do
+  OverallStatus := THealthStatus.Healthy;
+    for var Key in Results.Keys do
     begin
-      if Pair.Value.Status = THealthStatus.Unhealthy then
+      var Res := Results[Key];
+      if Res.Status = THealthStatus.Unhealthy then
         OverallStatus := THealthStatus.Unhealthy
-      else if (Pair.Value.Status = THealthStatus.Degraded) and (OverallStatus = THealthStatus.Healthy) then
+      else if (Res.Status = THealthStatus.Degraded) and (OverallStatus = THealthStatus.Healthy) then
         OverallStatus := THealthStatus.Degraded;
     end;
 
@@ -249,19 +248,20 @@ begin
       Json.Append('"checks": {');
       
       var First := True;
-      for Pair in Results do
+      for var Key in Results.Keys do
       begin
         if not First then Json.Append(',');
         First := False;
         
-        case Pair.Value.Status of
+        var Res := Results[Key];
+        case Res.Status of
           THealthStatus.Healthy: StatusStr := 'Healthy';
           THealthStatus.Degraded: StatusStr := 'Degraded';
           THealthStatus.Unhealthy: StatusStr := 'Unhealthy';
         end;
         
         Json.AppendFormat('"%s": {"status": "%s", "description": "%s"}', 
-          [Pair.Key, StatusStr, Pair.Value.Description]);
+          [Key, StatusStr, Res.Description]);
       end;
       
       Json.Append('}}');
@@ -277,9 +277,7 @@ begin
     finally
       Json.Free;
     end;
-  finally
-    Results.Free;
-  end;
+  // Results is ARC
 end;
 
 { THealthCheckBuilder }
@@ -287,7 +285,7 @@ end;
 constructor THealthCheckBuilder.Create(AServices: IServiceCollection);
 begin
   FServices := AServices;
-  FChecks := TList<TClass>.Create;
+  FChecks := TCollections.CreateList<TClass>;
 end;
 
 function THealthCheckBuilder.AddCheck<T>: THealthCheckBuilder;
@@ -305,7 +303,7 @@ end;
 procedure THealthCheckBuilder.Build;
 var
   CapturedChecks: TArray<TClass>;
-  LChecks: TList<TClass>;
+  LChecks: IList<TClass>;
 begin
   // Capture the checks array for the factory closure
   LChecks := FChecks;
@@ -332,8 +330,7 @@ begin
     Factory
   );
 
-  // Clean up the list used for building
-  LChecks.Free;
+  // LChecks is ARC
 end;
 
 end.

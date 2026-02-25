@@ -35,14 +35,15 @@ unit Dext.Testing.DI;
 interface
 
 uses
-  System.SysUtils,
   System.Rtti,
+  System.SysUtils,
   System.TypInfo,
-  System.Generics.Collections,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.DI.Interfaces,
+  Dext.Interception,
   Dext.Mocks,
-  Dext.Mocks.Interceptor,
-  Dext.Interception;
+  Dext.Mocks.Interceptor;
 
 type
   /// <summary>
@@ -53,7 +54,7 @@ type
   private
     FServices: TDextServices;
     FProvider: IServiceProvider;
-    FMocks: TDictionary<TGUID, IInterface>;
+    FMocks: IDictionary<TGUID, IInterface>;
     FBuilt: Boolean;
     procedure EnsureNotBuilt;
     procedure EnsureBuilt;
@@ -113,7 +114,7 @@ constructor TTestServiceProvider.Create;
 begin
   inherited Create;
   FServices := TDextServices.New;
-  FMocks := TDictionary<TGUID, IInterface>.Create;
+  FMocks := TCollections.CreateDictionary<TGUID, IInterface>;
   FBuilt := False;
 end;
 
@@ -128,13 +129,13 @@ begin
   BaseCollection := BaseServices.Unwrap;
   if Assigned(BaseCollection) then
     FServices.Unwrap.AddRange(BaseCollection);
-  FMocks := TDictionary<TGUID, IInterface>.Create;
+  FMocks := TCollections.CreateDictionary<TGUID, IInterface>;
   FBuilt := False;
 end;
 
 destructor TTestServiceProvider.Destroy;
 begin
-  FMocks.Free;
+  // FMocks is ARC
   // TDextServices is a record, no need to free - the underlying IServiceCollection
   // is managed by reference counting
   inherited;

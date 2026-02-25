@@ -29,11 +29,10 @@ interface
 
 uses
   System.Classes,
-  System.Generics.Collections,
+  Dext.Collections,
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
-  Dext.Collections,
   Dext.Entity.Core,
   Dext.Entity.Attributes,
   Dext.Entity.Mapping,

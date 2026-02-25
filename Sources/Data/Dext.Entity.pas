@@ -119,10 +119,11 @@ type
   IReferenceEntry = Dext.Entity.Core.IReferenceEntry;
   IEntityEntry = Dext.Entity.Core.IEntityEntry;
   IDbContext = Dext.Entity.Core.IDbContext;
-  // IDbSet<T> = Dext.Entity.Core.IDbSet<T>;
+  // IDbSet<T: class> = Dext.Entity.Core.IDbSet<T>;
+  // Generic aliases not supported on all Delphi versions
 
   // Dext.Entity.DbSet
-  // TDbSet<T> = Dext.Entity.DbSet.TDbSet<T>;
+  // TDbSet<T: class> = Dext.Entity.DbSet.TDbSet<T>;
 
   // Dext.Entity.Dialects
   TDatabaseDialect = Dext.Entity.Dialects.TDatabaseDialect;
@@ -435,10 +436,12 @@ end;
 function TDextPersistenceServicesHelper.AddDbContext<T>(const Configuration: IConfigurationSection): TDextServices;
 begin
   Result := AddDbContext<T>(
-    procedure(Options: TDbContextOptions)
-    begin
-      TConfigurationBinder.Bind(Configuration, Options);
-    end
+    TProc<TDbContextOptions>(
+      procedure(Options: TDbContextOptions)
+      begin
+        TConfigurationBinder.Bind(Configuration, Options);
+      end
+    )
   );
 end;
 

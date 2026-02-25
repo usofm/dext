@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -29,7 +29,7 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
+  Dext.Collections,
   Dext.Auth.JWT;
 
 type
@@ -140,7 +140,7 @@ type
   /// </summary>
   TClaimsBuilder = class(TInterfacedObject, IClaimsBuilder)
   private
-    FClaims: TList<TClaim>;
+    FClaims: IList<TClaim>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -277,12 +277,11 @@ end;
 constructor TClaimsBuilder.Create;
 begin
   inherited Create;
-  FClaims := TList<TClaim>.Create;
+  FClaims := TCollections.CreateList<TClaim>;
 end;
 
 destructor TClaimsBuilder.Destroy;
 begin
-  FClaims.Free;
   inherited;
 end;
 

@@ -29,7 +29,6 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
   Dext.DI.Interfaces,
   Dext.Logging;
 
@@ -51,6 +50,7 @@ implementation
 
 uses
   System.TypInfo,
+  Dext.Collections,
   Dext.Logging.Console;
 
 type
@@ -67,7 +67,7 @@ type
   TLoggingBuilder = class(TInterfacedObject, ILoggingBuilder)
   private
     FServices: IServiceCollection;
-    FProviders: TList<ILoggerProvider>;
+    FProviders: IList<ILoggerProvider>;
     FMinLevel: TLogLevel;
   public
     constructor Create(AServices: IServiceCollection);
@@ -78,7 +78,7 @@ type
     function SetMinimumLevel(ALevel: TLogLevel): ILoggingBuilder;
     function AddConsole: ILoggingBuilder;
     
-    function ExtractProviders: TList<ILoggerProvider>;
+    function ExtractProviders: IList<ILoggerProvider>;
     function GetMinLevel: TLogLevel;
   end;
 
@@ -107,13 +107,13 @@ constructor TLoggingBuilder.Create(AServices: IServiceCollection);
 begin
   inherited Create;
   FServices := AServices;
-  FProviders := TList<ILoggerProvider>.Create;
+  FProviders := TCollections.CreateList<ILoggerProvider>;
   FMinLevel := TLogLevel.Information;
 end;
 
 destructor TLoggingBuilder.Destroy;
 begin
-  FProviders.Free;
+  FProviders := nil;
   inherited;
 end;
 
@@ -139,10 +139,10 @@ begin
   Result := AddProvider(TConsoleLoggerProvider.Create);
 end;
 
-function TLoggingBuilder.ExtractProviders: TList<ILoggerProvider>;
+function TLoggingBuilder.ExtractProviders: IList<ILoggerProvider>;
 begin
   Result := FProviders;
-  FProviders := TList<ILoggerProvider>.Create; 
+  FProviders := TCollections.CreateList<ILoggerProvider>; 
 end;
 
 function TLoggingBuilder.GetMinLevel: TLogLevel;
@@ -156,7 +156,7 @@ class function TServiceCollectionLoggingExtensions.AddLogging(const AServices: I
 var
   LBuilderIntf: ILoggingBuilder;
   LBuilderObj: TLoggingBuilder;
-  LProvidersList: TList<ILoggerProvider>;
+  LProvidersList: IList<ILoggerProvider>;
   LProvidersArray: TArray<ILoggerProvider>;
   LMinLevel: TLogLevel;
 begin
@@ -168,7 +168,7 @@ begin
     
   LProvidersList := LBuilderObj.ExtractProviders;
   LProvidersArray := LProvidersList.ToArray;
-  LProvidersList.Free;
+  LProvidersList := nil;
   LMinLevel := LBuilderObj.GetMinLevel;
   
   // Capture state for factory delegate
@@ -179,7 +179,7 @@ begin
   // 1. Register Owner (as concrete singleton Class) to ensure lifecycle destruction
   AServices.AddSingleton(
     TServiceType.FromClass(TLoggerFactoryOwner),
-    nil,
+    TClass(nil),
     function(Provider: IServiceProvider): TObject
     var
       Factory: TLoggerFactory;
@@ -204,7 +204,7 @@ begin
   // 2. Register ILoggerFactory to resolve via Owner
   AServices.AddSingleton(
     TServiceType.FromInterface(ILoggerFactory),
-    nil,
+    TClass(nil),
     function(Provider: IServiceProvider): TObject
     begin
       // Resolve owner (guaranteed to exist and be managed)
@@ -214,7 +214,7 @@ begin
   );
     
   // Register generic ILogger (default) - Resolve from ILoggerFactory
-  AServices.AddSingleton(TServiceType.FromInterface(ILogger), nil,
+  AServices.AddSingleton(TServiceType.FromInterface(ILogger), TClass(nil),
     function(Provider: IServiceProvider): TObject
     var
       FactoryObj: TObject;

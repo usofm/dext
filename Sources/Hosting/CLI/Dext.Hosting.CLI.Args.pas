@@ -3,10 +3,10 @@ unit Dext.Hosting.CLI.Args;
 interface
 
 uses
-  System.SysUtils,
-  System.Generics.Collections,
   System.Classes,
-  Dext.Collections;
+  System.SysUtils,
+  Dext.Collections,
+  Dext.Collections.Dict;
 
 type
   TCommandLineArgs = class;
@@ -25,11 +25,10 @@ type
   TCommandLineArgs = class
   private
     FCommand: string;
-    FArguments: TDictionary<string, string>;
-    FFlags: THashSet<string>;
-    FValues: TList<string>;
+    FArguments: IDictionary<string, string>;
+    FFlags: IList<string>;
+    FValues: IList<string>;
     FRawArgs: TArray<string>; // Remaining arguments (after command)
-    FOwnsDicts: Boolean;
     
     function NormalizeKey(const Key: string): string;
   public
@@ -59,7 +58,7 @@ type
     /// <summary>
     ///   Positional values (excluding the command).
     /// </summary>
-    property Values: TList<string> read FValues;
+    property Values: IList<string> read FValues;
 
     /// <summary>
     ///   All raw arguments passed to Parse.
@@ -69,27 +68,18 @@ type
 
 implementation
 
-uses
-  System.Generics.Defaults;
-
 { TCommandLineArgs }
 
 constructor TCommandLineArgs.Create;
 begin
-  FArguments := TDictionary<string, string>.Create(TIStringComparer.Ordinal);
-  FFlags := THashSet<string>.Create(TIStringComparer.Ordinal);
-  FValues := TList<string>.Create;
-  FOwnsDicts := True;
+  FArguments := TCollections.CreateDictionary<string, string>;
+  FFlags := TCollections.CreateList<string>;
+  FValues := TCollections.CreateList<string>;
 end;
 
 destructor TCommandLineArgs.Destroy;
 begin
-  if FOwnsDicts then
-  begin
-    FArguments.Free;
-    FFlags.Free;
-    FValues.Free;
-  end;
+  // All fields are ARC-managed
   inherited;
 end;
 
