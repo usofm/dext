@@ -9,7 +9,6 @@ uses
   System.Variants,
   System.Classes,
   System.UITypes,
-  System.Generics.Collections,
   Vcl.Graphics,
   Vcl.Controls,
   Vcl.Forms,
@@ -40,7 +39,7 @@ type
   TSimpleNavigator = class
   private
     FLogger: ILogger;
-    FHistory: TList<string>;
+    FHistory: IList<string>;
     FListFrame: TCustomerListFrame;
     FEditFrame: TCustomerEditFrame;
     FOnNavigated: TProc<string>;
@@ -114,12 +113,12 @@ begin
   FLogger := ALogger;
   FListFrame := AListFrame;
   FEditFrame := AEditFrame;
-  FHistory := TList<string>.Create;
+  FHistory := TCollections.CreateList<string>;
 end;
 
 destructor TSimpleNavigator.Destroy;
 begin
-  FHistory.Free;
+  // FHistory.Free;
   inherited;
 end;
 

@@ -7,7 +7,6 @@ program Core.TestHttpParser;
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
   Dext.Http.Request,
   Dext.Http.Parser,
   Dext.Http.Executor,

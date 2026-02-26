@@ -43,6 +43,14 @@ type
   end;
 
   {$M+}
+  IDextCollection = interface
+    ['{A1B2C3D4-E5F6-4A5B-9C8D-0E1F2A3B4C5D}']
+    function GetOwnsObjects: Boolean;
+    procedure SetOwnsObjects(Value: Boolean);
+    property OwnsObjects: Boolean read GetOwnsObjects write SetOwnsObjects;
+  end;
+
+  {$M+}
   IDextBufferProvider = interface
     ['{F4A7CB6D-1393-4B9A-B0F6-764E8B0E85D4}']
     function GetBuffer: Pointer;

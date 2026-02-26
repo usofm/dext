@@ -4,74 +4,12 @@ program TestJsonCore;
 
 uses
   Dext.MM,
-  Dext.Utils,
   System.SysUtils,
-  System.Generics.Collections,
+  Dext.Utils,
   Dext.Json,
   Dext.Types.UUID,
-  Dext.Collections;
-
-type
-  TPost = class
-  private
-    FId: Integer;
-    FContent: string;
-  public
-    property Id: Integer read FId write FId;
-    property Content: string read FContent write FContent;
-  end;
-
-  TThreadContent = class
-  private
-    FId: Integer;
-    FName: string;
-    FInternalPosts: TObjectList<TPost>;
-    procedure SetPosts(const Value: TObjectList<TPost>);
-  public
-    constructor Create;
-    destructor Destroy; override;
-    property Id: Integer read FId write FId;
-    property Name: string read FName write FName;
-    property Posts: TObjectList<TPost> read FInternalPosts write SetPosts;
-  end;
-
-  TEntityWithGuid = class
-  private
-    FId: TGUID;
-    FName: string;
-  public
-    property Id: TGUID read FId write FId;
-    property Name: string read FName write FName;
-  end;
-
-  TEntityWithUuid = class
-  private
-    FId: TUUID;
-    FName: string;
-  public
-    property Id: TUUID read FId write FId;
-    property Name: string read FName write FName;
-  end;
-
-constructor TThreadContent.Create;
-begin
-  FInternalPosts := TObjectList<TPost>.Create;
-end;
-
-destructor TThreadContent.Destroy;
-begin
-  FInternalPosts.Free;
-  inherited;
-end;
-
-procedure TThreadContent.SetPosts(const Value: TObjectList<TPost>);
-begin
-  if FInternalPosts <> Value then
-  begin
-    FInternalPosts.Free;
-    FInternalPosts := Value;
-  end;
-end;
+  Dext.Collections,
+  TestJsonCore.Entities;
 
 procedure TestDeserialization;
 var
@@ -195,7 +133,7 @@ begin
           ']';
 
   try
-    ListEntityWithUuid := TDextJson.Deserialize<TSmartList<TEntityWithUuid>>(Json);
+    ListEntityWithUuid := TDextJson.Deserialize<IList<TEntityWithUuid>>(Json);
     try
       if ListEntityWithUuid.Count > 0 then
       begin
@@ -210,7 +148,7 @@ begin
         Writeln('  [FAIL] No EntityWithUuid deserialized (List support missing?)');
       end;
     finally
-      ListEntityWithUuid.Clear;
+      ListEntityWithUuid := nil;
     end;
   except
     on E: Exception do

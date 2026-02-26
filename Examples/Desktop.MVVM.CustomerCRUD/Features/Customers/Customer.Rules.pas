@@ -10,7 +10,6 @@ unit Customer.Rules;
 interface
 
 uses
-  System.Generics.Collections,
   System.RegularExpressions,
   System.SysUtils,
   Dext.Collections,
@@ -205,10 +204,10 @@ end;
 class function TCustomerRules.ValidateAll(const Customer: TCustomer;
   out Errors: TArray<string>): Boolean;
 var
-  ErrorList: TList<string>;
+  ErrorList: IList<string>;
   ErrorMsg: string;
 begin
-  ErrorList := TList<string>.Create;
+  ErrorList := TCollections.CreateList<string>;
   try
     if not ValidateName(Customer.Name, ErrorMsg) then
       ErrorList.Add(ErrorMsg);
@@ -225,7 +224,7 @@ begin
     Errors := ErrorList.ToArray;
     Result := ErrorList.Count = 0;
   finally
-    ErrorList.Free;
+    // ErrorList.Free;
   end;
 end;
 

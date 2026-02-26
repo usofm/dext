@@ -12,7 +12,6 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
   Dext,
   Dext.Collections,
   TicketSales.Domain.Entities,

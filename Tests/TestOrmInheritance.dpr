@@ -5,7 +5,6 @@ program TestOrmInheritance;
 uses
   System.SysUtils,
   System.Rtti,
-  System.Generics.Collections,
   Dext,
   Dext.Utils,
   Dext.Entity.Mapping,

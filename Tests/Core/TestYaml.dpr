@@ -4,7 +4,6 @@ program TestYaml;
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
   Dext.Utils,
   Dext.Yaml;
 

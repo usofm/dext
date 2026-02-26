@@ -7,7 +7,8 @@ uses
   System.Rtti,
   System.SysUtils,
   Dext.Utils,
-  System.Generics.Collections,
+  Dext.Collections.Base,
+  Dext.Collections,
   Dext.Mapper,
   DUnitX.TestFramework;
 
@@ -126,14 +127,14 @@ end;
 
 procedure TestListMapping;
 var
-  Users: TList<TUser>;
-  DTOs: TList<TUserDTO>;
+  Users: IList<TUser>;
+  DTOs: IList<TUserDTO>;
   User: TUser;
   DTO: TUserDTO;
 begin
   WriteLn('=== Test 3: List Mapping ===');
   
-  Users := TList<TUser>.Create;
+  Users := TCollections.CreateList<TUser>;
   try
     // Create 3 users
     for var I := 1 to 3 do
@@ -147,7 +148,7 @@ begin
       Users.Add(User);
     end;
     
-    DTOs := TMapper.MapList<TUser, TUserDTO>(Users);
+    DTOs := TMapper.MapList<TUser, TUserDTO>(Users, False);
     try
       WriteLn('Mapped ', DTOs.Count, ' users:');
       for DTO in DTOs do
@@ -156,12 +157,12 @@ begin
     finally
       for DTO in DTOs do
         DTO.Free;
-      DTOs.Free;
+      // DTOs.Free;
     end;
   finally
     for User in Users do
       User.Free;
-    Users.Free;
+    // Users.Free;
   end;
   WriteLn;
 end;
@@ -296,14 +297,14 @@ end;
 
 procedure TestListRecordToModelMapping;
 var
-  Users: TList<TUser>;
-  DTOs: TList<TUserDTORec>;
+  Users: IList<TUser>;
+  DTOs: IList<TUserDTORec>;
   User: TUser;
   DTO: TUserDTORec;
 begin
   WriteLn('=== Test 8: List Record To Model Mapping ===');
 
-  DTOs := TList<TUserDTORec>.Create;
+  DTOs := TCollections.CreateList<TUserDTORec>;
   try
     // Create 3 users
     for var I := 1 to 3 do
@@ -317,7 +318,7 @@ begin
       DTOs.Add(DTO);
     end;
 
-    Users := TMapper.MapList<TUserDTORec, TUser>(DTOs);
+    Users := TMapper.MapList<TUserDTORec, TUser>(DTOs, False);
     try
       WriteLn('Mapped ', Users.Count, ' users:');
       for User in Users do
@@ -326,24 +327,22 @@ begin
     finally
       for User in Users do
         User.Free;
-      Users.Free;
     end;
   finally
-    DTOs.Free;
   end;
   WriteLn;
 end;
 
 procedure TestListModelToRecordMapping;
 var
-  Users: TList<TUser>;
-  DTOs: TList<TUserDTORec>;
+  Users: IList<TUser>;
+  DTOs: IList<TUserDTORec>;
   User: TUser;
   DTO: TUserDTORec;
 begin
   WriteLn('=== Test 9: List Model To Record Mapping ===');
 
-  Users := TList<TUser>.Create;
+  Users := TCollections.CreateList<TUser>;
   try
     // Create 3 users
     for var I := 1 to 3 do
@@ -357,19 +356,17 @@ begin
       Users.Add(User);
     end;
 
-    DTOs := TMapper.MapList<TUser, TUserDTORec>(Users);
+    DTOs := TMapper.MapList<TUser, TUserDTORec>(Users, False);
     try
       WriteLn('Mapped ', DTOs.Count, ' users:');
       for DTO in DTOs do
         WriteLn('  - ', DTO.FirstName, ' (', DTO.Email, ')');
       WriteLn('✓ List Model To Record Mapping OK');
     finally
-      DTOs.Free;
     end;
   finally
     for User in Users do
       User.Free;
-    Users.Free;
   end;
   WriteLn;
 end;

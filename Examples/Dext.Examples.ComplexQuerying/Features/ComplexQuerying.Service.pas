@@ -4,12 +4,12 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
   System.DateUtils,
   Dext.Entity,
   Dext.Entity.Core,
   Dext.Core.SmartTypes,
   Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Json,
   ComplexQuerying.Entities,
   ComplexQuerying.DbContext;
@@ -257,11 +257,11 @@ var
   Orders: IList<TOrder>;
   Order: TOrder;
   Item: TSalesReportItem;
-  StatusMap: TDictionary<string, TSalesReportItem>;
+  StatusMap: IDictionary<string, TSalesReportItem>;
   Status: string;
 begin
   // Manual aggregation (demonstration - in production use SQL aggregations)
-  StatusMap := TDictionary<string, TSalesReportItem>.Create;
+  StatusMap := TCollections.CreateDictionary<string, TSalesReportItem>;
   
   try
     Orders := FDbContext.Orders.ToList;
@@ -285,9 +285,9 @@ begin
       end;
     end;
     
-    Result := StatusMap.Values.ToArray;
+    Result := StatusMap.Values;
   finally
-    StatusMap.Free;
+    // // StatusMap.Free;
   end;
 end;
 
@@ -297,9 +297,9 @@ var
   Customer: TCustomer;
   Item: TTopCustomerItem;
   Count: Integer;
-  TempList: TList<TTopCustomerItem>;
+  TempList: IList<TTopCustomerItem>;
 begin
-  TempList := TList<TTopCustomerItem>.Create;
+  TempList := TCollections.CreateList<TTopCustomerItem>;
   try
     // Get all customers (in production, use ORDER BY and LIMIT in SQL)
     Customers := FDbContext.Customers.ToList;
@@ -320,7 +320,7 @@ begin
     
     Result := TempList.ToArray;
   finally
-    TempList.Free;
+    // // TempList.Free;
   end;
 end;
 

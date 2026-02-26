@@ -3,7 +3,7 @@
 interface
 
 uses
-  System.SysUtils, System.Generics.Collections, Dext.Entity, Dext.Entity.Query,
+  System.SysUtils, Dext.Entity, Dext.Entity.Query,
   Dext.Collections, // Add Collections unit
   Dext.Entity.Grouping, Dext.Entity.Joining,
   Dext.Specifications.Interfaces, Dext.Specifications.Fluent, Dext.Specifications.Types,

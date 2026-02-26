@@ -873,7 +873,8 @@ var
   Id: string;
 begin
   Id := GetEntityId(AEntity);
-  FIdentityMap.Remove(Id);
+  if FIdentityMap.ContainsKey(Id) then
+    FOrphans.Add(FIdentityMap.Extract(Id));
   FContext.ChangeTracker.Remove(AEntity);
   Result := Self;
 end;
@@ -1530,9 +1531,9 @@ begin
   Keys := FIdentityMap.Keys;
   for Key in Keys do
   begin
-    if FIdentityMap.TryGetValue(Key, Val) then
+    if FIdentityMap.ContainsKey(Key) then
     begin
-      FIdentityMap.Remove(Key);
+      Val := FIdentityMap.Extract(Key);
       if Val <> nil then
         FOrphans.Add(Val);
     end;
@@ -2427,8 +2428,34 @@ begin
           Result := LSelf.ToList(LSpec);
         end);
     end;
+
+//  var Spec := LSpec as ISpecification;
+//  var Count := TFunc<ISpecification, Integer>(
+//      function(S: ISpecification): Integer
+//      begin
+//        Result := LSelf.Count(S as ISpecification<T>);
+//      end);
+//  var Any := TFunc<ISpecification, Boolean>(
+//      function(S: ISpecification): Boolean
+//      begin
+//        Result := LSelf.Any(S as ISpecification<T>);
+//      end);
+//  var FirstOrDefault := TFunc<ISpecification, T>(
+//      function(S: ISpecification): T
+//      begin
+//        Result := LSelf.FirstOrDefault(S as ISpecification<T>);
+//      end);
+//
+//  Result := TFluentQuery<T>.Create(
+//    LFactory,
+//    Spec,
+//    Count,
+//    Any,
+//    FirstOrDefault,
+//    FContext.Connection
+//  );
   Result := TFluentQuery<T>.Create(
-    LFactory, 
+    LFactory,
     LSpec as ISpecification,
     TFunc<ISpecification, Integer>(
       function(S: ISpecification): Integer

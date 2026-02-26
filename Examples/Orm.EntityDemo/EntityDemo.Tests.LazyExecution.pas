@@ -16,7 +16,6 @@ implementation
 
 uses
   EntityDemo.Entities,
-  System.Generics.Collections,
   Dext.Collections, // Add Collections
   Dext.Entity.Query,
   EntityDemo.Entities.Info;

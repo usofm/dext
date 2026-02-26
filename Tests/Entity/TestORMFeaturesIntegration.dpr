@@ -10,7 +10,6 @@ uses
   System.Classes,
   System.Rtti,
   System.TypInfo,
-  System.Generics.Collections,
   System.DateUtils,
   Data.DB,
   FireDAC.Comp.Client,

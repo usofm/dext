@@ -4,7 +4,6 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
   Dext.Assertions,
   Dext.Collections,
   Dext.Core.SmartTypes,

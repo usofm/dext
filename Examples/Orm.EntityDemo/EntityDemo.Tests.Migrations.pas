@@ -160,16 +160,12 @@ begin
     
     // Diff 1: Empty -> Users
     var Ops := TModelDiffer.Diff(CurrModel, PrevModel);
-    try
-      Log('   Diff 1 (Add Table): ' + Ops.Count.ToString + ' operations.');
-      if (Ops.Count > 0) and (Ops[0] is TCreateTableOperation) then
-        Log('   ✅ Detected CreateTable Users')
-      else
-        Log('   ❌ Failed to detect CreateTable');
-    finally
-      Ops.Free;
-    end;
-    
+    Log('   Diff 1 (Add Table): ' + Ops.Count.ToString + ' operations.');
+    if (Ops.Count > 0) and (Ops[0] is TCreateTableOperation) then
+      Log('   ✅ Detected CreateTable Users')
+    else
+      Log('   ❌ Failed to detect CreateTable');
+
     // Setup Previous Model to match Current
     var PrevTable := TSnapshotTable.Create;
     PrevTable.Name := 'Users';
@@ -203,7 +199,7 @@ begin
       else
         Log('   ❌ Failed to detect AddColumn');
     finally
-      Ops.Free;
+      // Ops.Free;
     end;
     
     // Diff 3: Users -> Empty (Drop Table)
@@ -215,7 +211,7 @@ begin
       else
         Log('   ❌ Failed to detect DropTable');
     finally
-      Ops.Free;
+      // Ops.Free;
     end;
 
   finally

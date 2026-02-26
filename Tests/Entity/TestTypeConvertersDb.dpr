@@ -9,7 +9,6 @@ uses
   System.Classes,
   System.Rtti,
   System.TypInfo,
-  System.Generics.Collections,
   Data.DB,
   FireDAC.Comp.Client,
   Dext.Entity.Drivers.FireDAC.Links,

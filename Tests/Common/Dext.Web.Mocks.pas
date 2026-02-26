@@ -5,11 +5,11 @@ interface
 
 uses
   System.Classes,
-  System.Generics.Collections,
-  System.Generics.Defaults,
   System.SysUtils,
   System.Rtti,
   System.TypInfo,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.DI.Interfaces,
   Dext.Web.Indy,
   Dext.Web.Interfaces,
@@ -23,9 +23,9 @@ type
     FPath: string;
     FQueryParams: TStrings;
     FBodyStream: TStream;
-    FRouteParams: TDictionary<string, string>;
-    FHeaders: TDictionary<string, string>;
-    FCookies: TDictionary<string, string>;
+    FRouteParams: IDictionary<string, string>;
+    FHeaders: IDictionary<string, string>;
+    FCookies: IDictionary<string, string>;
     FFiles: IFormFileCollection;
     FRemoteIpAddress: string;
   public
@@ -37,16 +37,16 @@ type
     function GetPath: string;
     function GetQuery: TStrings;
     function GetBody: TStream;
-    function GetRouteParams: TDictionary<string, string>;
-    function GetHeaders: TDictionary<string, string>; virtual;
+    function GetRouteParams: IDictionary<string, string>;
+    function GetHeaders: IDictionary<string, string>; virtual;
     function GetRemoteIpAddress: string;
     function GetHeader(const AName: string): string;
     function GetQueryParam(const AName: string): string;
-    function GetCookies: TDictionary<string, string>;
+    function GetCookies: IDictionary<string, string>;
     function GetFiles: IFormFileCollection;
 
     property RemoteIpAddress: string read FRemoteIpAddress write FRemoteIpAddress;
-    property Cookies: TDictionary<string, string> read GetCookies;
+    property Cookies: IDictionary<string, string> read GetCookies;
     property Files: IFormFileCollection read GetFiles;
   end;
 
@@ -55,7 +55,7 @@ type
     FStatusCode: Integer;
     FContentType: string;
     FContentText: string;
-    FCustomHeaders: TDictionary<string, string>;
+    FCustomHeaders: IDictionary<string, string>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -88,7 +88,7 @@ type
     FResponse: IHttpResponse;
     FServices: IServiceProvider;
     FUser: IClaimsPrincipal;
-    FItems: TDictionary<string, TValue>;
+    FItems: IDictionary<string, TValue>;
   public
     constructor Create(ARequest: IHttpRequest; AResponse: IHttpResponse;
       AServices: IServiceProvider = nil);
@@ -106,19 +106,19 @@ type
     function GetUser: IClaimsPrincipal;
     procedure SetUser(const AValue: IClaimsPrincipal);
 
-    function GetItems: TDictionary<string, TValue>;
+    function GetItems: IDictionary<string, TValue>;
 
-    procedure SetRouteParams(const AParams: TDictionary<string, string>);
+    procedure SetRouteParams(const AParams: IDictionary<string, string>);
   end;
 
   TMockHttpRequestWithHeaders = class(TMockHttpRequest)
   private
-    FCustomHeaders: TDictionary<string, string>;
+    FCustomHeaders: IDictionary<string, string>;
   public
     constructor CreateWithHeaders(const AQueryString: string;
-      const AHeaders: TDictionary<string, string>);
+      const AHeaders: IDictionary<string, string>);
     destructor Destroy; override;
-    function GetHeaders: TDictionary<string, string>; override;
+    function GetHeaders: IDictionary<string, string>; override;
   end;
 
   TMockHttpContextWithServices = class(TMockHttpContext)
@@ -133,12 +133,12 @@ type
   TMockFactory = class
   public
     class function CreateHttpContextWithHeaders(const AQueryString: string; const
-      AHeaders: TDictionary<string, string>): IHttpContext;
+      AHeaders: IDictionary<string, string>): IHttpContext;
     class function CreateHttpContextWithServices(const AQueryString: string; const
       AServices: IServiceProvider): IHttpContext;
     class function CreateHttpContext(const AQueryString: string): IHttpContext; static;
     class function CreateHttpContextWithRoute(const AQueryString: string; const
-      ARouteParams: TDictionary<string, string>): IHttpContext; static;
+      ARouteParams: IDictionary<string, string>): IHttpContext; static;
   end;
 
 implementation
@@ -155,7 +155,7 @@ begin
   FMethod := AMethod;
   FPath := APath;
 
-  FRouteParams := TDictionary<string, string>.Create;
+  FRouteParams := TCollections.CreateDictionary<string, string>;
 
   // ✅ CORREÇÃO: Parse manual garantido
   FQueryParams := TStringList.Create;
@@ -190,9 +190,9 @@ begin
   end;
 
   // Inicializar outros campos
-  FHeaders := TDictionary<string, string>.Create;
-  FCookies := TDictionary<string, string>.Create(TIStringComparer.Ordinal);
-  FFiles := TFormFileCollection.Create(TList<IFormFile>.Create);
+  FHeaders := TCollections.CreateDictionary<string, string>;
+  FCookies := TCollections.CreateDictionary<string, string>;
+  FFiles := TFormFileCollection.Create(TCollections.CreateList<IFormFile>);
   FBodyStream := TMemoryStream.Create;
   FRemoteIpAddress := '127.0.0.1'; // Default mock IP
 
@@ -207,9 +207,9 @@ end;
 destructor TMockHttpRequest.Destroy;
 begin
   FQueryParams.Free;
-  FRouteParams.Free;
-  FHeaders.Free;
-  FCookies.Free;
+  // FRouteParams.Free;
+  // FHeaders.Free;
+  // FCookies.Free;
   FBodyStream.Free;
   inherited Destroy;
 end;
@@ -234,14 +234,14 @@ begin
   Result := FBodyStream;
 end;
 
-function TMockHttpRequest.GetRouteParams: TDictionary<string, string>;
+function TMockHttpRequest.GetRouteParams: IDictionary<string, string>;
 begin
   Writeln('🔍 GetRouteParams Debug:');
   Writeln('  Returning FRouteParams count: ', FRouteParams.Count);
   Result := FRouteParams;
 end;
 
-function TMockHttpRequest.GetHeaders: TDictionary<string, string>;
+function TMockHttpRequest.GetHeaders: IDictionary<string, string>;
 begin
   Result := FHeaders;
 end;
@@ -262,7 +262,7 @@ begin
   Result := FQueryParams.Values[AName];
 end;
 
-function TMockHttpRequest.GetCookies: TDictionary<string, string>;
+function TMockHttpRequest.GetCookies: IDictionary<string, string>;
 begin
   Result := FCookies;
 end;
@@ -279,12 +279,12 @@ begin
   inherited Create;
   FStatusCode := 200;
   FContentType := 'text/plain';
-  FCustomHeaders := TDictionary<string, string>.Create;
+  FCustomHeaders := TCollections.CreateDictionary<string, string>;
 end;
 
 destructor TMockHttpResponse.Destroy;
 begin
-  FCustomHeaders.Free;
+  // FCustomHeaders.Free;
   inherited Destroy;
 end;
 
@@ -376,12 +376,12 @@ begin
   FRequest := ARequest;
   FResponse := AResponse;
   FServices := AServices;
-  FItems := TDictionary<string, TValue>.Create;
+  FItems := TCollections.CreateDictionary<string, TValue>;
 end;
 
 destructor TMockHttpContext.Destroy;
 begin
-  FItems.Free;
+  // FItems.Free;
   inherited;
 end;
 
@@ -415,7 +415,7 @@ begin
   FUser := AValue;
 end;
 
-procedure TMockHttpContext.SetRouteParams(const AParams: TDictionary<string, string>);
+procedure TMockHttpContext.SetRouteParams(const AParams: IDictionary<string, string>);
 var
   MockRequest: TMockHttpRequest;
   Param: TPair<string, string>;
@@ -448,12 +448,12 @@ begin
   FServices := AValue;
 end;
 
-function TMockHttpContext.GetItems: TDictionary<string, TValue>;
+function TMockHttpContext.GetItems: IDictionary<string, TValue>;
 begin
   Result := FItems;
 end;
 
-//procedure TMockHttpContext.SetRouteParams(const AParams: TDictionary<string, string>);
+//procedure TMockHttpContext.SetRouteParams(const AParams: IDictionary<string, string>);
 //var
 //  Param: TPair<string, string>;
 //begin
@@ -466,7 +466,7 @@ end;
 //  end;
 //end;
 
-//procedure TMockHttpContext.SetRouteParams(const AParams: TDictionary<string, string>);
+//procedure TMockHttpContext.SetRouteParams(const AParams: IDictionary<string, string>);
 //var
 //  IndyRequest: TIndyHttpRequest;
 //  Param: TPair<string, string>;
@@ -506,14 +506,14 @@ begin
 end;
 
 //class function TMockFactory.CreateHttpContextWithRoute(const AQueryString: string;
-//  const ARouteParams: TDictionary<string, string>): IHttpContext;
+//  const ARouteParams: IDictionary<string, string>): IHttpContext;
 //begin
 //  Result := CreateHttpContext(AQueryString);
 //  (Result as TMockHttpContext).SetRouteParams(ARouteParams);
 //end;
 
 class function TMockFactory.CreateHttpContextWithRoute(const AQueryString: string;
-  const ARouteParams: TDictionary<string, string>): IHttpContext;
+  const ARouteParams: IDictionary<string, string>): IHttpContext;
 var
   Request: IHttpRequest;
   Response: IHttpResponse;
@@ -527,7 +527,7 @@ begin
 end;
 
 class function TMockFactory.CreateHttpContextWithHeaders(const AQueryString:
-  string; const AHeaders: TDictionary<string, string>): IHttpContext;
+  string; const AHeaders: IDictionary<string, string>): IHttpContext;
 var
   Request: IHttpRequest;
   Response: IHttpResponse;
@@ -551,12 +551,12 @@ end;
 { TMockHttpRequestWithHeaders }
 
 constructor TMockHttpRequestWithHeaders.CreateWithHeaders(const AQueryString: string;
-  const AHeaders: TDictionary<string, string>);
+  const AHeaders: IDictionary<string, string>);
 begin
   inherited Create(AQueryString);
 
   // Clonar os headers fornecidos
-  FCustomHeaders := TDictionary<string, string>.Create;
+  FCustomHeaders := TCollections.CreateDictionary<string, string>;
   for var Header in AHeaders do
   begin
     // Headers são case-insensitive, normalizar para lowercase
@@ -566,11 +566,11 @@ end;
 
 destructor TMockHttpRequestWithHeaders.Destroy;
 begin
-  FCustomHeaders.Free;
+  // FCustomHeaders.Free;
   inherited Destroy;
 end;
 
-function TMockHttpRequestWithHeaders.GetHeaders: TDictionary<string, string>;
+function TMockHttpRequestWithHeaders.GetHeaders: IDictionary<string, string>;
 begin
   Result := FCustomHeaders;
 end;

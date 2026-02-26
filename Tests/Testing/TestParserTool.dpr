@@ -5,7 +5,6 @@ program TestParserTool;
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
   System.IOUtils,
   Dext.Utils,
   Dext.Dashboard.TestScanner in '..\..\Sources\Dashboard\Dext.Dashboard.TestScanner.pas',

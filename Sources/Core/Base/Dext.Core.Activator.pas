@@ -467,28 +467,47 @@ begin
         if ElementType = nil then
           raise EArgumentException.CreateFmt('TActivator: Could not determine element type for %s', [AType.NameFld.ToString]);
 
-        // A. Try to find TSmartList<T> directly
+        // A. Try to find TList<T> or TSmartList<T> directly
         var TypeName := RttiType.QualifiedName;
         if TypeName = '' then TypeName := string(AType.Name);
         
-        var ImplName := TypeName.Replace('IList<', 'TSmartList<').Replace('IEnumerable<', 'TSmartList<');
+        var ImplName := TypeName.Replace('IList<', 'TList<').Replace('IEnumerable<', 'TList<');
         var ImplRtti: TRttiType := Context.FindType(ImplName);
         
+        // Fallback to TSmartList if TList fails
+        if ImplRtti = nil then
+        begin
+           ImplName := TypeName.Replace('IList<', 'TSmartList<').Replace('IEnumerable<', 'TSmartList<');
+           ImplRtti := Context.FindType(ImplName);
+        end;
+
         if (ImplRtti = nil) and not ImplName.Contains('.') then
            ImplRtti := Context.FindType('Dext.Collections.' + ImplName);
 
         // B. Deep Search fallback (scanning all types)
         if ImplRtti = nil then
         begin
-          var SearchSufix := '<' + string(ElementType.Name) + '>';
+          var SimpleSufix := '<' + string(ElementType.Name) + '>';
+          var ElementQualifiedName: string;
+          var ElementTypeRtti := Context.GetType(ElementType);
+          if ElementTypeRtti <> nil then
+            ElementQualifiedName := ElementTypeRtti.QualifiedName;
+
           for var TmpType in Context.GetTypes do
           begin
-            if TmpType.IsInstance and TmpType.Name.EndsWith(SearchSufix) then
+            if TmpType.IsInstance then
             begin
-               if TmpType.Name.StartsWith('TSmartList<') then
+               var IsMatch := TmpType.Name.EndsWith(SimpleSufix);
+               if (not IsMatch) and (ElementQualifiedName <> '') then
+                 IsMatch := TmpType.Name.EndsWith('<' + ElementQualifiedName + '>');
+
+               if IsMatch then
                begin
-                  ImplRtti := TmpType;
-                  Break;
+                  if TmpType.Name.StartsWith('TSmartList<') or TmpType.Name.StartsWith('TList<') then
+                  begin
+                     ImplRtti := TmpType;
+                     Break;
+                  end;
                end;
             end;
           end;
@@ -550,9 +569,12 @@ end;
 
 class function TActivator.IsListType(AType: PTypeInfo): Boolean;
 begin
-  Result := (AType <> nil) and 
-            ((AType.Kind = tkClass) or (AType.Kind = tkInterface)) and
-            (Pos('Dext.Collections', string(AType.TypeData^.UnitName)) > 0);
+  if AType = nil then Exit(False);
+  var LName := string(AType.Name);
+  Result := ((AType.Kind = tkClass) or (AType.Kind = tkInterface)) and
+            (LName.Contains('IList<') or LName.Contains('IEnumerable<') or 
+             LName.Contains('TList<') or LName.Contains('TSmartList<') or
+             (Pos('Dext.Collections', string(AType.TypeData^.UnitName)) > 0));
 end;
 
 class function TActivator.GetListElementType(AType: PTypeInfo): PTypeInfo;

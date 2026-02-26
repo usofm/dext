@@ -6,8 +6,8 @@ uses
   Dext.Utils,
   System.SysUtils,
   System.Classes,
-  Dext.Core.Span in '..\..\Sources\Core\Base\Dext.Core.Span.pas',
-  Dext.Json.Utf8 in '..\..\Sources\Core\Json\Dext.Json.Utf8.pas';
+  Dext.Core.Span,
+  Dext.Json.Utf8;
 
 procedure Log(const Msg: string);
 begin

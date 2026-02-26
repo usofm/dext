@@ -56,6 +56,7 @@ type
     function TryGetValue(const Key: K; out Value: V): Boolean;
     function ContainsKey(const Key: K): Boolean;
     function Remove(const Key: K): Boolean;
+    function Extract(const Key: K): V;
     procedure Clear;
 
     function Keys: TArray<K>;
@@ -88,6 +89,7 @@ type
     function TryGetValue(const Key: K; out Value: V): Boolean;
     function ContainsKey(const Key: K): Boolean;
     function Remove(const Key: K): Boolean;
+    function Extract(const Key: K): V;
     procedure Clear;
 
     function Keys: TArray<K>;
@@ -250,6 +252,19 @@ begin
     end;
   end;
   Result := FCore.RemoveRaw(@Key);
+end;
+
+function TDictionary<K, V>.Extract(const Key: K): V;
+var
+  VP: Pointer;
+begin
+  if FCore.TryGetRaw(@Key, VP) then
+  begin
+    Result := V(VP^);
+    FCore.RemoveRaw(@Key);
+  end
+  else
+    Result := Default(V);
 end;
 
 procedure TDictionary<K, V>.Clear;

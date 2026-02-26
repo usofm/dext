@@ -5,7 +5,6 @@ interface
 uses
   System.SysUtils,
   System.JSON,
-  System.Generics.Collections,
   System.Rtti,
   Dext.Web.ModelBinding,      // ? Para [FromQuery], [FromRoute], [FromBody]
   Dext.DI.Interfaces,          // ? Para [FromServices]

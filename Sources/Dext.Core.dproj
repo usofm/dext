@@ -193,7 +193,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCCReference Include="Core\Dext.Collections.HashSet.pas"/>
         <DCCReference Include="Core\Dext.Collections.Queue.pas"/>
         <DCCReference Include="Core\Dext.Collections.Stack.pas"/>
-        <DCCReference Include="Core\Dext.Collections.Interfaces.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

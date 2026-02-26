@@ -3,9 +3,10 @@
 interface
 
 uses
+  System.SyncObjs,
   System.SysUtils,
   Dext.Collections,
-  System.SyncObjs,
+  Dext.Collections.Dict,
   DextStore.Models;
 
 type

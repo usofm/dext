@@ -9,8 +9,7 @@ uses
   Dext.Entity.Dialects,
   Dext.Entity.Attributes,
   Dext.Specifications.SQL.Generator,
-  Dext.Entity.Mapping,
-  System.Generics.Collections;
+  Dext.Entity.Mapping;
 
 type
   [Table('test_advanced_types')]

@@ -177,8 +177,6 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="..\..\Sources\Core\Base\Dext.Core.Span.pas"/>
-        <DCCReference Include="..\..\Sources\Core\Json\Dext.Json.Utf8.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

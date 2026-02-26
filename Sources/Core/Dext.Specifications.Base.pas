@@ -54,7 +54,7 @@ type
   ///   Base class for Specifications.
   ///   Inherit from this class to define reusable query logic.
   /// </summary>
-  TSpecification<T: class> = class(TInterfacedObject, ISpecification<T>)
+  TSpecification<T: class> = class(TInterfacedObject, ISpecification, ISpecification<T>)
   protected
     FExpression: IExpression;
     FIncludes: IList<string>;
@@ -70,8 +70,6 @@ type
     FIgnoreQueryFilters: Boolean;
     FOnlyDeleted: Boolean;
     FLockMode: TLockMode;
-    
-    // Implementation of ISpecification<T>
     
     // Implementation of ISpecification<T>
     function GetExpression: IExpression;

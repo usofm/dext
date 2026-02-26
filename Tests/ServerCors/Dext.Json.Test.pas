@@ -4,7 +4,7 @@ interface
 
 uses
   System.DateUtils,
-  System.Generics.Collections,
+  Dext.Collections,
   System.Sysutils,
   System.Rtti,
   System.TypInfo,
@@ -217,7 +217,7 @@ type
 
 var
   Users: TArray<TUser>;
-  UserList: TList<TUser>;
+  UserList: IList<TUser>;
   UserIds: TArray<Integer>;
   Json: string;
 begin
@@ -247,22 +247,22 @@ begin
     var DeserializedUsers := TDextJson.Deserialize<TArray<TUser>>(Json);
     Writeln('Deserialized Users Count: ', Length(DeserializedUsers));
 
-    // ✅ TESTE 2: TList<T> (como List<T> no C#)
-    UserList := TList<TUser>.Create;
+    // ✅ TESTE 2: IList<T> (como List<T> no C#)
+    UserList := TCollections.CreateList<TUser>;
     try
       var User1: TUser; User1.Id := 3; User1.Name := 'Bob';
       var User2: TUser; User2.Id := 4; User2.Name := 'Alice';
       UserList.Add(User1);
       UserList.Add(User2);
 
-      Json := TDextJson.Serialize<TList<TUser>>(UserList);
-      Writeln('TList<TUser> JSON: ', Json);
+      Json := TDextJson.Serialize<IList<TUser>>(UserList);
+      Writeln('IList<TUser> JSON: ', Json);
 
-      var DeserializedList := TDextJson.Deserialize<TList<TUser>>(Json);
+      var DeserializedList := TDextJson.Deserialize<IList<TUser>>(Json);
       Writeln('Deserialized List Count: ', DeserializedList.Count);
-      DeserializedList.Free;
+      // DeserializedList.Free;
     finally
-      UserList.Free;
+      // UserList.Free;
     end;
 
     Writeln('=== SUCESSO COM ARRAYS/LISTAS! ===');
@@ -281,28 +281,28 @@ type
   end;
 
 var
-  UserList: TList<TUser>;
+  UserList: IList<TUser>;
   Json: string;
 begin
-  Writeln('=== TESTE APENAS TList<T> ===');
+  Writeln('=== TESTE APENAS IList<T> ===');
 
-  UserList := TList<TUser>.Create;
+  UserList := TCollections.CreateList<TUser>;
   try
     var User1: TUser; User1.Id := 3; User1.Name := 'Bob';
     var User2: TUser; User2.Id := 4; User2.Name := 'Alice';
     UserList.Add(User1);
     UserList.Add(User2);
 
-    Json := TDextJson.Serialize<TList<TUser>>(UserList);
+    Json := TDextJson.Serialize<IList<TUser>>(UserList);
     Writeln('JSON Serializado: ', Json);
 
     // Aqui deve dar o erro
-    var DeserializedList := TDextJson.Deserialize<TList<TUser>>(Json);
+    var DeserializedList := TDextJson.Deserialize<IList<TUser>>(Json);
     Writeln('Deserializado Count: ', DeserializedList.Count);
-    DeserializedList.Free;
+    // DeserializedList.Free;
 
   finally
-    UserList.Free;
+    // UserList.Free;
   end;
 end;
 

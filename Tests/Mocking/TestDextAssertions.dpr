@@ -11,7 +11,7 @@ uses
   Dext.MM,
   Dext.Utils,
   System.SysUtils,
-  System.Generics.Collections,
+  Dext.Collections,
   System.DateUtils,
   Dext.Assertions;
 
@@ -33,13 +33,13 @@ end;
 
 procedure TestListAssertions;
 var
-  List: TList<Integer>;
+  List: IList<Integer>;
   Arr: TArray<string>;
 begin
   WriteLn('');
   WriteLn('=== List Assertions ===');
 
-  List := TList<Integer>.Create;
+  List := TCollections.CreateList<Integer>;
   try
     List.Add(1);
     List.Add(2);
@@ -62,7 +62,7 @@ begin
     except on E: Exception do Fail('NotContain (TList)', E.Message); end;
     
   finally
-    List.Free;
+    // List.Free;
   end;
   
   Arr := ['a', 'b', 'c'];
@@ -412,7 +412,7 @@ end;
 procedure TestObjectAssertions;
 var
   Obj: TObject;
-  List1, List2: TList<Integer>;
+  List1, List2: IList<Integer>;
 begin
   WriteLn('');
   WriteLn('=== Object Assertions ===');
@@ -428,8 +428,8 @@ begin
   end;
   
   // Deep Equality Check (BeEquivalentTo)
-  List1 := TList<Integer>.Create;
-  List2 := TList<Integer>.Create;
+  List1 := TCollections.CreateList<Integer>;
+  List2 := TCollections.CreateList<Integer>;
   try
     List1.Add(10); List1.Add(20);
     List2.Add(10); List2.Add(20);
@@ -450,8 +450,8 @@ begin
     end;
     
   finally
-    List1.Free;
-    List2.Free;
+    // List1.Free;
+    // List2.Free;
   end;
 end;
 

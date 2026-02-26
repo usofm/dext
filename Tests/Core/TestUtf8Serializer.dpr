@@ -5,9 +5,9 @@ program TestUtf8Serializer;
 uses
   Dext.Utils,
   System.SysUtils,
-  Dext.Core.Span in '..\..\Sources\Core\Base\Dext.Core.Span.pas',
-  Dext.Json.Utf8 in '..\..\Sources\Core\Json\Dext.Json.Utf8.pas',
-  Dext.Json.Utf8.Serializer in '..\..\Sources\Core\Json\Dext.Json.Utf8.Serializer.pas';
+  Dext.Core.Span,
+  Dext.Json.Utf8,
+  Dext.Json.Utf8.Serializer;
 
 type
   TSimpleRecord = record

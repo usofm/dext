@@ -1,6 +1,6 @@
 @echo off
 call "C:\Program Files (x86)\Embarcadero\Studio\37.0\bin\rsvars.bat"
-set SEARCH_PATH=%~dp0..\Output;%~dp0..\Sources\Core;%~dp0..\Sources\Data;%~dp0..\Sources\Web;%~dp0..\Sources\Core\Base;%~dp0..\Sources\Core\Specifications
+set SEARCH_PATH=%~dp0..\Output;%~dp0..\Sources\Core;%~dp0..\Sources\Core\Json;%~dp0..\Sources\Data;%~dp0..\Sources\Web;%~dp0..\Sources\Core\Base;%~dp0..\Sources\Core\Specifications
 echo Building Inheritance Test...
 dcc32 ..\Tests\TestOrmInheritance.dpr -U"%SEARCH_PATH%" -I"..\Output" -N"..\Output" -E"..\Output" > build_tests.log 2>&1
 if %ERRORLEVEL% NEQ 0 (

@@ -11,7 +11,6 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
   System.Classes,
   System.DateUtils,
   Data.DB,
@@ -216,7 +215,7 @@ type
     FConn: TFDConnection;
     FContext: TORMFeaturesContext;
     FContext2: TORMFeaturesContext; // Second context to simulate concurrent user
-    FEntities: TObjectList<TObject>;
+    FEntities: IList<TObject>;
     procedure SetupSchema;
     procedure Track(Obj: TObject);
   public
@@ -240,7 +239,7 @@ type
   private
     FConn: TFDConnection;
     FContext: TORMFeaturesContext;
-    FEntities: TObjectList<TObject>;
+    FEntities: IList<TObject>;
     procedure SetupSchema;
     procedure Track(Obj: TObject);
   public
@@ -264,7 +263,7 @@ type
   private
     FConn: TFDConnection;
     FContext: TORMFeaturesContext;
-    FEntities: TObjectList<TObject>;
+    FEntities: IList<TObject>;
     procedure SetupSchema;
     procedure Track(Obj: TObject);
   public
@@ -294,7 +293,7 @@ type
   private
     FConn: TFDConnection;
     FContext: TORMFeaturesContext;
-    FEntities: TObjectList<TObject>;
+    FEntities: IList<TObject>;
     procedure SetupSchema;
     procedure Track(Obj: TObject);
   public
@@ -316,7 +315,7 @@ type
   private
     FConn: TFDConnection;
     FContext: TORMFeaturesContext;
-    FEntities: TObjectList<TObject>;
+    FEntities: IList<TObject>;
     procedure SetupSchema;
     procedure Track(Obj: TObject);
   public
@@ -403,7 +402,7 @@ var
   DbConn, DbConn2: IDbConnection;
 begin
   // FEntities does NOT own objects - ORM's IdentityMap manages their lifetime
-  FEntities := TObjectList<TObject>.Create(False);
+  FEntities := TCollections.CreateList<TObject>(False);
   
   // Create In-Memory SQLite Connection (shared cache for both contexts)
   FConn := TFDConnection.Create(nil);
@@ -439,7 +438,7 @@ end;
 procedure TOptimisticConcurrencyTests.Teardown;
 begin
   // Clear entity tracking list FIRST (doesn't free objects, OwnsObjects=False)
-  FreeAndNil(FEntities);
+  FEntities := nil;
   // Now free contexts - IdentityMap will free tracked objects
   FreeAndNil(FContext2);
   FreeAndNil(FContext);
@@ -568,7 +567,7 @@ var
   DbConn: IDbConnection;
 begin
   // FEntities does NOT own objects - ORM's IdentityMap manages their lifetime
-  FEntities := TObjectList<TObject>.Create(False);
+  FEntities := TCollections.CreateList<TObject>(False);
   
   FConn := TFDConnection.Create(nil);
   FConn.DriverName := 'SQLite';
@@ -597,7 +596,7 @@ end;
 
 procedure TSoftDeleteTests.Teardown;
 begin
-  FreeAndNil(FEntities);
+  FEntities := nil;
   FreeAndNil(FContext);
   FreeAndNil(FConn);
 end;
@@ -698,7 +697,7 @@ var
   DbConn: IDbConnection;
 begin
   // FEntities does NOT own objects - ORM's IdentityMap manages their lifetime
-  FEntities := TObjectList<TObject>.Create(False);
+  FEntities := TCollections.CreateList<TObject>(False);
   
   FConn := TFDConnection.Create(nil);
   FConn.DriverName := 'SQLite';
@@ -727,7 +726,7 @@ end;
 
 procedure TAuditFieldsTests.Teardown;
 begin
-  FreeAndNil(FEntities);
+  FEntities := nil;
   FreeAndNil(FContext);
   FreeAndNil(FConn);
 end;
@@ -833,7 +832,7 @@ procedure TJsonQueryTests.Setup;
 var
   DbConn: IDbConnection;
 begin
-  FEntities := TObjectList<TObject>.Create(False);
+  FEntities := TCollections.CreateList<TObject>(False);
   FConn := TFDConnection.Create(nil);
   
   {$IFDEF DEXT_TEST_JSON_SQLITE}
@@ -885,7 +884,7 @@ end;
 
 procedure TJsonQueryTests.Teardown;
 begin
-  FreeAndNil(FEntities);
+  FEntities := nil;
   FreeAndNil(FContext);
   FreeAndNil(FConn);
 end;
@@ -980,7 +979,7 @@ var
   DbConn: IDbConnection;
 begin
   // FEntities does NOT own objects - ORM's IdentityMap manages their lifetime
-  FEntities := TObjectList<TObject>.Create(False);
+  FEntities := TCollections.CreateList<TObject>(False);
   
   FConn := TFDConnection.Create(nil);
   FConn.DriverName := 'SQLite';
@@ -1025,7 +1024,7 @@ end;
 
 procedure TRelationshipTests.Teardown;
 begin
-  FreeAndNil(FEntities);
+  FEntities := nil;
   FreeAndNil(FContext);
   FreeAndNil(FConn);
 end;

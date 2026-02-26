@@ -16,7 +16,6 @@ uses
   System.StrUtils,
   System.Variants,
   System.Classes,
-  System.Generics.Collections,
   Vcl.Graphics,
   Vcl.Controls,
   Vcl.Forms,
@@ -54,7 +53,7 @@ type
     procedure SearchEditChange(Sender: TObject);
     procedure CustomerGridSelectCell(Sender: TObject; ACol, ARow: Integer; var CanSelect: Boolean);
   private
-    FCustomers: TObjectList<TCustomer>;
+    FCustomers: IList<TCustomer>;
     FSelectedIndex: Integer;
     FOnCustomerSelected: TOnCustomerSelectedEvent;
     FOnNewCustomer: TOnNewCustomerEvent;
@@ -87,14 +86,13 @@ implementation
 constructor TCustomerListFrame.Create(AOwner: TComponent);
 begin
   inherited;
-  FCustomers := TObjectList<TCustomer>.Create(False); // Don't own objects
+  FCustomers := TCollections.CreateList<TCustomer>(False); // Don't own objects
   FSelectedIndex := -1;
   SetupGrid;
 end;
 
 destructor TCustomerListFrame.Destroy;
 begin
-  FCustomers.Free;
   inherited;
 end;
 

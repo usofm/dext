@@ -6,7 +6,7 @@ uses
   DUnitX.TestFramework,
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
+  Dext.Collections,
   Dext.Entity.Migrations.Operations,
   Dext.Entity.Migrations.Serializers.Json,
   Dext.Json,

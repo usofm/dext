@@ -734,7 +734,7 @@ var
 begin
   Result := False;
   ApplyTenantConfig(True);
-  Nodes := TCollections.CreateList<TEntityNode>;
+  Nodes := TCollections.CreateList<TEntityNode>(True);
   Created := TCollections.CreateList<PTypeInfo>;
   if FCache.Count = 0 then
     PreloadDBSets;
@@ -913,7 +913,7 @@ end;
 destructor TEntityNode.Destroy;
 begin
   Dependencies := nil;
-  // inherited; // Removing inherited call to fix E2075
+  inherited;
 end;
 
 function TDbContext.SaveChanges: Integer;
@@ -1185,7 +1185,7 @@ constructor TChangeTracker.Create;
 begin
   inherited Create;
   FTrackedEntities := TCollections.CreateDictionary<TObject, TEntityState>;
-  FShadowStates := TCollections.CreateDictionary<TObject, TEntityShadowState>;
+  FShadowStates := TCollections.CreateDictionary<TObject, TEntityShadowState>(True);
 end;
 
 destructor TChangeTracker.Destroy;

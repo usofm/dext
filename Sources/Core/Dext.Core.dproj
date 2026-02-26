@@ -110,9 +110,9 @@
         <DCCReference Include="FireDAC.dcp"/>
         <DCCReference Include="FireDACCommonDriver.dcp"/>
         <DCCReference Include="FireDACCommon.dcp"/>
-        <DCCReference Include="Drivers\Dext.Json.Driver.JsonDataObjects.pas"/>
-        <DCCReference Include="Drivers\Dext.Json.Driver.SystemJson.pas"/>
-        <DCCReference Include="Drivers\JsonDataObjects.pas"/>
+        <DCCReference Include="Json\Dext.Json.Driver.DextJsonDataObjects.pas"/>
+        <DCCReference Include="Json\Dext.Json.Driver.SystemJson.pas"/>
+        <DCCReference Include="Json\DextJsonDataObjects.pas"/>
         <DCCReference Include="Dext.Configuration.Core.pas"/>
 
         <DCCReference Include="Dext.Configuration.EnvironmentVariables.pas"/>

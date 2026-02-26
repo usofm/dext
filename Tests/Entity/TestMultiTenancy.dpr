@@ -5,7 +5,6 @@ program TestMultiTenancy;
 uses
   System.SysUtils,
   System.Classes,
-  System.Generics.Collections,
   Dext.Collections,
   FireDAC.Comp.Client,
   Dext.Entity.Drivers.FireDAC.Links,

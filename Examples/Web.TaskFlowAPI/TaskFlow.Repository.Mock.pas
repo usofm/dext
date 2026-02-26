@@ -3,17 +3,17 @@ unit TaskFlow.Repository.Mock;
 interface
 
 uses
-  System.Generics.Collections, System.SysUtils, System.DateUtils,
+  Dext.Collections, Dext.Collections.Dict, System.SysUtils, System.DateUtils,
   TaskFlow.Domain, TaskFlow.Repository.Interfaces;
 
 type
   // ===========================================================================
-  // IMPLEMENTAÇÃO MOCK DO REPOSITÓRIO
+  // IMPLEMENTAÃ‡ÃƒO MOCK DO REPOSITÃ“RIO
   // ===========================================================================
   TTaskRepositoryMock = class(TInterfacedObject, IObservableTaskRepository, ITaskRepository)
   private
-    FTasks: TDictionary<Integer, TTask>;
-    FObservers: TList<ITaskRepositoryEvents>;
+    FTasks: IDictionary<Integer, TTask>;
+    FObservers: IList<ITaskRepositoryEvents>;
     FNextId: Integer;
 
     function GenerateNextId: Integer;
@@ -50,7 +50,7 @@ type
     procedure NotifyTaskDeleted(Id: Integer);
     procedure NotifyTaskStatusChanged(Id: Integer; OldStatus, NewStatus: TTaskStatus);
 
-    // Métodos auxiliares para setup de testes
+    // MÃ©todos auxiliares para setup de testes
     procedure SeedSampleData;
     procedure Clear;
     function ContainsTask(Id: Integer): Boolean;
@@ -66,16 +66,16 @@ uses
 constructor TTaskRepositoryMock.Create;
 begin
   inherited Create;
-  FTasks := TDictionary<Integer, TTask>.Create;
-  FObservers := TList<ITaskRepositoryEvents>.Create;
+  FTasks := TCollections.CreateDictionary<Integer, TTask>;
+  FObservers := TCollections.CreateList<ITaskRepositoryEvents>;
   FNextId := 1;
   SeedSampleData;
 end;
 
 destructor TTaskRepositoryMock.Destroy;
 begin
-  FObservers.Free;
-  FTasks.Free;
+  // FObservers.Free;
+  // FTasks.Free;
   inherited Destroy;
 end;
 
@@ -87,16 +87,16 @@ end;
 
 function TTaskRepositoryMock.GetTasksArray: TArray<TTask>;
 begin
-  Result := FTasks.Values.ToArray;
+  Result := FTasks.Values;
 end;
 
 function TTaskRepositoryMock.FilterTasks(const Tasks: TArray<TTask>;
   const Filter: TTaskFilter): TArray<TTask>;
 var
   Task: TTask;
-  FilteredTasks: TList<TTask>;
+  FilteredTasks: IList<TTask>;
 begin
-  FilteredTasks := TList<TTask>.Create;
+  FilteredTasks := TCollections.CreateList<TTask>;
   try
     for Task in Tasks do
     begin
@@ -120,7 +120,7 @@ begin
       FilteredTasks.Add(Task);
     end;
 
-    // Aplicar paginação
+    // Aplicar paginaÃ§Ã£o
     if Filter.Page > 0 then
     begin
       var StartIndex := (Filter.Page - 1) * Filter.PageSize;
@@ -141,12 +141,12 @@ begin
       Result := FilteredTasks.ToArray;
 
   finally
-    FilteredTasks.Free;
+    // FilteredTasks.Free;
   end;
 end;
 
 // ===========================================================================
-// OPERAÇÕES CRUD
+// OPERAÃ‡Ã•ES CRUD
 // ===========================================================================
 
 function TTaskRepositoryMock.GetAll: TArray<TTask>;
@@ -187,7 +187,7 @@ begin
   UpdatedTask.Id := Id;
   UpdatedTask.CreatedAt := OldTask.CreatedAt;
 
-  // Notificar mudança de status se houver
+  // Notificar mudanÃ§a de status se houver
   if OldTask.Status <> UpdatedTask.Status then
     NotifyTaskStatusChanged(Id, OldTask.Status, UpdatedTask.Status);
 
@@ -208,7 +208,7 @@ begin
 end;
 
 // ===========================================================================
-// OPERAÇÕES DE BUSCA
+// OPERAÃ‡Ã•ES DE BUSCA
 // ===========================================================================
 
 function TTaskRepositoryMock.SearchTasks(const Filter: TTaskFilter): TArray<TTask>;
@@ -238,11 +238,11 @@ end;
 function TTaskRepositoryMock.GetOverdueTasks: TArray<TTask>;
 var
   AllTasks: TArray<TTask>;
-  OverdueTasks: TList<TTask>;
+  OverdueTasks: IList<TTask>;
   Task: TTask;
 begin
   AllTasks := GetTasksArray;
-  OverdueTasks := TList<TTask>.Create;
+  OverdueTasks := TCollections.CreateList<TTask>;
   try
     for Task in AllTasks do
     begin
@@ -251,12 +251,12 @@ begin
     end;
     Result := OverdueTasks.ToArray;
   finally
-    OverdueTasks.Free;
+    // OverdueTasks.Free;
   end;
 end;
 
 // ===========================================================================
-// OPERAÇÕES DE AGREGAÇÃO
+// OPERAÃ‡Ã•ES DE AGREGAÃ‡ÃƒO
 // ===========================================================================
 
 function TTaskRepositoryMock.GetTaskCount: Integer;
@@ -266,12 +266,12 @@ end;
 
 function TTaskRepositoryMock.GetTasksCountByStatus: TArray<TTaskStatusCount>;
 var
-  StatusCounts: TDictionary<TTaskStatus, Integer>;
+  StatusCounts: IDictionary<TTaskStatus, Integer>;
   Task: TTask;
   Status: TTaskStatus;
   CountArray: TArray<TTaskStatusCount>;
 begin
-  StatusCounts := TDictionary<TTaskStatus, Integer>.Create;
+  StatusCounts := TCollections.CreateDictionary<TTaskStatus, Integer>;
   try
     // Inicializar contadores
     for Status := Low(TTaskStatus) to High(TTaskStatus) do
@@ -292,7 +292,7 @@ begin
 
     Result := CountArray;
   finally
-    StatusCounts.Free;
+    // StatusCounts.Free;
   end;
 end;
 
@@ -345,7 +345,7 @@ begin
 end;
 
 // ===========================================================================
-// OPERAÇÕES EM LOTE
+// OPERAÃ‡Ã•ES EM LOTE
 // ===========================================================================
 
 function TTaskRepositoryMock.BulkUpdateStatus(Ids: TArray<Integer>; NewStatus: TTaskStatus): Integer;
@@ -435,7 +435,7 @@ begin
 end;
 
 // ===========================================================================
-// MÉTODOS AUXILIARES
+// MÃ‰TODOS AUXILIARES
 // ===========================================================================
 
 procedure TTaskRepositoryMock.SeedSampleData;
@@ -443,9 +443,9 @@ begin
   // Dados de exemplo para testes
   CreateTask(TTask.Create('Implementar API REST', 'Criar endpoints da TaskFlow API', tpHigh, Now + 5));
   CreateTask(TTask.Create('Configurar DI Container', 'Integrar dependency injection', tpMedium, Now + 3));
-  CreateTask(TTask.Create('Escrever documentação', 'Documentar uso da API', tpLow, Now + 7));
+  CreateTask(TTask.Create('Escrever documentaÃ§Ã£o', 'Documentar uso da API', tpLow, Now + 7));
   CreateTask(TTask.Create('Testar performance', 'Realizar testes de carga', tpCritical, Now + 2));
-  CreateTask(TTask.Create('Refatorar código', 'Melhorar estrutura do projeto', tpMedium, Now + 10));
+  CreateTask(TTask.Create('Refatorar cÃ³digo', 'Melhorar estrutura do projeto', tpMedium, Now + 10));
 
   // Marcar algumas como em progresso e completas
   var Task := GetById(1);

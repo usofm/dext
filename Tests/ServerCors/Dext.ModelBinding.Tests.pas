@@ -22,7 +22,8 @@ implementation
 
 uses
   System.Classes,
-  System.Generics.Collections,
+  Dext.Collections,
+  Dext.Collections.Dict,
   System.SysUtils,
   IdURI,
   Dext.Web.ModelBinding,
@@ -173,7 +174,7 @@ type
 var
   MockContext: IHttpContext;
   Binder: IModelBinder;
-  RouteParams: TDictionary<string, string>;
+  RouteParams: IDictionary<string, string>;
 begin
   Writeln('=== TESTE BINDROUTE COMPREENSIVO ===');
 
@@ -183,7 +184,7 @@ begin
     // ✅ TESTE 1: Cenário completo
     Writeln('✅ TESTE 1: Cenário completo');
 
-    RouteParams := TDictionary<string, string>.Create;
+    RouteParams := TCollections.CreateDictionary<string, string>;
     try
       RouteParams.Add('user_id', '123');
       RouteParams.Add('OrderId', '9876543210');
@@ -203,7 +204,7 @@ begin
       Writeln('  UserGuid: ', GUIDToString(RouteTest.UserGuid), ' (Expected: {C87A33C3-116A-4A31-9A15-9D9A8B6D9C41})');
       Writeln('  Category: ', RouteTest.Category, ' (Expected: electronics)');
     finally
-      RouteParams.Free;
+      // RouteParams.Free;
     end;
 
     // ✅ TESTE 2: Boolean com diferentes representações
@@ -212,7 +213,7 @@ begin
     var BoolTests: TArray<string> := ['true', '1', 'yes', 'on', 'false', '0', 'no', 'off'];
     for var BoolValue in BoolTests do
     begin
-      RouteParams := TDictionary<string, string>.Create;
+      RouteParams := TCollections.CreateDictionary<string, string>;
       try
         RouteParams.Add('IsActive', BoolValue); // ✅ Já está correto
         MockContext := TMockFactory.CreateHttpContextWithRoute('', RouteParams);
@@ -221,7 +222,7 @@ begin
         var Test := Value.AsType<TRouteTest>;
         Writeln('  isactive=' + BoolValue + ' -> ' + Test.IsActive.ToString(TUseBoolStrs.True));
       finally
-        RouteParams.Free;
+        // RouteParams.Free;
       end;
     end;
 
@@ -236,7 +237,7 @@ begin
 
     for var GuidStr in GuidTests do
     begin
-      RouteParams := TDictionary<string, string>.Create;
+      RouteParams := TCollections.CreateDictionary<string, string>;
       try
         RouteParams.Add('UserGuid', GuidStr); // ✅ Já está correto
         MockContext := TMockFactory.CreateHttpContextWithRoute('', RouteParams);
@@ -245,14 +246,14 @@ begin
         var Test := Value.AsType<TRouteTest>;
         Writeln('  userguid=' + GuidStr + ' -> ' + GUIDToString(Test.UserGuid));
       finally
-        RouteParams.Free;
+        // RouteParams.Free;
       end;
     end;
 
     // ✅ TESTE 4: Campos opcionais (não presentes)
     Writeln(#10 + '✅ TESTE 4: Campos opcionais/faltantes');
 
-    RouteParams := TDictionary<string, string>.Create;
+    RouteParams := TCollections.CreateDictionary<string, string>;
     try
       // Apenas alguns parâmetros
       RouteParams.Add('user_id', '456');
@@ -268,7 +269,7 @@ begin
       Writeln('  IsActive: ', RouteTest.IsActive, ' (Expected: False - default)');
       Writeln('  Category: ', RouteTest.Category, ' (Expected: books)');
     finally
-      RouteParams.Free;
+      // RouteParams.Free;
     end;
 
     Writeln(#10 + '=== SUCESSO BINDROUTE COMPREENSIVO! ===');
@@ -292,7 +293,7 @@ type
 var
   MockContext: IHttpContext;
   Binder: IModelBinder;
-  RouteParams: TDictionary<string, string>;
+  RouteParams: IDictionary<string, string>;
 begin
   Writeln('=== TESTE CASOS EXTREMOS BINDROUTE ===');
 
@@ -302,7 +303,7 @@ begin
     // ✅ TESTE: Valores extremos
     Writeln('✅ TESTE: Valores extremos');
 
-    RouteParams := TDictionary<string, string>.Create;
+    RouteParams := TCollections.CreateDictionary<string, string>;
     try
       RouteParams.Add('Id', '32767');           // ✅ Agora com "Id"
       RouteParams.Add('BigId', '9223372036854775807'); // ✅ Agora com "BigId"
@@ -322,13 +323,13 @@ begin
       Writeln('  Enabled: ', RouteTest.Enabled, ' (Expected: True)');
       Writeln('  Status: ', RouteTest.Status, ' (Expected: 2)');
     finally
-      RouteParams.Free;
+      // RouteParams.Free;
     end;
 
     // ✅ TESTE: Valores negativos
     Writeln(#10 + '✅ TESTE: Valores negativos');
 
-    RouteParams := TDictionary<string, string>.Create;
+    RouteParams := TCollections.CreateDictionary<string, string>;
     try
       RouteParams.Add('Id', '-123');
       RouteParams.Add('BigId', '-999999');
@@ -345,7 +346,7 @@ begin
       Writeln('  Price negativo: ', FormatFloat('0.00', RouteTest.Price), ' (Expected: -45.67)');
       Writeln('  Enabled=false: ', RouteTest.Enabled, ' (Expected: False)');
     finally
-      RouteParams.Free;
+      // RouteParams.Free;
     end;
 
     Writeln('=== SUCESSO CASOS EXTREMOS BINDROUTE! ===');
@@ -371,7 +372,7 @@ type
 var
   MockContext: IHttpContext;
   Binder: IModelBinder;
-  Headers: TDictionary<string, string>;
+  Headers: IDictionary<string, string>;
 begin
   Writeln('=== TESTE BINDHEADER COMPREENSIVO ===');
 
@@ -379,7 +380,7 @@ begin
     Binder := TModelBinder.Create;
 
     // ✅ TESTE: Headers com diferentes formatos
-    Headers := TDictionary<string, string>.Create;
+    Headers := TCollections.CreateDictionary<string, string>;
     try
       // Headers podem vir em qualquer case (serão normalizados para lowercase)
       Headers.Add('x-user-id', '123');
@@ -404,7 +405,7 @@ begin
       Writeln('  NormalField: "', HeaderTest.NormalField, '" (Expected: empty - no binding)');
 
     finally
-      Headers.Free;
+      // Headers.Free;
     end;
 
     Writeln('=== SUCESSO BINDHEADER COMPREENSIVO! ===');

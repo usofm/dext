@@ -26,7 +26,7 @@ type
   /// </summary>
   TLazyProxyInterceptor = class(TInterfacedObject, IInterceptor)
   private
-    FContext: IDbContext;
+    FContext: TObject; // Stored as object to avoid interface refcounting issues, cast to TDbContext in implementation
     FPropName: string;
     FLoaded: Boolean;
     FValue: TValue;
@@ -46,12 +46,15 @@ type
 
 implementation
 
+uses
+  Dext.Entity.Context;
+
 { TLazyProxyInterceptor }
 
 constructor TLazyProxyInterceptor.Create(AContext: IDbContext; const APropName: string);
 begin
   inherited Create;
-  FContext := AContext;
+  FContext := TObject(AContext);
   FPropName := APropName;
   FLoaded := False;
 end;
@@ -83,7 +86,7 @@ begin
 
       Ctx := TRttiContext.Create;
       try
-        Map := TEntityMap(FContext.GetMapping(Instance.ClassInfo));
+        Map := TEntityMap(TDbContext(FContext).GetMapping(Instance.ClassInfo));
         if (Map <> nil) and Map.Properties.TryGetValue(FPropName, PropMap) then
         begin
           var RType := Ctx.GetType(Map.EntityType);
@@ -103,7 +106,7 @@ begin
               FKVal := FKProp.GetValue(Instance);
               if not FKVal.IsEmpty then
               begin
-                TargetSet := FContext.DataSet(Prop.PropertyType.Handle);
+                TargetSet := TDbContext(FContext).DataSet(Prop.PropertyType.Handle);
                 LoadedObj := TargetSet.FindObject(FKVal.AsVariant);
                 if LoadedObj <> nil then
                   FValue := TValue.From(LoadedObj);
@@ -112,13 +115,13 @@ begin
           end
           else
           begin
-            TargetSet := FContext.DataSet(Map.EntityType);
+            TargetSet := TDbContext(FContext).DataSet(Map.EntityType);
             if TargetSet <> nil then
             begin
               PKVal := TargetSet.GetEntityId(Instance);
               if PKVal <> '' then
               begin
-                Dialect := FContext.Dialect;
+                Dialect := TDbContext(FContext).Dialect;
                 PKCol := '';
                 for PMap in Map.Properties.Values do
                   if PMap.IsPK then
@@ -135,7 +138,7 @@ begin
                      Dialect.QuoteIdentifier(Map.TableName),
                      Dialect.QuoteIdentifier(PKCol)]);
                       
-                  Cmd := FContext.Connection.CreateCommand(SQL);
+                  Cmd := TDbContext(FContext).Connection.CreateCommand(SQL);
                   Cmd.AddParam('p1', PKVal);
                   DBVal := Cmd.ExecuteScalar;
                   
@@ -208,15 +211,31 @@ class function TEntityProxyFactory.NeedsProxy(AParam: PTypeInfo; AContext: IDbCo
 var
   Map: TEntityMap;
   Prop: TPropertyMap;
+  Ctx: TRttiContext;
+  RType: TRttiType;
+  RProp: TRttiProperty;
 begin
   Result := False;
   Map := TEntityMap(AContext.GetMapping(AParam));
   if Map = nil then Exit;
   
-  for Prop in Map.Properties.Values do
-  begin
-    if Prop.IsLazy then
-      Exit(True);
+  Ctx := TRttiContext.Create;
+  try
+    for Prop in Map.Properties.Values do
+    begin
+      if Prop.IsLazy then
+      begin
+         RType := Ctx.GetType(Map.EntityType);
+         if RType = nil then Continue;
+         
+         RProp := RType.GetProperty(Prop.PropertyName);
+         // If it's NOT a Lazy<T> record property, then we might need a proxy for it
+         if (RProp <> nil) and (not RProp.PropertyType.Name.StartsWith('Lazy<')) then
+           Exit(True);
+      end;
+    end;
+  finally
+    Ctx.Free;
   end;
 end;
 
@@ -226,21 +245,36 @@ var
   Map: TEntityMap;
   Prop: TPropertyMap;
   Proxy: TClassProxy;
+  Ctx: TRttiContext;
+  RType: TRttiType;
+  RProp: TRttiProperty;
 begin
   if not NeedsProxy(TypeInfo(T), AContext) then
     Exit(T(TActivator.CreateInstance(TClass(T), [])));
 
   Map := TEntityMap(AContext.GetMapping(TypeInfo(T)));
   Interceptors := TCollections.CreateList<IInterceptor>;
+  
+  Ctx := TRttiContext.Create;
+  try
+    RType := Ctx.GetType(TypeInfo(T));
     for Prop in Map.Properties.Values do
     begin
       if Prop.IsLazy then
-        Interceptors.Add(TLazyProxyInterceptor.Create(AContext, Prop.PropertyName));
+      begin
+        RProp := RType.GetProperty(Prop.PropertyName);
+        // Only add proxy interceptor if NOT a Lazy<T> record
+        if (RProp <> nil) and (not RProp.PropertyType.Name.StartsWith('Lazy<')) then
+          Interceptors.Add(TLazyProxyInterceptor.Create(AContext, Prop.PropertyName));
+      end;
     end;
+  finally
+    Ctx.Free;
+  end;
     
-    Proxy := TClassProxy.Create(TClass(T), Interceptors.ToArray, True);
-    AContext.TrackProxy(Proxy);
-    Result := T(Proxy.Instance);
+  Proxy := TClassProxy.Create(TClass(T), Interceptors.ToArray, True);
+  AContext.TrackProxy(Proxy);
+  Result := T(Proxy.Instance);
 end;
 
 end.

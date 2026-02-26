@@ -5,7 +5,7 @@ interface
 {$I Dext.inc}
 
 uses
-  System.Generics.Collections,
+  Dext.Collections,
   System.Classes,
   System.SysUtils,
   Data.DB,
@@ -47,7 +47,7 @@ type
   private
     class var FTotalPassed: Integer;
     class var FTotalFailed: Integer;
-    class var FFailedTests: TList<string>;
+    class var FFailedTests: IList<string>;
     class var FCurrentTestName: string;
   protected
     FConn: TFDConnection;
@@ -285,14 +285,13 @@ end;
 
 class constructor TBaseTest.Create;
 begin
-  FFailedTests := TList<string>.Create;
+  FFailedTests := TCollections.CreateList<string>;
   FTotalPassed := 0;
   FTotalFailed := 0;
 end;
 
 class destructor TBaseTest.Destroy;
 begin
-  FFailedTests.Free;
 end;
 
 class procedure TBaseTest.ResetCounters;

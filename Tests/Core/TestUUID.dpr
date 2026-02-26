@@ -5,7 +5,7 @@
 uses
   Dext.Utils,
   System.SysUtils,
-  Dext.Types.UUID in '..\..\Sources\Core\Dext.Types.UUID.pas';
+  Dext.Types.UUID;
 
 procedure TestBasicConversion;
 var

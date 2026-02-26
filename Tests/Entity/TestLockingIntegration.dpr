@@ -5,7 +5,6 @@
 uses
   System.SysUtils,
   System.Rtti,
-  System.Generics.Collections,
   Data.DB,
   Dext,
   Dext.Utils,

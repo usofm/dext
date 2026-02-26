@@ -5,9 +5,10 @@
 uses
   System.SysUtils,
   System.Rtti,
-  System.Generics.Collections,
   Dext,
   Dext.Utils,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Specifications.Interfaces,
   Dext.Specifications.Types,
   Dext.Specifications.Base,
@@ -77,7 +78,7 @@ begin
     WriteLn('   Criteria Tree: ', Spec1.GetExpression.ToString);
     WriteLn('   Generated SQL (SQLite): WHERE ', SQL);
     WriteLn('   Parameters:');
-    for Param in Generator.Params do
+    for Param in Generator.Params.ToArray do
       WriteLn('     :', Param.Key, ' = ', Param.Value.ToString);
 
     WriteLn;
@@ -90,7 +91,7 @@ begin
     WriteLn('   Criteria Tree: ', Spec2.GetExpression.ToString);
     WriteLn('   Generated SQL (SQLite): WHERE ', SQL);
     WriteLn('   Parameters:');
-    for Param in Generator.Params do
+    for Param in Generator.Params.ToArray do
       WriteLn('     :', Param.Key, ' = ', Param.Value.ToString);
 
     WriteLn;

@@ -5,7 +5,6 @@ interface
 uses
   System.Classes,
   System.SysUtils,
-  System.Generics.Collections,
   Dext,
   Dext.Entity,
   Dext.Collections,

@@ -10,7 +10,7 @@ uses
   System.SysUtils,
   System.Rtti,
   System.JSON,
-  System.Generics.Collections,
+  Dext.Collections,
   // Dext.Hubs units
   Dext.Web.Hubs.Interfaces,
   Dext.Web.Hubs.Types,
@@ -374,12 +374,12 @@ end;
 procedure TestTHubConnection;
 var
   Connection: THubConnection;
-  SentMessages: TList<string>;
+  SentMessages: IList<string>;
 begin
   WriteLn;
   WriteLn('=== THubConnection Tests ===');
   
-  SentMessages := TList<string>.Create;
+  SentMessages := TCollections.CreateList<string>;
   try
     Connection := THubConnection.Create('test-conn', ttServerSentEvents);
     try
@@ -418,7 +418,7 @@ begin
       Connection.Free;
     end;
   finally
-    SentMessages.Free;
+    // SentMessages.Free;
   end;
 end;
 

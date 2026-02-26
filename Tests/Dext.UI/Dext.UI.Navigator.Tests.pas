@@ -12,7 +12,6 @@ interface
 uses
   System.SysUtils,
   System.Rtti,
-  System.Generics.Collections,
   Dext.Testing.Attributes,
   Dext.Assertions,
   Dext.UI.Navigator.Types;

@@ -3,7 +3,7 @@
 interface
 
 uses
-  System.SysUtils, System.Generics.Collections, Dext.Entity, Dext.Entity.Query,
+  System.SysUtils, Dext.Entity, Dext.Entity.Query,
   Dext.Collections, Dext.Entity.TypeSystem,
   Dext.Specifications.Interfaces, Dext.Specifications.Types, Dext.Specifications.Fluent,
   EntityDemo.Entities, EntityDemo.Tests.Base, EntityDemo.Entities.Info;

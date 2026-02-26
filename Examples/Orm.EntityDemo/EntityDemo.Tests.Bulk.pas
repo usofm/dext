@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
+  Dext.Collections,
   Dext.Entity.Dialects,
   EntityDemo.Tests.Base,
   EntityDemo.Entities,
@@ -22,7 +22,7 @@ implementation
 
 procedure TBulkTest.Run;
 var
-  BulkUsers: TObjectList<TUser>;
+  BulkUsers: IList<TUser>;
   i: Integer;
   StartTime: TDateTime;
   Duration: TDateTime;
@@ -35,7 +35,7 @@ begin
   Log('📦 Running Bulk Operation Tests...');
   Log('================================');
 
-  BulkUsers := TObjectList<TUser>.Create(False);
+  BulkUsers := TCollections.CreateList<TUser>(False);
   try
     // 1. Bulk Insert
     Log('   Preparing 100 users...');
@@ -97,7 +97,6 @@ begin
     AssertTrue(Count = 0, 'Bulk Remove Verified.', Format('Bulk Remove Failed: Found %d users.', [Count]));
 
   finally
-    BulkUsers.Free;
   end;
   
   Log('');

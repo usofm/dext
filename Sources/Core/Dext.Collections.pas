@@ -150,12 +150,14 @@ type
   ///   generic specializations.
   /// </summary>
   {$M+}
-  TList<T> = class(TInterfacedObject, IList<T>, IEnumerable<T>)
+  TList<T> = class(TInterfacedObject, IList<T>, IEnumerable<T>, IDextCollection)
   protected
     FCore: TRawList;
     FOwnsObjects: Boolean;
     procedure Notify(Sender: TObject; const Item: T;
       Action: TCollectionNotification); virtual;
+    function GetOwnsObjects: Boolean;
+    procedure SetOwnsObjects(Value: Boolean);
     function GetCount: Integer;
     function GetItem(Index: Integer): T;
     procedure SetItem(Index: Integer; const Value: T);
@@ -202,6 +204,7 @@ type
 
     property Count: Integer read GetCount;
     property Items[Index: Integer]: T read GetItem write SetItem; default;
+    property OwnsObjects: Boolean read FOwnsObjects write FOwnsObjects;
   end;
 
   /// <summary>Backward compatibility alias</summary>
@@ -255,7 +258,7 @@ end;
 
 constructor TList<T>.Create;
 begin
-  Create(True);
+  Create(False);
 end;
 
 constructor TList<T>.Create(OwnsObjects: Boolean);
@@ -280,6 +283,16 @@ begin
     if PTypeInfo(System.TypeInfo(T)).Kind = tkClass then
       TObject(PPointer(@Item)^).Free;
   end;
+end;
+
+function TList<T>.GetOwnsObjects: Boolean;
+begin
+  Result := FOwnsObjects;
+end;
+
+procedure TList<T>.SetOwnsObjects(Value: Boolean);
+begin
+  FOwnsObjects := Value;
 end;
 
 function TList<T>.GetCount: Integer;

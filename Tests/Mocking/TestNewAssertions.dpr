@@ -13,7 +13,6 @@ program TestNewAssertions;
 uses
   Dext.MM,
   System.SysUtils,
-  System.Generics.Collections,
   System.Rtti,
   System.Variants,
   Dext.Assertions,

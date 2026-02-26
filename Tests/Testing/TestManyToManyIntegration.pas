@@ -4,7 +4,6 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
   System.Classes,
   Data.DB,
   FireDAC.Comp.Client,
@@ -73,7 +72,7 @@ type
   private
     FConn: TFDConnection;
     FContext: TIntegrationContext;
-    FEntities: TObjectList<TObject>;
+    FEntities: IList<TObject>;
     procedure SetupSchema;
     procedure Track(Obj: TObject);
   public
@@ -122,7 +121,7 @@ procedure TManyToManyIntegrationTests.Setup;
 var
   DbConn: IDbConnection;
 begin
-  FEntities := TObjectList<TObject>.Create(False); // ORM manages object lifetime
+  FEntities := TCollections.CreateList<TObject>(False); // ORM manages object lifetime
   // Create In-Memory SQLite Connection
   FConn := TFDConnection.Create(nil);
   FConn.DriverName := 'SQLite';
@@ -165,7 +164,7 @@ end;
 procedure TManyToManyIntegrationTests.Teardown;
 begin
   // Free FEntities first (doesn't own objects), then context (which frees via IdentityMap)
-  if FEntities <> nil then FEntities.Free;
+  FEntities := nil;
   if FContext <> nil then FContext.Free;
   if FConn <> nil then FConn.Free;
 end;

@@ -11,7 +11,6 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
   Customer.Entity,
   Customer.Context,
   Dext.Core.SmartTypes,

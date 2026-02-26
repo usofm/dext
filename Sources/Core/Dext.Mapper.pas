@@ -36,6 +36,7 @@ uses
   System.Rtti,
   System.TypInfo,
   Dext.Collections,
+  Dext.Collections.Base,
   Dext.Collections.Dict;
 
 type
@@ -107,17 +108,17 @@ type
     /// <summary>
     ///   Map a source object to a new destination object.
     /// </summary>
-    class function Map<TSource; TDest>(const Source: TSource; AOnlyNonDefault: Boolean = False): TDest; overload;
+    class function Map<TSource, TDest>(const Source: TSource; AOnlyNonDefault: Boolean = False): TDest; overload;
 
     /// <summary>
     ///   Map a source object to an existing destination object.
     /// </summary>
-    class procedure Map<TSource; TDest>(const Source: TSource; var Dest: TDest; AOnlyNonDefault: Boolean = False); overload;
+    class procedure Map<TSource, TDest>(const Source: TSource; var Dest: TDest; AOnlyNonDefault: Boolean = False); overload;
 
     /// <summary>
     ///   Map a list of source objects to a list of destination objects.
     /// </summary>
-    class function MapList<TSource; TDest>(const SourceList: IEnumerable<TSource>; AOnlyNonDefault: Boolean = False): IList<TDest>;
+    class function MapList<TSource, TDest>(const SourceList: Dext.Collections.Base.IEnumerable<TSource>; AOnlyNonDefault: Boolean = False): IList<TDest>;
   end;
 
 implementation
@@ -388,7 +389,7 @@ begin
   end;
 end;
 
-class function TMapper.MapList<TSource, TDest>(const SourceList: IEnumerable<TSource>; AOnlyNonDefault: Boolean): IList<TDest>;
+class function TMapper.MapList<TSource, TDest>(const SourceList: Dext.Collections.Base.IEnumerable<TSource>; AOnlyNonDefault: Boolean): IList<TDest>;
 var
   Item: TSource;
 begin

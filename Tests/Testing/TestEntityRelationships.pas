@@ -5,7 +5,6 @@ interface
 uses
   System.SysUtils,
   System.Rtti,
-  System.Generics.Collections,
   Dext.Assertions,
   Dext.Testing.Attributes,
   Dext.Entity.Attributes,

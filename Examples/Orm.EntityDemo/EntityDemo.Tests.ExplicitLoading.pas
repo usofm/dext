@@ -17,8 +17,7 @@ type
 implementation
 
 uses
-  EntityDemo.Entities,
-  System.Generics.Collections;
+  EntityDemo.Entities;
 
 procedure TExplicitLoadingTest.Run;
 begin

@@ -43,12 +43,10 @@ uses
   System.TypInfo,
   System.Variants,
   Dext,
-  Dext.Collections,
-  Dext.Collections.Base,
-  Dext.Collections.Comparers,
   Dext.Core.SmartTypes,
   Dext.Types.Nullable,
-  Dext.Types.UUID;
+  Dext.Types.UUID,
+  Dext.Collections.Base;
 
 type
   /// <summary>
@@ -411,16 +409,13 @@ type
   /// </summary>
   ShouldList<T> = record
   private
-    FEnumerable: IEnumerable<T>;
-    FDextEnumerable: Dext.Collections.Base.IEnumerable<T>;
-    FArray: TArray<T>;
-    FIsArray: Boolean;
-    FIsDext: Boolean;
+    FItems: TArray<T>;
     FReason: string;
     procedure Fail(const Message: string);
     function GetCount: Integer;
   public
-    constructor Create(const Value: IEnumerable<T>); overload;
+    constructor Create(const Value: System.IEnumerable<T>); overload;
+    constructor Create(const Value: Dext.Collections.Base.IEnumerable<T>); overload;
     constructor Create(const Value: TArray<T>); overload;
 
     function BeEmpty: ShouldList<T>;
@@ -431,10 +426,12 @@ type
     function Contain(const Item: T): ShouldList<T>;
     function NotContain(const Item: T): ShouldList<T>;
     function ContainInOrder(const Items: TArray<T>): ShouldList<T>;
-    function BeEquivalentTo(const Expected: TArray<T>): ShouldList<T>;
-    function OnlyContain(const Predicate: TPredicate<T>): ShouldList<T>;
-    function AllSatisfy(const Predicate: TPredicate<T>): ShouldList<T>;
-    function AnySatisfy(const Predicate: TPredicate<T>): ShouldList<T>;
+    function BeEquivalentTo(const Expected: TArray<T>): ShouldList<T>; overload;
+    function BeEquivalentTo(const Expected: System.IEnumerable<T>): ShouldList<T>; overload;
+    function BeEquivalentTo(const Expected: Dext.Collections.Base.IEnumerable<T>): ShouldList<T>; overload;
+    function OnlyContain(const Predicate: TFunc<T, Boolean>): ShouldList<T>;
+    function AllSatisfy(const Predicate: TFunc<T, Boolean>): ShouldList<T>;
+    function AnySatisfy(const Predicate: TFunc<T, Boolean>): ShouldList<T>;
     function Because(const Reason: string): ShouldList<T>;
     function &And: ShouldList<T>;
     function AndAlso: ShouldList<T>;
@@ -442,7 +439,8 @@ type
 
   ShouldHelper = record
   public
-    function List<T>(const Value: IEnumerable<T>): ShouldList<T>; overload;
+    function List<T>(const Value: System.IEnumerable<T>): ShouldList<T>; overload;
+    function List<T>(const Value: Dext.Collections.Base.IEnumerable<T>): ShouldList<T>; overload;
     function List<T>(const Value: TArray<T>): ShouldList<T>; overload;
   end;
 
@@ -458,7 +456,6 @@ function Should(const Value: IInterface): ShouldInterface; overload;
 function Should(const Value: TGUID): ShouldGuid; overload;
 function Should(const Value: TUUID): ShouldUUID; overload;
 function Should(const Value: Variant): ShouldVariant; overload;
-function Should(const Value: TArray<string>): ShouldList<string>; overload;
 function ShouldDate(Value: TDateTime): ShouldDateTime; overload;
 function Should: ShouldHelper; overload;
 
@@ -477,7 +474,6 @@ function Should(const Value: Nullable<Int64>): ShouldInt64; overload;
 function Should(const Value: Nullable<Boolean>): ShouldBoolean; overload;
 function Should(const Value: Nullable<Double>): ShouldDouble; overload;
 function Should(const Value: Nullable<Currency>): ShouldDouble; overload;
-function Should(const Value: Nullable<TDateTime>): ShouldDateTime; overload;
 function ShouldDate(const Value: Nullable<TDateTime>): ShouldDateTime; overload;
 function ShouldDate(const Value: Prop<TDateTime>): ShouldDateTime; overload;
 
@@ -485,7 +481,11 @@ implementation
 
 uses
   System.RegularExpressions,
-  System.Math;
+  System.Math,
+  System.Generics.Defaults,
+  System.Generics.Collections,
+  Dext.Collections,
+  Dext.Collections.Comparers;
 
 threadvar
   GSoftAssertMode: Boolean;
@@ -1553,23 +1553,39 @@ end;
 
 { ShouldList<T> }
 
-constructor ShouldList<T>.Create(const Value: IEnumerable<T>);
+constructor ShouldList<T>.Create(const Value: System.IEnumerable<T>);
 begin
-  FEnumerable := Value;
-  FDextEnumerable := nil;
-  FIsArray := False;
-  FIsDext := False;
-  FArray := nil;
+  FItems := [];
+  if Value <> nil then
+  begin
+    var LEnumRTL := Value.GetEnumerator;
+    while LEnumRTL.MoveNext do
+    begin
+      SetLength(FItems, Length(FItems) + 1);
+      FItems[High(FItems)] := LEnumRTL.Current;
+    end;
+  end;
+  FReason := '';
+end;
+
+constructor ShouldList<T>.Create(const Value: Dext.Collections.Base.IEnumerable<T>);
+begin
+  FItems := [];
+  if Value <> nil then
+  begin
+    var LEnumDext := Value.GetEnumerator;
+    while LEnumDext.MoveNext do
+    begin
+      SetLength(FItems, Length(FItems) + 1);
+      FItems[High(FItems)] := LEnumDext.Current;
+    end;
+  end;
   FReason := '';
 end;
 
 constructor ShouldList<T>.Create(const Value: TArray<T>);
 begin
-  FEnumerable := nil;
-  FDextEnumerable := nil;
-  FIsArray := True;
-  FIsDext := False;
-  FArray := Value;
+  FItems := Value;
   FReason := '';
 end;
 
@@ -1579,28 +1595,8 @@ begin
 end;
 
 function ShouldList<T>.GetCount: Integer;
-var
-  Item: T;
-  C: Integer;
 begin
-  if FIsArray then
-    Result := Length(FArray)
-  else if FIsDext and (FDextEnumerable <> nil) then
-  begin
-    C := 0;
-    for Item in FDextEnumerable do
-      Inc(C);
-    Result := C;
-  end
-  else if FEnumerable <> nil then
-  begin
-    C := 0;
-    for Item in FEnumerable do
-      Inc(C);
-    Result := C;
-  end
-  else
-    Result := 0;
+  Result := Length(FItems);
 end;
 
 function ShouldList<T>.BeEmpty: ShouldList<T>;
@@ -1643,30 +1639,17 @@ end;
 function ShouldList<T>.Contain(const Item: T): ShouldList<T>;
 var
   Found: Boolean;
-  EnumItem: T;
-  Comparer: Dext.Collections.Comparers.IEqualityComparer<T>;
+  Comparer: System.Generics.Defaults.IEqualityComparer<T>;
 begin
   Found := False;
-  Comparer := Dext.Collections.Comparers.TEqualityComparer<T>.Default;
+  Comparer := System.Generics.Defaults.TEqualityComparer<T>.Default;
   
-  if FIsArray then
-  begin
-    for EnumItem in FArray do
-      if Comparer.Equals(EnumItem, Item) then
-      begin
-        Found := True;
-        Break;
-      end;
-  end
-  else if FEnumerable <> nil then
-  begin
-    for EnumItem in FEnumerable do
-      if Comparer.Equals(EnumItem, Item) then
-      begin
-        Found := True;
-        Break;
-      end;
-  end;
+  for var LItem in FItems do
+    if Comparer.Equals(LItem, Item) then
+    begin
+      Found := True;
+      Break;
+    end;
   
   if not Found then
     Fail('Expected list to contain item but it did not');
@@ -1676,94 +1659,53 @@ end;
 function ShouldList<T>.NotContain(const Item: T): ShouldList<T>;
 var
   Found: Boolean;
-  EnumItem: T;
-  Comparer: Dext.Collections.Comparers.IEqualityComparer<T>;
+  Comparer: System.Generics.Defaults.IEqualityComparer<T>;
 begin
   Found := False;
-  Comparer := Dext.Collections.Comparers.TEqualityComparer<T>.Default;
+  Comparer := System.Generics.Defaults.TEqualityComparer<T>.Default;
   
-  if FIsArray then
-  begin
-    for EnumItem in FArray do
-      if Comparer.Equals(EnumItem, Item) then
-      begin
-        Found := True;
-        Break;
-      end;
-  end
-  else if FEnumerable <> nil then
-  begin
-    for EnumItem in FEnumerable do
-      if Comparer.Equals(EnumItem, Item) then
-      begin
-        Found := True;
-        Break;
-      end;
-  end;
+  for var LItem in FItems do
+    if Comparer.Equals(LItem, Item) then
+    begin
+      Found := True;
+      Break;
+    end;
   
   if Found then
     Fail('Expected list to NOT contain item but it did');
   Result := Self;
 end;
 
-function ShouldList<T>.AllSatisfy(const Predicate: TPredicate<T>): ShouldList<T>;
+function ShouldList<T>.AllSatisfy(const Predicate: TFunc<T, Boolean>): ShouldList<T>;
 var
-  EnumItem: T;
   AllMatch: Boolean;
 begin
   AllMatch := True;
   
-  if FIsArray then
-  begin
-    for EnumItem in FArray do
-      if not Predicate(EnumItem) then
-      begin
-        AllMatch := False;
-        Break;
-      end;
-  end
-  else if FEnumerable <> nil then
-  begin
-    var Enum := FEnumerable;
-    for EnumItem in Enum do
-      if not Predicate(EnumItem) then
-      begin
-        AllMatch := False;
-        Break;
-      end;
-  end;
+  for var LItem in FItems do
+    if not Predicate(LItem) then
+    begin
+      AllMatch := False;
+      Break;
+    end;
   
   if not AllMatch then
     Fail('Expected all items to satisfy predicate but some did not');
   Result := Self;
 end;
 
-function ShouldList<T>.AnySatisfy(const Predicate: TPredicate<T>): ShouldList<T>;
+function ShouldList<T>.AnySatisfy(const Predicate: TFunc<T, Boolean>): ShouldList<T>;
 var
-  EnumItem: T;
   AnyMatch: Boolean;
 begin
   AnyMatch := False;
   
-  if FIsArray then
-  begin
-    for EnumItem in FArray do
-      if Predicate(EnumItem) then
-      begin
-        AnyMatch := True;
-        Break;
-      end;
-  end
-  else if FEnumerable <> nil then
-  begin
-    var Enum := FEnumerable;
-    for EnumItem in Enum do
-      if Predicate(EnumItem) then
-      begin
-        AnyMatch := True;
-        Break;
-      end;
-  end;
+  for var LItem in FItems do
+    if Predicate(LItem) then
+    begin
+      AnyMatch := True;
+      Break;
+    end;
   
   if not AnyMatch then
     Fail('Expected at least one item to satisfy predicate but none did');
@@ -1788,31 +1730,15 @@ end;
 
 function ShouldList<T>.ContainInOrder(const Items: TArray<T>): ShouldList<T>;
 var
-  Comparer: Dext.Collections.Comparers.IEqualityComparer<T>;
-  Arr: TArray<T>;
+  Comparer: System.Generics.Defaults.IEqualityComparer<T>;
   I, J: Integer;
 begin
-  Comparer := Dext.Collections.Comparers.TEqualityComparer<T>.Default;
+  Comparer := System.Generics.Defaults.TEqualityComparer<T>.Default;
   
-  // Get items as array for indexing
-  if FIsArray then
-    Arr := FArray
-  else if FEnumerable <> nil then
-  begin
-    SetLength(Arr, 0);
-    for var Item in FEnumerable do
-    begin
-      SetLength(Arr, Length(Arr) + 1);
-      Arr[High(Arr)] := Item;
-    end;
-  end
-  else
-    Arr := [];
-    
   J := 0;
-  for I := 0 to High(Arr) do
+  for I := 0 to High(FItems) do
   begin
-    if (J <= High(Items)) and Comparer.Equals(Arr[I], Items[J]) then
+    if (J <= High(Items)) and Comparer.Equals(FItems[I], Items[J]) then
       Inc(J);
   end;
   
@@ -1823,41 +1749,34 @@ end;
 
 function ShouldList<T>.BeEquivalentTo(const Expected: TArray<T>): ShouldList<T>;
 var
-  Comparer: Dext.Collections.Comparers.IEqualityComparer<T>;
-  Arr: TArray<T>;
-  ExpItem, SrcItem: T;
+  Comparer: System.Generics.Defaults.IEqualityComparer<T>;
+  ExpItem: T;
   Found: Boolean;
+  I: Integer;
 begin
-  Comparer := Dext.Collections.Comparers.TEqualityComparer<T>.Default;
+  Comparer := System.Generics.Defaults.TEqualityComparer<T>.Default;
   
-  // Get items as array
-  if FIsArray then
-    Arr := FArray
-  else if FEnumerable <> nil then
-  begin
-    SetLength(Arr, 0);
-    for var Item in FEnumerable do
-    begin
-      SetLength(Arr, Length(Arr) + 1);
-      Arr[High(Arr)] := Item;
-    end;
-  end
-  else
-    Arr := [];
+  if Length(FItems) <> Length(Expected) then
+    Fail(Format('Expected %d items but found %d', [Length(Expected), Length(FItems)]));
     
-  if Length(Arr) <> Length(Expected) then
-    Fail(Format('Expected %d items but found %d', [Length(Expected), Length(Arr)]));
-    
+  var Used: TArray<Boolean>;
+  SetLength(Used, Length(FItems));
+  for I := 0 to High(Used) do Used[I] := False;
+
   // Check all expected items are in actual (order-independent)
   for ExpItem in Expected do
   begin
     Found := False;
-    for SrcItem in Arr do
-      if Comparer.Equals(SrcItem, ExpItem) then
+    for I := 0 to High(FItems) do
+    begin
+      if (not Used[I]) and Comparer.Equals(FItems[I], ExpItem) then
       begin
+        Used[I] := True;
         Found := True;
         Break;
       end;
+    end;
+    
     if not Found then
       Fail('Expected list to be equivalent but found differences');
   end;
@@ -1865,9 +1784,43 @@ begin
   Result := Self;
 end;
 
-function ShouldList<T>.OnlyContain(const Predicate: TPredicate<T>): ShouldList<T>;
+function ShouldList<T>.OnlyContain(const Predicate: TFunc<T, Boolean>): ShouldList<T>;
 begin
   Result := AllSatisfy(Predicate); // Alias with different semantic meaning
+end;
+
+function ShouldList<T>.BeEquivalentTo(const Expected: System.IEnumerable<T>): ShouldList<T>;
+var
+  Arr: TArray<T>;
+begin
+  if Expected = nil then
+    Exit(BeEquivalentTo(TArray<T>(nil)));
+
+  Arr := [];
+  var LEnumRTL := Expected.GetEnumerator;
+  while LEnumRTL.MoveNext do
+  begin
+    SetLength(Arr, Length(Arr) + 1);
+    Arr[High(Arr)] := LEnumRTL.Current;
+  end;
+  Result := BeEquivalentTo(Arr);
+end;
+
+function ShouldList<T>.BeEquivalentTo(const Expected: Dext.Collections.Base.IEnumerable<T>): ShouldList<T>;
+var
+  Arr: TArray<T>;
+begin
+  if Expected = nil then
+    Exit(BeEquivalentTo(TArray<T>(nil)));
+
+  Arr := [];
+  var LEnumDext := Expected.GetEnumerator;
+  while LEnumDext.MoveNext do
+  begin
+    SetLength(Arr, Length(Arr) + 1);
+    Arr[High(Arr)] := LEnumDext.Current;
+  end;
+  Result := BeEquivalentTo(Arr);
 end;
 
 function ShouldList<T>.&And: ShouldList<T>;
@@ -1943,160 +1896,152 @@ end;
 { Global Helper Functions }
 
 
-function Should(const Value: string): ShouldString;
+function Should(const Value: string): ShouldString; overload;
 begin
   Result := ShouldString.Create(Value);
 end;
 
-function Should(Value: Integer): ShouldInteger;
+function Should(Value: Integer): ShouldInteger; overload;
 begin
   Result := ShouldInteger.Create(Value);
 end;
 
-function Should(Value: Int64): ShouldInt64;
+function Should(Value: Int64): ShouldInt64; overload;
 begin
   Result := ShouldInt64.Create(Value);
 end;
 
-function Should(Value: Boolean): ShouldBoolean;
+function Should(Value: Boolean): ShouldBoolean; overload;
 begin
   Result := ShouldBoolean.Create(Value);
 end;
 
-function Should(Value: Double): ShouldDouble;
+function Should(Value: Double): ShouldDouble; overload;
 begin
   Result := ShouldDouble.Create(Value);
 end;
 
-function Should(const Action: TProc): ShouldAction;
+function Should(const Action: TProc): ShouldAction; overload;
 begin
   Result := ShouldAction.Create(Action);
 end;
 
-function Should(const Value: TObject): ShouldObject;
+function Should(const Value: TObject): ShouldObject; overload;
 begin
   Result := ShouldObject.Create(Value);
 end;
 
-function Should(const Value: IInterface): ShouldInterface;
+function Should(const Value: IInterface): ShouldInterface; overload;
 begin
   Result := ShouldInterface.Create(Value);
 end;
 
-function Should(const Value: TGUID): ShouldGuid;
+function Should(const Value: TGUID): ShouldGuid; overload;
 begin
   Result := ShouldGuid.Create(Value);
 end;
 
-function Should(const Value: TUUID): ShouldUUID;
+function Should(const Value: TUUID): ShouldUUID; overload;
 begin
   Result := ShouldUUID.Create(Value);
 end;
 
-function Should(const Value: Variant): ShouldVariant;
+function Should(const Value: Variant): ShouldVariant; overload;
 begin
   Result := ShouldVariant.Create(Value);
 end;
 
-function Should(const Value: TArray<string>): ShouldList<string>;
-begin
-  Result := ShouldList<string>.Create(Value);
-end;
 
-function ShouldDate(Value: TDateTime): ShouldDateTime;
+
+function ShouldDate(Value: TDateTime): ShouldDateTime; overload;
 begin
   Result := ShouldDateTime.Create(Value);
 end;
 
 { Smart Types / Prop<T> Implementations }
 
-function Should(const Value: StringType): ShouldString;
+function Should(const Value: StringType): ShouldString; overload;
 begin
   Result := ShouldString.Create(Value.Value);
 end;
 
-function Should(const Value: IntType): ShouldInteger;
+function Should(const Value: IntType): ShouldInteger; overload;
 begin
   Result := ShouldInteger.Create(Value.Value);
 end;
 
-function Should(const Value: Int64Type): ShouldInt64;
+function Should(const Value: Int64Type): ShouldInt64; overload;
 begin
   Result := ShouldInt64.Create(Value.Value);
 end;
 
-function Should(const Value: BoolType): ShouldBoolean;
+function Should(const Value: BoolType): ShouldBoolean; overload;
 begin
   Result := ShouldBoolean.Create(Value.Value);
 end;
 
-function Should(const Value: FloatType): ShouldDouble;
+function Should(const Value: FloatType): ShouldDouble; overload;
 begin
   Result := ShouldDouble.Create(Value.Value);
 end;
 
-function Should(const Value: CurrencyType): ShouldDouble;
+function Should(const Value: CurrencyType): ShouldDouble; overload;
 begin
   Result := ShouldDouble.Create(Value.Value);
 end;
 
 { Nullable<T> Implementations }
 
-function Should(const Value: Nullable<string>): ShouldString;
+function Should(const Value: Nullable<string>): ShouldString; overload;
 begin
   if not Value.HasValue then
     Assert.Fail('Expected Nullable<string> to have a value, but it was Null');
   Result := ShouldString.Create(Value.Value);
 end;
 
-function Should(const Value: Nullable<Integer>): ShouldInteger;
+function Should(const Value: Nullable<Integer>): ShouldInteger; overload;
 begin
   if not Value.HasValue then
     Assert.Fail('Expected Nullable<Integer> to have a value, but it was Null');
   Result := ShouldInteger.Create(Value.Value);
 end;
 
-function Should(const Value: Nullable<Int64>): ShouldInt64;
+function Should(const Value: Nullable<Int64>): ShouldInt64; overload;
 begin
   if not Value.HasValue then
     Assert.Fail('Expected Nullable<Int64> to have a value, but it was Null');
   Result := ShouldInt64.Create(Value.Value);
 end;
 
-function Should(const Value: Nullable<Boolean>): ShouldBoolean;
+function Should(const Value: Nullable<Boolean>): ShouldBoolean; overload;
 begin
   if not Value.HasValue then
     Assert.Fail('Expected Nullable<Boolean> to have a value, but it was Null');
   Result := ShouldBoolean.Create(Value.Value);
 end;
 
-function Should(const Value: Nullable<Double>): ShouldDouble;
+function Should(const Value: Nullable<Double>): ShouldDouble; overload;
 begin
   if not Value.HasValue then
     Assert.Fail('Expected Nullable<Double> to have a value, but it was Null');
   Result := ShouldDouble.Create(Value.Value);
 end;
 
-function Should(const Value: Nullable<Currency>): ShouldDouble;
+function Should(const Value: Nullable<Currency>): ShouldDouble; overload;
 begin
   if not Value.HasValue then
     Assert.Fail('Expected Nullable<Currency> to have a value, but it was Null');
   Result := ShouldDouble.Create(Value.Value);
 end;
 
-function Should(const Value: Nullable<TDateTime>): ShouldDateTime;
+function ShouldDate(const Value: Nullable<TDateTime>): ShouldDateTime; overload;
 begin
   if not Value.HasValue then
     Assert.Fail('Expected Nullable<TDateTime> to have a value, but it was Null');
   Result := ShouldDateTime.Create(Value.Value);
 end;
 
-function ShouldDate(const Value: Nullable<TDateTime>): ShouldDateTime;
-begin
-  Result := Should(Value);
-end;
-
-function ShouldDate(const Value: Prop<TDateTime>): ShouldDateTime;
+function ShouldDate(const Value: Prop<TDateTime>): ShouldDateTime; overload;
 begin
   Result := ShouldDateTime.Create(Value.Value);
 end;
@@ -2480,7 +2425,12 @@ begin
   Result := ShouldList<T>.Create(Value);
 end;
 
-function ShouldHelper.List<T>(const Value: IEnumerable<T>): ShouldList<T>;
+function ShouldHelper.List<T>(const Value: System.IEnumerable<T>): ShouldList<T>;
+begin
+  Result := ShouldList<T>.Create(Value);
+end;
+
+function ShouldHelper.List<T>(const Value: Dext.Collections.Base.IEnumerable<T>): ShouldList<T>;
 begin
   Result := ShouldList<T>.Create(Value);
 end;

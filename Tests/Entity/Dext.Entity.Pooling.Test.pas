@@ -5,7 +5,6 @@ interface
 uses
   DUnitX.TestFramework,
   System.SysUtils,
-  System.Generics.Collections,
   System.Classes,
   System.Threading, 
   System.Diagnostics,

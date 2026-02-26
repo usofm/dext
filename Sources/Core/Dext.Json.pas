@@ -37,6 +37,7 @@ uses
   Dext.DI.Interfaces,
   Dext.Core.Activator,
   Dext.Collections,
+  Dext.Collections.Base,
   Dext.Collections.Dict,
   Dext.Json.Types;
 
@@ -904,85 +905,90 @@ begin
   Result := TActivator.CreateInstance(FSettings.FServiceProvider, AType);
   Instance := Result.AsObject;
 
-  for Prop in RttiType.GetProperties do
-  begin
-    if (Prop.Visibility <> mvPublic) and (Prop.Visibility <> mvPublished) then
-      Continue;
-
-    if not Prop.IsWritable then
-      Continue;
-
-    PropName := ApplyCaseStyle(Prop.Name);
-    
-    // Check JsonName
-    for var Attr in Prop.GetAttributes do
-      if Attr is JsonNameAttribute then
-      begin
-        PropName := JsonNameAttribute(Attr).Name;
-        Break;
-      end;
-
-    ActualPropName := PropName;
-    Found := AJson.Contains(PropName);
-
-    if (not Found) and FSettings.FCaseInsensitive then
+  try
+    for Prop in RttiType.GetProperties do
     begin
-       // Simple scan
-       var LowerProp := LowerCase(PropName);
-       for var I := 0 to AJson.GetCount - 1 do
-       begin
-          var Key := AJson.GetName(I);
-          if LowerCase(Key) = LowerProp then
-          begin
-             ActualPropName := Key;
-             Found := True;
-             Break;
-          end;
-       end;
-    end;
+      if (Prop.Visibility <> mvPublic) and (Prop.Visibility <> mvPublished) then
+        Continue;
 
-    if not Found then Continue;
+      if not Prop.IsWritable then
+        Continue;
 
-    var Node := AJson.GetNode(ActualPropName);
-    if Node <> nil then
-    begin
-      var Val: TValue;
-      case Node.GetNodeType of
-        jntString: Val := TValue.From<string>(Node.AsString);
-        jntNumber: 
-          begin
-            if (Prop.PropertyType.Handle = TypeInfo(Integer)) then
-              Val := TValue.From<Integer>(Node.AsInteger)
-            else if (Prop.PropertyType.Handle = TypeInfo(Int64)) then
-              Val := TValue.From<Int64>(Node.AsInt64)
-            else
-              Val := TValue.From<Double>(Node.AsDouble);
-          end;
-        jntBoolean: Val := TValue.From<Boolean>(Node.AsBoolean);
-        jntObject: 
-          begin
-            if (Prop.PropertyType.TypeKind = tkClass) then
-              Val := DeserializeObject(Node as IDextJsonObject, Prop.PropertyType.Handle)
-            else if (Prop.PropertyType.TypeKind = tkRecord) then
-              Val := DeserializeRecord(Node as IDextJsonObject, Prop.PropertyType.Handle)
-            else
-              Val := TValue.Empty;
-          end;
-        jntArray: 
-          begin
-            if IsArrayType(Prop.PropertyType.Handle) then
-              Val := DeserializeArray(Node as IDextJsonArray, Prop.PropertyType.Handle)
-            else if IsListType(Prop.PropertyType.Handle) then
-              Val := DeserializeList(Node as IDextJsonArray, Prop.PropertyType.Handle)
-            else
-              Val := TValue.Empty;
-          end;
-        else Val := TValue.Empty;
-      end;
+      PropName := ApplyCaseStyle(Prop.Name);
       
-      if not Val.IsEmpty then
-        TReflection.SetValue(Instance, Prop, Val);
+      // Check JsonName
+      for var Attr in Prop.GetAttributes do
+        if Attr is JsonNameAttribute then
+        begin
+          PropName := JsonNameAttribute(Attr).Name;
+          Break;
+        end;
+
+      ActualPropName := PropName;
+      Found := AJson.Contains(PropName);
+
+      if (not Found) and FSettings.FCaseInsensitive then
+      begin
+         // Simple scan
+         var LowerProp := LowerCase(PropName);
+         for var I := 0 to AJson.GetCount - 1 do
+         begin
+            var Key := AJson.GetName(I);
+            if LowerCase(Key) = LowerProp then
+            begin
+               ActualPropName := Key;
+               Found := True;
+               Break;
+            end;
+         end;
+      end;
+
+      if not Found then Continue;
+
+      var Node := AJson.GetNode(ActualPropName);
+      if Node <> nil then
+      begin
+        var Val: TValue;
+        case Node.GetNodeType of
+          jntString: Val := TValue.From<string>(Node.AsString);
+          jntNumber: 
+            begin
+              if (Prop.PropertyType.Handle = TypeInfo(Integer)) then
+                Val := TValue.From<Integer>(Node.AsInteger)
+              else if (Prop.PropertyType.Handle = TypeInfo(Int64)) then
+                Val := TValue.From<Int64>(Node.AsInt64)
+              else
+                Val := TValue.From<Double>(Node.AsDouble);
+            end;
+          jntBoolean: Val := TValue.From<Boolean>(Node.AsBoolean);
+          jntObject: 
+            begin
+              if (Prop.PropertyType.TypeKind = tkClass) then
+                Val := DeserializeObject(Node as IDextJsonObject, Prop.PropertyType.Handle)
+              else if (Prop.PropertyType.TypeKind = tkRecord) then
+                Val := DeserializeRecord(Node as IDextJsonObject, Prop.PropertyType.Handle)
+              else
+                Val := TValue.Empty;
+            end;
+          jntArray: 
+            begin
+              if IsArrayType(Prop.PropertyType.Handle) then
+                Val := DeserializeArray(Node as IDextJsonArray, Prop.PropertyType.Handle)
+              else if IsListType(Prop.PropertyType.Handle) then
+                Val := DeserializeList(Node as IDextJsonArray, Prop.PropertyType.Handle)
+              else
+                Val := TValue.Empty;
+            end;
+          else Val := TValue.Empty;
+        end;
+        
+        if not Val.IsEmpty then
+          TReflection.SetValue(Instance, Prop, Val);
+      end;
     end;
+  except
+    Instance.Free;
+    raise;
   end;
 end;
 
@@ -1695,8 +1701,12 @@ end;
 
 function TDextSerializer.IsListType(AType: PTypeInfo): Boolean;
 begin
+  if AType = nil then Exit(False);
+  var LName := string(AType.Name);
   Result := ((AType.Kind = tkClass) or (AType.Kind = tkInterface)) and
-            (Pos('Dext.Collections', string(AType.TypeData^.UnitName)) > 0);
+            (LName.Contains('IList<') or LName.Contains('IEnumerable<') or 
+             LName.Contains('TList<') or LName.Contains('TSmartList<') or
+             (Pos('Dext.Collections', string(AType.TypeData^.UnitName)) > 0));
 end;
 
 function TDextSerializer.GetArrayElementType(AType: PTypeInfo): PTypeInfo;
@@ -1842,54 +1852,84 @@ begin
     Result := TActivator.CreateInstance(FSettings.FServiceProvider, AType);
 
     var RttiType := TReflection.GetMetadata(AType).RttiType;
+    
+    // Ensure the list owns its objects if they are classes
+    if (ElementType.Kind = tkClass) then
+    begin
+       var Collection: IDextCollection;
+       if Result.Kind = tkInterface then
+       begin
+         if Supports(Result.AsInterface, IDextCollection, Collection) then
+           Collection.OwnsObjects := True;
+       end
+       else if Result.Kind = tkClass then
+       begin
+        if Supports(Result.AsObject, IDextCollection, Collection) then
+          Collection.OwnsObjects := True
+        else
+        begin
+          // Try fetching via RTTI if Supports failed (common in some generic scenarios)
+          var OwnsProp := RttiType.GetProperty('OwnsObjects');
+          if (OwnsProp <> nil) and (OwnsProp.PropertyType.Handle = TypeInfo(Boolean)) then
+            OwnsProp.SetValue(Result.AsObject, True);
+        end;
+      end;
+    end;
+
     AddMethod := RttiType.GetMethod('Add');
     if not Assigned(AddMethod) then
       raise EDextJsonException.CreateFmt('Could not find Add method for list type %s', [AType.NameFld.ToString]);
 
-    for I := 0 to AJson.GetCount - 1 do
-    begin
-      var Node := AJson.GetNode(I);
-      if (Node <> nil) and (Node.GetNodeType = jntObject) then
+    try
+      for I := 0 to AJson.GetCount - 1 do
       begin
-        if ElementType.Kind = tkClass then
-          ElementValue := DeserializeObject(Node as IDextJsonObject, ElementType)
-        else
-          ElementValue := DeserializeRecord(Node as IDextJsonObject, ElementType);
-      end
-      else
-      begin
-        case ElementType.Kind of
-          tkInteger: ElementValue := TValue.From<Integer>(AJson.GetInteger(I));
-          tkInt64: ElementValue := TValue.From<Int64>(AJson.GetInt64(I));
-          tkFloat: ElementValue := TValue.From<Double>(AJson.GetDouble(I));
-          tkString, tkLString, tkWString, tkUString:
-            ElementValue := TValue.From<string>(AJson.GetString(I));
-          tkEnumeration:
-            if ElementType = TypeInfo(Boolean) then
-              ElementValue := TValue.From<Boolean>(AJson.GetBoolean(I))
-            else
-              ElementValue := TValue.Empty;
-          tkRecord:
-            if ElementType = TypeInfo(TGUID) then
-              ElementValue := TValue.From<TGUID>(StringToGUID(AJson.GetString(I)))
-            else if ElementType = TypeInfo(TUUID) then
-              ElementValue := TValue.From<TUUID>(TUUID.FromString(AJson.GetString(I)))
-            else
-              ElementValue := TValue.Empty;
-          tkDynArray:
-            begin
-              if (Node <> nil) and (Node.GetNodeType = jntArray) then
-                 ElementValue := DeserializeArray(Node as IDextJsonArray, ElementType)
-              else
-                 ElementValue := TValue.Empty;
-            end;
+        var Node := AJson.GetNode(I);
+        if (Node <> nil) and (Node.GetNodeType = jntObject) then
+        begin
+          if ElementType.Kind = tkClass then
+            ElementValue := DeserializeObject(Node as IDextJsonObject, ElementType)
           else
-            ElementValue := TValue.Empty;
+            ElementValue := DeserializeRecord(Node as IDextJsonObject, ElementType);
+        end
+        else
+        begin
+          case ElementType.Kind of
+            tkInteger: ElementValue := TValue.From<Integer>(AJson.GetInteger(I));
+            tkInt64: ElementValue := TValue.From<Int64>(AJson.GetInt64(I));
+            tkFloat: ElementValue := TValue.From<Double>(AJson.GetDouble(I));
+            tkString, tkLString, tkWString, tkUString:
+              ElementValue := TValue.From<string>(AJson.GetString(I));
+            tkEnumeration:
+              if ElementType = TypeInfo(Boolean) then
+                ElementValue := TValue.From<Boolean>(AJson.GetBoolean(I))
+              else
+                ElementValue := TValue.Empty;
+            tkRecord:
+              if ElementType = TypeInfo(TGUID) then
+                ElementValue := TValue.From<TGUID>(StringToGUID(AJson.GetString(I)))
+              else if ElementType = TypeInfo(TUUID) then
+                ElementValue := TValue.From<TUUID>(TUUID.FromString(AJson.GetString(I)))
+              else
+                ElementValue := TValue.Empty;
+            tkDynArray:
+              begin
+                if (Node <> nil) and (Node.GetNodeType = jntArray) then
+                   ElementValue := DeserializeArray(Node as IDextJsonArray, ElementType)
+                else
+                   ElementValue := TValue.Empty;
+              end;
+            else
+              ElementValue := TValue.Empty;
+          end;
         end;
-      end;
 
-      if not ElementValue.IsEmpty then
-        AddMethod.Invoke(Result, [ElementValue]);
+        if not ElementValue.IsEmpty then
+          AddMethod.Invoke(Result, [ElementValue]);
+      end;
+    except
+      if (AType.Kind = tkClass) and (not Result.IsEmpty) then
+         Result.AsObject.Free;
+      raise;
     end;
   finally
     // No context to free

@@ -11,7 +11,8 @@ interface
 
 uses
   System.SysUtils,
-  System.Generics.Collections,
+  Dext.Collections,
+  Dext.Collections.Dict,
   Customer.Entity,
   Customer.Service,
   Customer.Controller,

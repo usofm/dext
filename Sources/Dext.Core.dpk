@@ -119,8 +119,7 @@ contains
   Dext.Collections.Frozen in 'Core\Dext.Collections.Frozen.pas',
   Dext.Collections.HashSet in 'Core\Dext.Collections.HashSet.pas',
   Dext.Collections.Queue in 'Core\Dext.Collections.Queue.pas',
-  Dext.Collections.Stack in 'Core\Dext.Collections.Stack.pas',
-  Dext.Collections.Interfaces in 'Core\Dext.Collections.Interfaces.pas';
+  Dext.Collections.Stack in 'Core\Dext.Collections.Stack.pas';
 
 end.
 
