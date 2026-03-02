@@ -269,8 +269,7 @@ begin
     Exit(False);
   end;
   
-  RawCopyElement(@Value, FData + (FHead * FElementSize), FElementSize, FTypeInfo);
-  FillChar((FData + (FHead * FElementSize))^, FElementSize, 0);
+  RawMove(@Value, FData + (FHead * FElementSize), 1, FElementSize, FTypeInfo);
   
   FHead := (FHead + 1) mod FCapacity;
   Dec(FCount);

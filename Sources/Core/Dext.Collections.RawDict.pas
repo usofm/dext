@@ -290,17 +290,16 @@ begin
   end;
 
   FCapacity := Cap;
-  GetMem(FSlots, FCapacity * FSlotSize);
-  FillChar(FSlots^, FCapacity * FSlotSize, 0);
-  GetMem(FMetadata, FCapacity);
+  FSlots := System.AllocMem(FCapacity * FSlotSize);
+  FMetadata := System.AllocMem(FCapacity);
   FillChar(FMetadata^, FCapacity, SLOT_EMPTY);
 end;
 
 destructor TRawDictionary.Destroy;
 begin
   Clear;
-  FreeMem(FSlots);
-  FreeMem(FMetadata);
+  System.FreeMem(FSlots);
+  System.FreeMem(FMetadata);
   inherited;
 end;
 
@@ -360,10 +359,9 @@ begin
       if FirstTombstone < 0 then
         FirstTombstone := Idx;
     end
-    else // SLOT_OCCUPIED (or H2 bit set)
+    else if Meta >= $80 then // SLOT_OCCUPIED (H2 bit set)
     begin
       // H2 Metadata Optimization: Only run FEqualFunc if Hash fragments match
-      // For very small dictionaries, skip H2 check to save instructions (H1 collisions are rare)
       if (FCapacity < 256) or (Meta = H2) then
       begin
         if FEqualFunc(Pointer(NativeUInt(FSlots) + NativeUInt(Idx * FSlotSize)), Key, FKeySize) then
@@ -398,10 +396,8 @@ var
   Hash: Cardinal;
   Mask: Integer;
   Idx: Integer;
-  NewSlots: Pointer;
-  NewMetadata: PByte;
   NewSlotPtr: Pointer;
-  Meta: Byte;
+  Meta, H2: Byte;
 begin
   OldSlots := FSlots;
   OldMetadata := FMetadata;
@@ -409,25 +405,22 @@ begin
 
   // Allocate new arrays
   FCapacity := NewCapacity;
-  GetMem(NewSlots, FCapacity * FSlotSize);
-  FillChar(NewSlots^, FCapacity * FSlotSize, 0);
-  GetMem(NewMetadata, FCapacity);
-  FillChar(NewMetadata^, FCapacity, SLOT_EMPTY);
-
-  FSlots := NewSlots;
-  FMetadata := NewMetadata;
+  FSlots := System.AllocMem(FCapacity * FSlotSize);
+  FMetadata := System.AllocMem(FCapacity);
+  FillChar(FMetadata^, FCapacity, SLOT_EMPTY);
 
   // Re-insert all occupied entries
   Mask := FCapacity - 1;
   for I := 0 to OldCapacity - 1 do
   begin
     Meta := PByte(NativeUInt(OldMetadata) + NativeUInt(I))^;
-    if Meta = SLOT_OCCUPIED then
+    if Meta >= $80 then
     begin
       SlotPtr := Pointer(NativeUInt(OldSlots) + NativeUInt(I * FSlotSize));
-      KeyPtr := SlotPtr; // Key is at start of slot
+      KeyPtr := SlotPtr; 
 
       Hash := FHashFunc(KeyPtr, FKeySize);
+      H2 := Byte(Hash shr 24) or $80; 
       Idx := Integer(Hash and Cardinal(Mask));
 
       // Linear probe for empty slot
@@ -437,17 +430,13 @@ begin
       // Move data (transfer ownership, no addref needed)
       NewSlotPtr := Pointer(NativeUInt(FSlots) + NativeUInt(Idx * FSlotSize));
       System.Move(SlotPtr^, NewSlotPtr^, FSlotSize);
-      PByte(NativeUInt(FMetadata) + NativeUInt(Idx))^ := SLOT_OCCUPIED;
-    end
-    else if Meta <> SLOT_EMPTY then
-    begin
-      // Tombstone — content already finalized on Remove, skip
+      PByte(NativeUInt(FMetadata) + NativeUInt(Idx))^ := H2;
     end;
   end;
 
   // Free old arrays (content was moved, not copied, so no finalization needed)
-  FreeMem(OldSlots);
-  FreeMem(OldMetadata);
+  System.FreeMem(OldSlots);
+  System.FreeMem(OldMetadata);
 end;
 
 procedure TRawDictionary.AddOrSetRaw(Key, Value: Pointer);
@@ -455,6 +444,8 @@ var
   SlotIndex: Integer;
   Found: Boolean;
   SlotPtr: Pointer;
+  Hash: Cardinal;
+  H2: Byte;
 begin
   // Check load factor before insertion
   if (FCount + 1) * 100 > FCapacity * MAX_LOAD_FACTOR then
@@ -487,7 +478,9 @@ begin
     else
       System.Move(Value^, GetValuePtr(SlotPtr)^, FValueSize);
 
-    PByte(NativeUInt(FMetadata) + NativeUInt(SlotIndex))^ := Byte(FHashFunc(Key, FKeySize) shr 24) or $80;
+    Hash := FHashFunc(Key, FKeySize);
+    H2 := Byte(Hash shr 24) or $80;
+    PByte(NativeUInt(FMetadata) + NativeUInt(SlotIndex))^ := H2;
     Inc(FCount);
   end;
 end;
@@ -497,6 +490,8 @@ var
   SlotIndex: Integer;
   Found: Boolean;
   SlotPtr: Pointer;
+  Hash: Cardinal;
+  H2: Byte;
 begin
   if (FCount + 1) * 100 > FCapacity * MAX_LOAD_FACTOR then
     Grow;
@@ -518,7 +513,9 @@ begin
   else
     System.Move(Value^, GetValuePtr(SlotPtr)^, FValueSize);
 
-  PByte(NativeUInt(FMetadata) + NativeUInt(SlotIndex))^ := Byte(FHashFunc(Key, FKeySize) shr 24) or $80;
+  Hash := FHashFunc(Key, FKeySize);
+  H2 := Byte(Hash shr 24) or $80;
+  PByte(NativeUInt(FMetadata) + NativeUInt(SlotIndex))^ := H2;
   Inc(FCount);
 end;
 
@@ -566,7 +563,7 @@ begin
     for I := 0 to FCapacity - 1 do
     begin
       Meta := PByte(NativeUInt(FMetadata) + NativeUInt(I))^;
-      if Meta = SLOT_OCCUPIED then
+      if Meta >= $80 then
       begin
         SlotPtr := GetSlotPtr(I);
         FreeSlotContent(SlotPtr);
@@ -591,7 +588,7 @@ begin
   for I := 0 to FCapacity - 1 do
   begin
     Meta := PByte(NativeUInt(FMetadata) + NativeUInt(I))^;
-    if Meta = SLOT_OCCUPIED then
+    if Meta >= $80 then
     begin
       SlotPtr := GetSlotPtr(I);
       if not Callback(GetKeyPtr(SlotPtr), GetValuePtr(SlotPtr)) then
@@ -602,7 +599,7 @@ end;
 
 function TRawDictionary.IsSlotOccupied(Index: Integer): Boolean;
 begin
-  Result := PByte(NativeUInt(FMetadata) + NativeUInt(Index))^ = SLOT_OCCUPIED;
+  Result := PByte(NativeUInt(FMetadata) + NativeUInt(Index))^ >= $80;
 end;
 
 function TRawDictionary.GetKeyPtrAtIndex(Index: Integer): Pointer;

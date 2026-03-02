@@ -7,6 +7,7 @@ uses
   System.SysUtils,
   Dext.Utils,
   Dext.Json,
+  Dext.Json.Types,
   Dext.Types.UUID,
   Dext.Collections,
   TestJsonCore.Entities;

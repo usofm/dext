@@ -37,6 +37,8 @@ uses
 type
   TAbstractExpression = class(TInterfacedObject, IExpression)
   public
+    class function NewInstance: TObject; override;
+    procedure FreeInstance; override;
     function ToString: string; override;
   end;
 
@@ -256,7 +258,78 @@ type
 
 implementation
 
+const
+  MAX_EXP_POOL = 1024;
+  MAX_EXP_SIZE = 128;
+  EXP_BLOCK_UINTS = MAX_EXP_SIZE div SizeOf(NativeUInt);
+
+threadvar
+  ExpressionPool: array[0..MAX_EXP_POOL - 1] of array[0..EXP_BLOCK_UINTS - 1] of NativeUInt;
+  ExpressionInUse: array[0..MAX_EXP_POOL - 1] of Boolean;
+  ExpPoolCurrentIndex: Integer;
+
 { TAbstractExpression }
+
+type
+  TExpressionInUseArray = array[0..MAX_EXP_POOL - 1] of Boolean;
+  PExpressionInUseArray = ^TExpressionInUseArray;
+
+class function TAbstractExpression.NewInstance: TObject;
+var
+  I, StartIdx: Integer;
+  PUseArray: PExpressionInUseArray;
+  PBlock: PNativeUInt;
+begin
+  if InstanceSize > MAX_EXP_SIZE then
+  begin
+    Result := inherited NewInstance;
+    Exit;
+  end;
+
+  StartIdx := ExpPoolCurrentIndex; // one threadvar access
+  PUseArray := @ExpressionInUse; // one threadvar access
+  PBlock := @ExpressionPool[0][0];  // one threadvar access
+
+  for I := 0 to MAX_EXP_POOL - 1 do
+  begin
+    var Idx := (StartIdx + I) and (MAX_EXP_POOL - 1);
+    if not PUseArray^[Idx] then
+    begin
+      PUseArray^[Idx] := True;
+      ExpPoolCurrentIndex := (Idx + 1) and (MAX_EXP_POOL - 1);
+      
+      // Calculate address directly without threadvar array access penalty
+      Result := TObject(NativeUInt(PBlock) + NativeUInt(Idx * SizeOf(ExpressionPool[0])));
+      InitInstance(Result);
+      Exit;
+    end;
+  end;
+
+  // Fallback to heap if pool exhausted
+  Result := inherited NewInstance;
+end;
+
+procedure TAbstractExpression.FreeInstance;
+var
+  P: Pointer;
+  Idx: NativeInt;
+  PoolBase: NativeUInt;
+begin
+  P := Self;
+  CleanupInstance;
+  
+  PoolBase := NativeUInt(@ExpressionPool[0]); // single threadvar access
+  
+  if (NativeUInt(P) >= PoolBase) and 
+     (NativeUInt(P) < PoolBase + (MAX_EXP_POOL * SizeOf(ExpressionPool[0]))) then
+  begin
+    Idx := (NativeUInt(P) - PoolBase) div SizeOf(ExpressionPool[0]);
+    ExpressionInUse[Idx] := False;
+    ExpPoolCurrentIndex := Idx; // Reuse next
+  end
+  else
+    inherited FreeInstance;
+end;
 
 function TAbstractExpression.ToString: string;
 begin

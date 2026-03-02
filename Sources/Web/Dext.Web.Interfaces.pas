@@ -81,6 +81,27 @@ type
     class function Default: TCookieOptions; static;
   end;
 
+  TRouteParamPair = record
+    Key: string;
+    Value: string;
+  end;
+
+  TRouteValueDictionary = record
+  private
+    FPairs: array[0..15] of TRouteParamPair;
+    FCount: Integer;
+    function GetItem(const AKey: string): string;
+  public
+    procedure Add(const AKey, AValue: string);
+    procedure Clear;
+    function TryGetValue(const AKey: string; out AValue: string): Boolean;
+    function ContainsKey(const AKey: string): Boolean;
+    function GetKeyByIndex(AIndex: Integer): string;
+    function GetValueByIndex(AIndex: Integer): string;
+    property Count: Integer read FCount;
+    property Items[const AKey: string]: string read GetItem; default;
+  end;
+
   IFormFile = interface;
 
   IFormFileCollection = interface
@@ -116,22 +137,22 @@ type
     ['{C3E8F1A2-4B7D-4A9C-9E2B-8F6D5A1C3E7F}']
     function GetMethod: string;
     function GetPath: string;
-    function GetQuery: TStrings;
+    function GetQuery: IStringDictionary;
     function GetBody: TStream;
-    function GetRouteParams: IDictionary<string, string>;
-    function GetHeaders: IDictionary<string, string>;
+    function GetRouteParams: TRouteValueDictionary;
+    function GetHeaders: IStringDictionary;
     function GetRemoteIpAddress: string;
     function GetHeader(const AName: string): string;
     function GetQueryParam(const AName: string): string;
-    function GetCookies: IDictionary<string, string>;
+    function GetCookies: IStringDictionary;
     function GetFiles: IFormFileCollection;
     property Method: string read GetMethod;
     property Path: string read GetPath;
-    property Query: TStrings read GetQuery;
+    property Query: IStringDictionary read GetQuery;
     property Body: TStream read GetBody;
-    property RouteParams: IDictionary<string, string> read GetRouteParams;
-    property Headers: IDictionary<string, string> read GetHeaders;
-    property Cookies: IDictionary<string, string> read GetCookies;
+    property RouteParams: TRouteValueDictionary read GetRouteParams;
+    property Headers: IStringDictionary read GetHeaders;
+    property Cookies: IStringDictionary read GetCookies;
     property Files: IFormFileCollection read GetFiles;
     property RemoteIpAddress: string read GetRemoteIpAddress;
   end;
@@ -369,6 +390,73 @@ begin
   Result.HttpOnly := True;
   Result.Secure := False;
   Result.SameSite := 'Lax';
+end;
+
+{ TRouteValueDictionary }
+
+procedure TRouteValueDictionary.Add(const AKey, AValue: string);
+begin
+  if FCount < Length(FPairs) then
+  begin
+    FPairs[FCount].Key := AKey;
+    FPairs[FCount].Value := AValue;
+    Inc(FCount);
+  end;
+end;
+
+procedure TRouteValueDictionary.Clear;
+begin
+  FCount := 0;
+end;
+
+function TRouteValueDictionary.GetItem(const AKey: string): string;
+var
+  I: Integer;
+begin
+  for I := 0 to FCount - 1 do
+    if SameText(FPairs[I].Key, AKey) then
+      Exit(FPairs[I].Value);
+  Result := '';
+end;
+
+function TRouteValueDictionary.TryGetValue(const AKey: string; out AValue: string): Boolean;
+var
+  I: Integer;
+begin
+  for I := 0 to FCount - 1 do
+    if SameText(FPairs[I].Key, AKey) then
+    begin
+      AValue := FPairs[I].Value;
+      Exit(True);
+    end;
+  AValue := '';
+  Result := False;
+end;
+
+function TRouteValueDictionary.ContainsKey(const AKey: string): Boolean;
+var
+  I: Integer;
+begin
+  for I := 0 to FCount - 1 do
+    if SameText(FPairs[I].Key, AKey) then
+      Exit(True);
+  Result := False;
+end;
+
+function TRouteValueDictionary.GetKeyByIndex(AIndex: Integer): string;
+begin
+  if (AIndex >= 0) and (AIndex < FCount) then
+    Result := FPairs[AIndex].Key
+  else
+    Result := '';
+end;
+
+function TRouteValueDictionary.GetValueByIndex(AIndex: Integer): string;
+begin
+  if (AIndex >= 0) and (AIndex < FCount) then
+    Result := FPairs[AIndex].Value
+  else
+    Result := '';
 end;
 
 end.

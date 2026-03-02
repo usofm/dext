@@ -488,7 +488,14 @@ begin
     if FOptions.VaryByQuery and (AContext.Request.Query.Count > 0) then
     begin
       KeyBuilder.Append('?');
-      KeyBuilder.Append(AContext.Request.Query.DelimitedText);
+      var QueryArray := AContext.Request.Query.ToArray;
+      for var i := 0 to High(QueryArray) do
+      begin
+        if i > 0 then KeyBuilder.Append('&');
+        KeyBuilder.Append(QueryArray[i].Key);
+        KeyBuilder.Append('=');
+        KeyBuilder.Append(QueryArray[i].Value);
+      end;
     end;
     
     // Vary by headers

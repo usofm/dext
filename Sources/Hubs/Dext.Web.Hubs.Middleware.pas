@@ -373,7 +373,8 @@ var
   KeepAliveCounter: Integer;
 begin
   // Get connection ID from query
-  ConnectionId := Ctx.Request.Query.Values['id'];
+  if not Ctx.Request.Query.TryGetValue('id', ConnectionId) then
+    ConnectionId := '';
   if ConnectionId = '' then
   begin
     Ctx.Response.StatusCode := 400;
@@ -447,7 +448,8 @@ var
   Messages: TJSONArray;
   Msg: string;
 begin
-  ConnectionId := Ctx.Request.Query.Values['id'];
+  if not Ctx.Request.Query.TryGetValue('id', ConnectionId) then
+    ConnectionId := '';
   if ConnectionId = '' then
   begin
     Ctx.Response.StatusCode := 400;
@@ -501,7 +503,8 @@ var
   ResultValue: TValue;
   ConnectionId: string;
 begin
-  ConnectionId := Ctx.Request.Query.Values['id'];
+  if not Ctx.Request.Query.TryGetValue('id', ConnectionId) then
+    ConnectionId := '';
   if ConnectionId = '' then
   begin
     Ctx.Response.StatusCode := 400;

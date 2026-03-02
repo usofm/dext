@@ -116,10 +116,16 @@ end;
 
 procedure TDataApiTest.ConfigureHost(const Builder: IWebHostBuilder);
 begin
-  // Register the existing DbContext instance as a singleton so the API can resolve it
+  // Register the DbContext as Scoped so each request gets its own instance,
+  // avoiding race conditions with IdentityMap and Tracking in the shared instance.
   Builder.ConfigureServices(procedure(Services: IServiceCollection)
     begin
-      TDextServices.Create(Services).AddSingletonInstance<TDbContext>(FDb);
+      TDextServices.Create(Services).AddScoped<TDbContext>(function(S: IServiceProvider): TObject
+        begin
+          // Create a new context sharing the connection (which is thread-safe in SQLite if configured correctly,
+          // but here we use a shared connection object and new context instances).
+          Result := TDbContext.Create(FConn, TSQLiteDialect.Create);
+        end);
     end);
 
   Builder.Configure(procedure(App: IApplicationBuilder)

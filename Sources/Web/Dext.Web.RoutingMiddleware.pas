@@ -65,7 +65,7 @@ end;
 procedure TRoutingMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
 var
   Handler: TRequestDelegate;
-  RouteParams: IDictionary<string, string>;
+  RouteParams: TRouteValueDictionary;
   Metadata: TEndpointMetadata;
   IndyContext: TIndyHttpContext;
 begin
@@ -77,7 +77,7 @@ begin
   begin
     try
       // ? INJETAR parâmetros de rota se encontrados
-      if Assigned(RouteParams) and (AContext is TIndyHttpContext) then
+      if (RouteParams.Count > 0) and (AContext is TIndyHttpContext) then
       begin
         IndyContext := TIndyHttpContext(AContext);
         IndyContext.SetRouteParams(RouteParams);
@@ -87,7 +87,7 @@ begin
 
       Handler(AContext);
     finally
-      RouteParams := nil;
+      RouteParams.Clear;
     end;
   end
   else

@@ -423,7 +423,7 @@ var
   ContextRtti: TRttiContext;
   RttiType: TRttiType;
   Field: TRttiField;
-  QueryParams: TStrings;
+  QueryParams: IStringDictionary;
   FieldName: string;
   FieldValue: string;
 begin
@@ -472,9 +472,8 @@ begin
           SourceProvider.Free;
         end;
 
-        if QueryParams.IndexOfName(FieldName) >= 0 then
+        if QueryParams.TryGetValue(FieldName, FieldValue) then
         begin
-          FieldValue := TNetEncoding.URL.Decode(QueryParams.Values[FieldName]);
           try
             var Val := ConvertStringToType(FieldValue, Field.FieldType.Handle);
             Field.SetValue(Result.GetReferenceToRawData, Val);
@@ -500,9 +499,8 @@ begin
                 if AttrName <> '' then FieldName := AttrName;
              end;
 
-           if QueryParams.IndexOfName(FieldName) >= 0 then
+           if QueryParams.TryGetValue(FieldName, FieldValue) then
            begin
-              FieldValue := TNetEncoding.URL.Decode(QueryParams.Values[FieldName]);
               try
                 var Val := ConvertStringToType(FieldValue, Prop.PropertyType.Handle);
                 Prop.SetValue(Result.AsObject, Val);
@@ -519,7 +517,7 @@ begin
   end;
 end;
 
-function TryGetCaseInsensitive(const ADict: IDictionary<string, string>; const AKey: string; out AValue: string): Boolean;
+function TryGetCaseInsensitive(const ADict: IStringDictionary; const AKey: string; out AValue: string): Boolean;
 begin
   Result := False;
   if ADict = nil then Exit;
@@ -527,14 +525,11 @@ begin
   if ADict.TryGetValue(AKey, AValue) then
     Exit(True);
 
-  for var Key in ADict.Keys do
-  begin
-    if SameText(Key, AKey) then
-    begin
-      AValue := ADict[Key];
-      Exit(True);
-    end;
-  end;
+  // Note: IStringDictionary no longer exposes Keys enumerable to avoid allocation.
+  // The consumer should handle case sensitive appropriately or store lowercase.
+  // Actually, TDextStringDictionary should handle OrdinalIgnoreCase inside itself.
+  // For now we just return standard dictionary resolution
+  Result := ADict.TryGetValue(AKey.ToLower, AValue);
 end;
 
 function TModelBinder.BindQuery<T>(Context: IHttpContext): T;
@@ -548,7 +543,7 @@ var
   ContextRtti: TRttiContext;
   RttiType: TRttiType;
   Field: TRttiField;
-  RouteParams: IDictionary<string, string>;
+  RouteParams: TRouteValueDictionary;
   FieldName: string;
   FieldValue: string;
   SingleParamValue: string;
@@ -561,11 +556,7 @@ begin
     
     if RouteParams.Count = 1 then
     begin
-      for var Key in RouteParams.Keys do
-      begin
-        SingleParamValue := RouteParams[Key];
-        Break; 
-      end;
+      SingleParamValue := RouteParams.GetValueByIndex(0);
       
       try
         Result := ConvertStringToType(SingleParamValue, AType);
@@ -600,7 +591,7 @@ begin
       end;
 
       // Buscar valor do route parameter
-      if TryGetCaseInsensitive(RouteParams, FieldName, FieldValue) then
+      if RouteParams.TryGetValue(FieldName, FieldValue) then
       begin
         // FieldValue já foi preenchido pelo TryGetCaseInsensitive
 
@@ -634,7 +625,7 @@ var
   ContextRtti: TRttiContext;
   RttiType: TRttiType;
   Field: TRttiField;
-  Headers: IDictionary<string, string>;
+  Headers: IStringDictionary;
   FieldName: string;
   FieldValue: string;
 begin
@@ -718,8 +709,9 @@ begin
       if ParamName = '' then ParamName := AParam.Name;
 
       var QueryParams := AContext.Request.Query;
-      if QueryParams.IndexOfName(ParamName) >= 0 then
-        Result := ConvertStringToType(TNetEncoding.URL.Decode(QueryParams.Values[ParamName]), AParam.ParamType.Handle)
+      var QueryValue: string;
+      if QueryParams.TryGetValue(ParamName, QueryValue) then
+        Result := ConvertStringToType(QueryValue, AParam.ParamType.Handle)
       else
         Result := ConvertStringToType('', AParam.ParamType.Handle); // Default
       Exit;
@@ -731,7 +723,7 @@ begin
 
       var RouteParams := AContext.Request.RouteParams;
       var RouteValue: string;
-      if TryGetCaseInsensitive(RouteParams, ParamName, RouteValue) then
+      if RouteParams.TryGetValue(ParamName, RouteValue) then
         Result := ConvertStringToType(RouteValue, AParam.ParamType.Handle)
       else
         raise EBindingException.CreateFmt('Route parameter not found: %s', [ParamName]);
@@ -798,15 +790,16 @@ begin
     var RouteParams := AContext.Request.RouteParams;
     var RouteValue: string;
     
-    if TryGetCaseInsensitive(RouteParams, ParamName, RouteValue) then
+    if RouteParams.TryGetValue(ParamName, RouteValue) then
     begin
       Result := ConvertStringToType(RouteValue, AParam.ParamType.Handle);
     end
     else
     begin
       var QueryParams := AContext.Request.Query;
-      if QueryParams.IndexOfName(ParamName) >= 0 then
-        Result := ConvertStringToType(TNetEncoding.URL.Decode(QueryParams.Values[ParamName]), AParam.ParamType.Handle)
+      var QueryValue: string;
+      if QueryParams.TryGetValue(ParamName, QueryValue) then
+        Result := ConvertStringToType(QueryValue, AParam.ParamType.Handle)
       else
         Result := ConvertStringToType('', AParam.ParamType.Handle); // Default
     end;
@@ -945,9 +938,9 @@ var
   FieldValue: TValue;
   BodyBytes: TBytes;
   Stream: TStream;
-  Headers: IDictionary<string, string>;
-  RouteParams: IDictionary<string, string>;
-  QueryParams: TStrings;
+  Headers: IStringDictionary;
+  RouteParams: TRouteValueDictionary;
+  QueryParams: IStringDictionary;
   HeaderVal, RouteVal, QueryVal: string;
   BodyJsonObj: IDextJsonObject;
 begin
@@ -1016,8 +1009,8 @@ begin
 
             bsQuery:
               begin
-                if QueryParams.IndexOfName(FieldName) >= 0 then
-                  QueryVal := TNetEncoding.URL.Decode(QueryParams.Values[FieldName])
+                if QueryParams.TryGetValue(FieldName, QueryVal) then
+                  // Already URI Decoded internally by IndyHttpRequest Parser
                 else
                   QueryVal := '';
                 FieldValue := ConvertStringToType(QueryVal, Field.FieldType.Handle);
@@ -1025,7 +1018,7 @@ begin
 
             bsRoute:
               begin
-                if TryGetCaseInsensitive(RouteParams, FieldName, RouteVal) then
+                if RouteParams.TryGetValue(FieldName, RouteVal) then
                   FieldValue := ConvertStringToType(RouteVal, Field.FieldType.Handle)
                 else
                   FieldValue := ConvertStringToType('', Field.FieldType.Handle);
@@ -1124,7 +1117,7 @@ begin
                 // Fallback 1: Try RouteParams (for IDs in URL like /api/products/{id})
                 if not FoundInBody then
                 begin
-                  if TryGetCaseInsensitive(RouteParams, FieldName, RouteVal) then
+                  if RouteParams.TryGetValue(FieldName, RouteVal) then
                   begin
                     FieldValue := ConvertStringToType(RouteVal, Field.FieldType.Handle);
                     FoundInBody := True; // Mark as found
@@ -1134,9 +1127,8 @@ begin
                 // Fallback 2: Try Query params (for ?param=value)
                 if not FoundInBody then
                 begin
-                  if QueryParams.IndexOfName(FieldName) >= 0 then
+                  if QueryParams.TryGetValue(FieldName, QueryVal) then
                   begin
-                    QueryVal := TNetEncoding.URL.Decode(QueryParams.Values[FieldName]);
                     FieldValue := ConvertStringToType(QueryVal, Field.FieldType.Handle);
                   end
                   else

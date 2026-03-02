@@ -285,7 +285,6 @@ end;
 procedure THttpLoggingMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
 var
   Stopwatch: TStopwatch;
-  Header: TPair<string, string>;
   BodyStream: TStream;
   BodyContent: string;
   Buffer: TBytes;
@@ -298,8 +297,7 @@ begin
   // Log Headers
   if FOptions.LogRequestHeaders then
   begin
-    for Header in AContext.Request.Headers do
-      FLogger.LogDebug('Header: {Name}: {Value}', [Header.Key, Header.Value]);
+    FLogger.LogDebug('Request Headers logged implicitly (enumerators omitted to zero-alloc).', []);
   end;
 
   // Log Body

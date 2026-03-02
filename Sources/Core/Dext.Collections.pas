@@ -246,6 +246,7 @@ type
     class function CreateStack<T>: IStack<T>; static;
     class function CreateQueue<T>: IQueue<T>; static;
     class function CreateHashSet<T>: IHashSet<T>; static;
+    class function CreateStringDictionary: IStringDictionary; static;
   end;
   {$M-}
 
@@ -576,35 +577,38 @@ var
   LCount: Integer;
   LData: PByte;
 begin
-  if not FIsManaged then
-  begin
-    LCount := FCore.Count;
-    if (Index >= 0) and (Index < LCount) then
-    begin
-      if Index < LCount - 1 then
-      begin
-        LData := FCore.Data;
-        System.Move((LData + (Index + 1) * SizeOf(T))^, (LData + Index * SizeOf(T))^, (LCount - Index - 1) * SizeOf(T));
-      end;
-      FCore.FastDecrementCount; // Optimized decrement
-      Exit;
-    end;
-  end;
+  LCount := FCore.Count;
+  if (Index < 0) or (Index >= LCount) then Exit;
 
   if FOwnsObjects and FIsClass then
     Notify(Self, GetItem(Index), cnRemoved);
-  FCore.DeleteRaw(Index);
+
+  if not FIsManaged then
+  begin
+    if Index < LCount - 1 then
+    begin
+      LData := FCore.Data;
+      System.Move((LData + (Index + 1) * SizeOf(T))^, (LData + Index * SizeOf(T))^, (LCount - Index - 1) * SizeOf(T));
+    end;
+    FCore.FastDecrementCount;
+  end
+  else
+    FCore.DeleteRaw(Index);
 end;
 
 procedure TList<T>.Clear;
 var
-  I: Integer;
+  I, LCount: Integer;
 begin
+  LCount := FCore.Count;
+  if LCount = 0 then Exit;
+
   if FOwnsObjects and FIsClass then
   begin
-    for I := FCore.Count - 1 downto 0 do
+    for I := 0 to LCount - 1 do
       Notify(Self, GetItem(I), cnRemoved);
   end;
+
   FCore.Clear;
 end;
 
@@ -879,6 +883,11 @@ end;
 class function TCollections.CreateHashSet<T>: IHashSet<T>;
 begin
   Result := THashSet<T>.Create;
+end;
+
+class function TCollections.CreateStringDictionary: IStringDictionary;
+begin
+  Result := TDextStringDictionary.Create;
 end;
 
 end.

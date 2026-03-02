@@ -296,9 +296,6 @@ begin
 end;
 
 procedure TCorsMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
-var
-  Headers: TArray<string>;
-  I: Integer;
 begin
   DebugLog('🚀 CORS MIDDLEWARE STARTED');
   DebugLog('📨 Request: ' + AContext.Request.Method + ' ' + AContext.Request.Path);
@@ -307,16 +304,8 @@ begin
   if FEnableDebugLog then
   begin
     DebugLog('📋 Request Headers:');
-    SetLength(Headers, AContext.Request.Headers.Count);
-    I := 0;
-    for var K in AContext.Request.Headers.Keys do
-    begin
-      Headers[I] := K;
-      Inc(I);
-    end;
-    
-    for I := 0 to High(Headers) do
-      DebugLog('   ' + Headers[I] + ': ' + AContext.Request.Headers[Headers[I]]);
+    // For now disabled in generic dictionary to not break zero alloc
+    // but the actual dictionary might have headers implementation
   end;
 
   // ✅ ADICIONAR HEADERS CORS

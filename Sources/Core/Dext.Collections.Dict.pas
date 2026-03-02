@@ -45,6 +45,22 @@ type
     constructor Create(const AKey: K; const AValue: V);
   end;
 
+  IStringDictionary = interface
+    ['{6AFA9C74-3A4B-4E38-AC36-9DC417C2DD53}']
+    function GetItem(const AKey: string): string;
+    function TryGetValue(const AKey: string; out AValue: string): Boolean;
+    function ContainsKey(const AKey: string): Boolean;
+    function GetCount: Integer;
+    procedure Add(const AKey, AValue: string);
+    procedure SetItem(const AKey, AValue: string);
+    procedure AddOrSetValue(const AKey, AValue: string);
+    function Remove(const AKey: string): Boolean;
+    procedure Clear;
+    function ToArray: TArray<TPair<string, string>>;
+    property Count: Integer read GetCount;
+    property Items[const AKey: string]: string read GetItem write SetItem; default;
+  end;
+
   /// <summary>Generic dictionary interface</summary>
   IDictionary<K, V> = interface(Dext.Collections.Base.IEnumerable<TPair<K, V>>)
     ['{A7E3F294-60B1-4C01-B8D5-4E5F3A2C1D70}']
@@ -136,7 +152,90 @@ type
     property OwnsValues: Boolean read FOwnsValues write FOwnsValues;
   end;
 
+  TDextStringDictionary = class(TInterfacedObject, IStringDictionary)
+  private
+    FData: TDictionary<string, string>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    
+    function GetItem(const AKey: string): string;
+    function TryGetValue(const AKey: string; out AValue: string): Boolean;
+    function ContainsKey(const AKey: string): Boolean;
+    function GetCount: Integer;
+    procedure Add(const AKey, AValue: string);
+    procedure SetItem(const AKey, AValue: string);
+    procedure AddOrSetValue(const AKey, AValue: string);
+    function Remove(const AKey: string): Boolean;
+    procedure Clear;
+    function ToArray: TArray<TPair<string, string>>;
+  end;
+
 implementation
+
+{ TDextStringDictionary }
+
+constructor TDextStringDictionary.Create;
+begin
+  inherited Create;
+  FData := TDictionary<string, string>.Create(False, 0); 
+end;
+
+destructor TDextStringDictionary.Destroy;
+begin
+  FData.Free;
+  inherited;
+end;
+
+function TDextStringDictionary.GetItem(const AKey: string): string;
+begin
+  Result := FData.Items[AKey];
+end;
+
+function TDextStringDictionary.TryGetValue(const AKey: string; out AValue: string): Boolean;
+begin
+  Result := FData.TryGetValue(AKey, AValue);
+end;
+
+function TDextStringDictionary.ContainsKey(const AKey: string): Boolean;
+begin
+  Result := FData.ContainsKey(AKey);
+end;
+
+function TDextStringDictionary.GetCount: Integer;
+begin
+  Result := FData.Count;
+end;
+
+procedure TDextStringDictionary.Add(const AKey, AValue: string);
+begin
+  FData.Add(AKey, AValue);
+end;
+
+procedure TDextStringDictionary.SetItem(const AKey, AValue: string);
+begin
+  FData.AddOrSetValue(AKey, AValue);
+end;
+
+procedure TDextStringDictionary.AddOrSetValue(const AKey, AValue: string);
+begin
+  FData.AddOrSetValue(AKey, AValue);
+end;
+
+function TDextStringDictionary.Remove(const AKey: string): Boolean;
+begin
+  Result := FData.Remove(AKey);
+end;
+
+procedure TDextStringDictionary.Clear;
+begin
+  FData.Clear;
+end;
+
+function TDextStringDictionary.ToArray: TArray<TPair<string, string>>;
+begin
+  Result := FData.ToArray;
+end;
 
 { TPair<K, V> }
 

@@ -160,7 +160,7 @@ uses
 
 class constructor TValueConverterRegistry.Create;
 begin
-  FConverters := TCollections.CreateDictionary<string, IValueConverter>;
+  FConverters := TCollections.CreateDictionary<string, IValueConverter>(True);
   
   // Register Default Converters
   

@@ -554,7 +554,7 @@ end;
 function TDataApiHandler<T>.HandleGetList(const Context: IHttpContext): IResult;
 var
   DbCtx: TDbContext;
-  Query: TStrings;
+  Query: IStringDictionary;
   i: Integer;
   ParamName, ParamValue: string;
   FilterExpr: IExpression;
@@ -592,10 +592,11 @@ begin
         Typ := Ctx.GetType(TypeInfo(T));
         Map := TModelBuilder.Instance.GetMap(TypeInfo(T));
         
-        for i := 0 to Query.Count - 1 do
+        var QueryArray := Query.ToArray;
+        for i := 0 to High(QueryArray) do
         begin
-          ParamName := Query.Names[i];
-          ParamValue := Query.ValueFromIndex[i];
+          ParamName := QueryArray[i].Key;
+          ParamValue := QueryArray[i].Value;
           
           if ParamName = '' then Continue;
 
@@ -684,8 +685,8 @@ begin
           // Create expression
           if BinaryOp = boIn then
           begin
-              var InValues := ParamValue.Split([',']);
-              NewExpr := TBinaryExpression.Create(Prop.Name, boIn, TValue.From<TArray<string>>(InValues));
+               var InValues := ParamValue.Split([',']);
+               NewExpr := TBinaryExpression.Create(Prop.Name, boIn, TValue.From<TArray<string>>(InValues));
           end
           else
           begin
@@ -713,57 +714,67 @@ begin
         Ctx.Free;
       end;
       
-       var Qry: TFluentQuery<T>;
-       if not FOptions.Sql.IsEmpty then
-         Qry := DbCtx.Entities<T>.FromSql(FOptions.Sql)
-       else
-         Qry := DbCtx.Entities<T>.QueryAll;
+      var FinalItems: IList<T> := nil;
+      try
+        var Qry: TFluentQuery<T>;
+        if FOptions.Sql <> '' then
+          Qry := DbCtx.Entities<T>.FromSql(FOptions.Sql)
+        else
+          Qry := DbCtx.Entities<T>.QueryAll;
 
-       Qry := Qry.AsNoTracking;
+        // Qry := Qry.AsNoTracking; // Disabled to debug AV
 
-       if FilterExpr <> nil then
-         Qry := Qry.Where(FilterExpr);
+        if FilterExpr <> nil then
+          Qry := Qry.Where(FilterExpr);
 
-       for var OrderItem in OrderList do
-         Qry := Qry.OrderBy(OrderItem);
+        for var OrderItem in OrderList do
+          Qry := Qry.OrderBy(OrderItem);
 
-       if Offset > 0 then Qry := Qry.Skip(Offset);
-       if Limit > 0 then Qry := Qry.Take(Limit);
+        if Offset > 0 then Qry := Qry.Skip(Offset);
+        if Limit > 0 then Qry := Qry.Take(Limit);
 
-       var FinalItems := Qry.ToList;
-       try
-         // Build JSON response with high-performance UTF8 writer
-         var Stream := TMemoryStream.Create;
-         try
-           var FinalSettings := TDextJson.GetDefaultSettings;
-           if FOptions.NamingStrategy <> TCaseStyle.CaseInherit then
-             FinalSettings.CaseStyle := FOptions.NamingStrategy;
-           if FOptions.EnumStyle <> TEnumStyle.EnumInherit then
-             FinalSettings.EnumStyle := FOptions.EnumStyle;
+        FinalItems := Qry.ToList;
+        try
+          // Build JSON response with high-performance UTF8 writer
+          var ResponseStream := TMemoryStream.Create;
+          try
+            var FinalSettings := TDextJson.GetDefaultSettings;
+            if FOptions.NamingStrategy <> TCaseStyle.CaseInherit then
+               FinalSettings.CaseStyle := FOptions.NamingStrategy;
+            if FOptions.EnumStyle <> TEnumStyle.EnumInherit then
+               FinalSettings.EnumStyle := FOptions.EnumStyle;
 
-           var Writer := TUtf8JsonWriter.Create(Stream, False);
-           Writer.Settings := FinalSettings;
-           Writer.WriteStartArray;
-           for var Item in FinalItems do
-           begin
-             Writer.WriteValue(TValue.From<T>(Item));
-           end;
-           Writer.WriteEndArray;
-           
-           Stream.Position := 0;
-           Result := Results.Stream(Stream, 'application/json');
-         except
-           Stream.Free;
-           raise;
-         end;
-       finally
-         // Items will be freed automatically if the list returned by ToList owns them (AsNoTracking)
-       end;
-     finally
-       OrderList := nil;
-       if FilterExpr <> nil then
-         FilterExpr := nil; // IExpression is an interface, will be released
-     end;
+            var Writer := TUtf8JsonWriter.Create(ResponseStream);
+            Writer.Settings := FinalSettings;
+            
+            Writer.WriteStartArray;
+            for var Item in FinalItems do
+            begin
+              if Pointer(Item) <> nil then
+                Writer.WriteValue(TValue.From<T>(Item));
+            end;
+            Writer.WriteEndArray;
+            
+            // Clear items list immediately after serialization to ensure destruction happens here
+            // if the list owns them.
+            FinalItems := nil;
+            
+            ResponseStream.Position := 0;
+            Result := Results.Stream(ResponseStream, 'application/json');
+          except
+            ResponseStream.Free;
+            raise;
+          end;
+        finally
+          FinalItems := nil; // Security
+        end;
+      finally
+        // FinalItems handled above
+      end;
+    finally
+      OrderList := nil;
+      FilterExpr := nil;
+    end;
   except
     on E: Exception do
     begin

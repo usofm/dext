@@ -21,11 +21,11 @@ type
   private
     FMethod: string;
     FPath: string;
-    FQueryParams: TStrings;
+    FQueryParams: IStringDictionary;
     FBodyStream: TStream;
-    FRouteParams: IDictionary<string, string>;
-    FHeaders: IDictionary<string, string>;
-    FCookies: IDictionary<string, string>;
+    FRouteParams: TRouteValueDictionary;
+    FHeaders: IStringDictionary;
+    FCookies: IStringDictionary;
     FFiles: IFormFileCollection;
     FRemoteIpAddress: string;
   public
@@ -35,18 +35,18 @@ type
     // IHttpRequest
     function GetMethod: string;
     function GetPath: string;
-    function GetQuery: TStrings;
+    function GetQuery: IStringDictionary;
     function GetBody: TStream;
-    function GetRouteParams: IDictionary<string, string>;
-    function GetHeaders: IDictionary<string, string>; virtual;
+    function GetRouteParams: TRouteValueDictionary;
+    function GetHeaders: IStringDictionary; virtual;
     function GetRemoteIpAddress: string;
     function GetHeader(const AName: string): string;
     function GetQueryParam(const AName: string): string;
-    function GetCookies: IDictionary<string, string>;
+    function GetCookies: IStringDictionary;
     function GetFiles: IFormFileCollection;
 
     property RemoteIpAddress: string read FRemoteIpAddress write FRemoteIpAddress;
-    property Cookies: IDictionary<string, string> read GetCookies;
+    property Cookies: IStringDictionary read GetCookies;
     property Files: IFormFileCollection read GetFiles;
   end;
 
@@ -108,17 +108,17 @@ type
 
     function GetItems: IDictionary<string, TValue>;
 
-    procedure SetRouteParams(const AParams: IDictionary<string, string>);
+    procedure SetRouteParams(const AParams: TRouteValueDictionary);
   end;
 
   TMockHttpRequestWithHeaders = class(TMockHttpRequest)
   private
-    FCustomHeaders: IDictionary<string, string>;
+    FCustomHeaders: IStringDictionary;
   public
     constructor CreateWithHeaders(const AQueryString: string;
-      const AHeaders: IDictionary<string, string>);
+      const AHeaders: IStringDictionary);
     destructor Destroy; override;
-    function GetHeaders: IDictionary<string, string>; override;
+    function GetHeaders: IStringDictionary; override;
   end;
 
   TMockHttpContextWithServices = class(TMockHttpContext)
@@ -133,12 +133,12 @@ type
   TMockFactory = class
   public
     class function CreateHttpContextWithHeaders(const AQueryString: string; const
-      AHeaders: IDictionary<string, string>): IHttpContext;
+      AHeaders: IStringDictionary): IHttpContext;
     class function CreateHttpContextWithServices(const AQueryString: string; const
       AServices: IServiceProvider): IHttpContext;
     class function CreateHttpContext(const AQueryString: string): IHttpContext; static;
     class function CreateHttpContextWithRoute(const AQueryString: string; const
-      ARouteParams: IDictionary<string, string>): IHttpContext; static;
+      ARouteParams: TRouteValueDictionary): IHttpContext; static;
   end;
 
 implementation
@@ -155,10 +155,8 @@ begin
   FMethod := AMethod;
   FPath := APath;
 
-  FRouteParams := TCollections.CreateDictionary<string, string>;
-
-  // ✅ CORREÇÃO: Parse manual garantido
-  FQueryParams := TStringList.Create;
+  FRouteParams.Clear;
+  FQueryParams := TCollections.CreateStringDictionary;
 
   if AQueryString <> '' then
   begin
@@ -181,7 +179,7 @@ begin
         begin
           Key := Copy(ParamList[I], 1, PosEqual - 1);
           Value := Copy(ParamList[I], PosEqual + 1, MaxInt);
-          FQueryParams.Values[Key] := Value;
+          FQueryParams.AddOrSetValue(Key, Value);
         end;
       end;
     finally
@@ -190,8 +188,8 @@ begin
   end;
 
   // Inicializar outros campos
-  FHeaders := TCollections.CreateDictionary<string, string>;
-  FCookies := TCollections.CreateDictionary<string, string>;
+  FHeaders := TCollections.CreateStringDictionary;
+  FCookies := TCollections.CreateStringDictionary;
   FFiles := TFormFileCollection.Create(TCollections.CreateList<IFormFile>);
   FBodyStream := TMemoryStream.Create;
   FRemoteIpAddress := '127.0.0.1'; // Default mock IP
@@ -200,16 +198,13 @@ begin
   Writeln('Mock Request Created:');
   Writeln('  QueryString: ', AQueryString);
   Writeln('  Parsed params: ', FQueryParams.Count);
-  for I := 0 to FQueryParams.Count - 1 do
-    Writeln('    ', FQueryParams.Names[I], ' = ', FQueryParams.ValueFromIndex[I]);
+  for var Pair in FQueryParams.ToArray do
+    Writeln('    ', Pair.Key, ' = ', Pair.Value);
 end;
 
 destructor TMockHttpRequest.Destroy;
 begin
-  FQueryParams.Free;
-  // FRouteParams.Free;
-  // FHeaders.Free;
-  // FCookies.Free;
+    FCookies := nil;
   FBodyStream.Free;
   inherited Destroy;
 end;
@@ -224,9 +219,9 @@ begin
   Result := FPath;
 end;
 
-function TMockHttpRequest.GetQuery: TStrings;
+function TMockHttpRequest.GetQuery: IStringDictionary;
 begin
-  Result := FQueryParams; // ✅ AGORA NÃO É MAIS NIL!
+  Result := FQueryParams; 
 end;
 
 function TMockHttpRequest.GetBody: TStream;
@@ -234,14 +229,12 @@ begin
   Result := FBodyStream;
 end;
 
-function TMockHttpRequest.GetRouteParams: IDictionary<string, string>;
+function TMockHttpRequest.GetRouteParams: TRouteValueDictionary;
 begin
-  Writeln('🔍 GetRouteParams Debug:');
-  Writeln('  Returning FRouteParams count: ', FRouteParams.Count);
   Result := FRouteParams;
 end;
 
-function TMockHttpRequest.GetHeaders: IDictionary<string, string>;
+function TMockHttpRequest.GetHeaders: IStringDictionary;
 begin
   Result := FHeaders;
 end;
@@ -259,10 +252,11 @@ end;
 
 function TMockHttpRequest.GetQueryParam(const AName: string): string;
 begin
-  Result := FQueryParams.Values[AName];
+  if not FQueryParams.TryGetValue(AName, Result) then
+    Result := '';
 end;
 
-function TMockHttpRequest.GetCookies: IDictionary<string, string>;
+function TMockHttpRequest.GetCookies: IStringDictionary;
 begin
   Result := FCookies;
 end;
@@ -415,24 +409,14 @@ begin
   FUser := AValue;
 end;
 
-procedure TMockHttpContext.SetRouteParams(const AParams: IDictionary<string, string>);
+procedure TMockHttpContext.SetRouteParams(const AParams: TRouteValueDictionary);
 var
   MockRequest: TMockHttpRequest;
-  Param: TPair<string, string>;
 begin
-  Writeln('🔍 SetRouteParams Debug:');
-  Writeln('  Input params count: ', AParams.Count);
-  for Param in AParams do
-    Writeln('  ', Param.Key, ' = ', Param.Value);
-
   // ✅ CORREÇÃO SIMPLES: Cast direto já que sabemos que é TMockHttpRequest
   try
     MockRequest := TMockHttpRequest(FRequest);
-    MockRequest.FRouteParams.Clear;
-    for Param in AParams do
-    begin
-      MockRequest.FRouteParams.Add(Param.Key, Param.Value);
-    end;
+    MockRequest.FRouteParams := AParams;
 
     Writeln('  ✅ After injection - FRouteParams count: ', MockRequest.FRouteParams.Count);
   except
@@ -513,7 +497,7 @@ end;
 //end;
 
 class function TMockFactory.CreateHttpContextWithRoute(const AQueryString: string;
-  const ARouteParams: IDictionary<string, string>): IHttpContext;
+  const ARouteParams: TRouteValueDictionary): IHttpContext;
 var
   Request: IHttpRequest;
   Response: IHttpResponse;
@@ -527,7 +511,7 @@ begin
 end;
 
 class function TMockFactory.CreateHttpContextWithHeaders(const AQueryString:
-  string; const AHeaders: IDictionary<string, string>): IHttpContext;
+  string; const AHeaders: IStringDictionary): IHttpContext;
 var
   Request: IHttpRequest;
   Response: IHttpResponse;
@@ -551,16 +535,16 @@ end;
 { TMockHttpRequestWithHeaders }
 
 constructor TMockHttpRequestWithHeaders.CreateWithHeaders(const AQueryString: string;
-  const AHeaders: IDictionary<string, string>);
+  const AHeaders: IStringDictionary);
 begin
   inherited Create(AQueryString);
 
   // Clonar os headers fornecidos
-  FCustomHeaders := TCollections.CreateDictionary<string, string>;
-  for var Header in AHeaders do
+  FCustomHeaders := TCollections.CreateStringDictionary;
+  for var Pair in AHeaders.ToArray do
   begin
     // Headers são case-insensitive, normalizar para lowercase
-    FCustomHeaders.Add(Header.Key.ToLower, Header.Value);
+    FCustomHeaders.AddOrSetValue(Pair.Key.ToLower, Pair.Value);
   end;
 end;
 
@@ -570,7 +554,7 @@ begin
   inherited Destroy;
 end;
 
-function TMockHttpRequestWithHeaders.GetHeaders: IDictionary<string, string>;
+function TMockHttpRequestWithHeaders.GetHeaders: IStringDictionary;
 begin
   Result := FCustomHeaders;
 end;

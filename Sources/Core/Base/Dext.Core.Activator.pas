@@ -474,87 +474,83 @@ begin
         var ImplName := TypeName.Replace('IList<', 'TList<').Replace('IEnumerable<', 'TList<');
         var ImplRtti: TRttiType := Context.FindType(ImplName);
         
-        // Fallback to TSmartList if TList fails
-        if ImplRtti = nil then
+        if ImplRtti = nil then ImplRtti := Context.FindType('Dext.Collections.' + ImplName);
+          
+        if (ImplRtti = nil) and ImplName.Contains('.') then
         begin
-           ImplName := TypeName.Replace('IList<', 'TSmartList<').Replace('IEnumerable<', 'TSmartList<');
-           ImplRtti := Context.FindType(ImplName);
+           var ShortName := ImplName.Substring(ImplName.LastIndexOf('.') + 1);
+           ImplRtti := Context.FindType('Dext.Collections.' + ShortName);
         end;
 
-        if (ImplRtti = nil) and not ImplName.Contains('.') then
-           ImplRtti := Context.FindType('Dext.Collections.' + ImplName);
-
-        // B. Deep Search fallback (scanning all types)
         if ImplRtti = nil then
         begin
-          var SimpleSufix := '<' + string(ElementType.Name) + '>';
-          var ElementQualifiedName: string;
-          var ElementTypeRtti := Context.GetType(ElementType);
-          if ElementTypeRtti <> nil then
-            ElementQualifiedName := ElementTypeRtti.QualifiedName;
+           // Deep Search for any TList<T> or TSmartList<T> implementation
+           if ElementType <> nil then
+           begin
+              var ElementQualifiedName := string(ElementType.Name);
+              if ElementType.Kind = tkClass then
+                ElementQualifiedName := TRttiInstanceType(Context.GetType(ElementType)).MetaclassType.ClassName;
 
-          for var TmpType in Context.GetTypes do
-          begin
-            if TmpType.IsInstance then
-            begin
-               var IsMatch := TmpType.Name.EndsWith(SimpleSufix);
-               if (not IsMatch) and (ElementQualifiedName <> '') then
-                 IsMatch := TmpType.Name.EndsWith('<' + ElementQualifiedName + '>');
-
-               if IsMatch then
-               begin
-                  if TmpType.Name.StartsWith('TSmartList<') or TmpType.Name.StartsWith('TList<') then
-                  begin
-                     ImplRtti := TmpType;
-                     Break;
-                  end;
-               end;
-            end;
-          end;
+              var SimpleSufix := '<' + string(ElementType.Name) + '>';
+              var FullSufix := '<' + ElementQualifiedName + '>';
+              
+              for var TmpType in Context.GetTypes do
+              begin
+                if TmpType.IsInstance and (TmpType.Name.StartsWith('TList<') or TmpType.Name.StartsWith('TSmartList<')) then
+                begin
+                   if TmpType.Name.EndsWith(SimpleSufix) or TmpType.Name.EndsWith(FullSufix) then
+                   begin
+                      ImplRtti := TmpType;
+                      Break;
+                   end;
+                end;
+              end;
+           end;
         end;
 
         if (ImplRtti <> nil) and (ImplRtti is TRttiInstanceType) then
         begin
-           var TargetClass := TRttiInstanceType(ImplRtti).MetaclassType;
-           
-           // Search for the best constructor (parameterless or Boolean)
-           var BestConstructor: TRttiMethod := nil;
-           for var Method in ImplRtti.GetMethods do
-           begin
-             if Method.IsConstructor and ((Method.Name = 'Create') or (Method.Name = 'CreateList')) then
-             begin
-                if Length(Method.GetParameters) = 0 then
-                begin
-                  BestConstructor := Method;
-                  Break; // Found perfect match
-                end
-                else if (Length(Method.GetParameters) = 1) and 
-                        (Method.GetParameters[0].ParamType.TypeKind = tkEnumeration) then
-                  BestConstructor := Method;
-             end;
-           end;
+          var TargetClass := TRttiInstanceType(ImplRtti).MetaclassType;
+          
+          // Search for the best constructor (parameterless or Boolean)
+          var BestConstructor: TRttiMethod := nil;
+          for var Method in ImplRtti.GetMethods do
+          begin
+            if Method.IsConstructor and ((Method.Name = 'Create') or (Method.Name = 'CreateList')) then
+            begin
+              if Length(Method.GetParameters) = 0 then
+              begin
+                BestConstructor := Method;
+                Break; // Found perfect match
+              end
+              else if (Length(Method.GetParameters) = 1) and 
+                      (Method.GetParameters[0].ParamType.TypeKind = tkEnumeration) then
+                BestConstructor := Method;
+            end;
+          end;
 
-           if BestConstructor <> nil then
-           begin
-             var Instance: TValue;
-             if Length(BestConstructor.GetParameters) = 0 then
-               Instance := BestConstructor.Invoke(TargetClass, [])
-             else
-               Instance := BestConstructor.Invoke(TargetClass, [False]);
-               
-             if AType.Kind = tkInterface then
-             begin
-               var Intf: IInterface;
-               if Instance.AsObject.GetInterface(TRttiInterfaceType(RttiType).GUID, Intf) then
-                 TValue.Make(@Intf, AType, Result)
-               else
-                 Result := Instance;
-             end
-             else
-               Result := Instance;
-             Exit;
-           end;
+          if BestConstructor <> nil then
+          begin
+            var Instance: TValue;
+            if Length(BestConstructor.GetParameters) = 0 then
+              Instance := BestConstructor.Invoke(TargetClass, [])
+            else
+              Instance := BestConstructor.Invoke(TargetClass, [False]);
+              
+            if AType.Kind = tkInterface then
+            begin
+              var Intf: IInterface;
+              if Instance.AsObject.GetInterface(TRttiInterfaceType(RttiType).GUID, Intf) then
+                TValue.Make(@Intf, AType, Result)
+              else
+                Result := Instance;
+            end
+            else
+              Result := Instance;
+            Exit;
+          end;
         end;
+
       end;
       
       raise EArgumentException.CreateFmt('TActivator: Cannot find a suitable implementation for interface %s. ' +

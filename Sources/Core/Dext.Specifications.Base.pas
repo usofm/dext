@@ -31,6 +31,7 @@ uses
   System.SysUtils,
   System.TypInfo,
   Dext.Collections,
+  Dext.Collections.Vector,
   Dext.Specifications.Interfaces,
   Dext.Specifications.Types;
   
@@ -57,16 +58,16 @@ type
   TSpecification<T: class> = class(TInterfacedObject, ISpecification, ISpecification<T>)
   protected
     FExpression: IExpression;
-    FIncludes: IList<string>;
-    FSelectedColumns: IList<string>;
-    FOrderBy: IList<IOrderBy>;
+    FIncludes: TVector<string>;
+    FSelectedColumns: TVector<string>;
+    FOrderBy: TVector<IOrderBy>;
     FSkip: Integer;
     FTake: Integer;
     FIsPagingEnabled: Boolean;
     FIsTracking: Boolean;
     
-    FJoins: IList<IJoin>;
-    FGroupBy: IList<string>;
+    FJoins: TVector<IJoin>;
+    FGroupBy: TVector<string>;
     FIgnoreQueryFilters: Boolean;
     FOnlyDeleted: Boolean;
     FLockMode: TLockMode;
@@ -127,11 +128,6 @@ implementation
 constructor TSpecification<T>.Create;
 begin
   inherited;
-  FIncludes := TCollections.CreateList<string>;
-  FSelectedColumns := TCollections.CreateList<string>;
-  FOrderBy := TCollections.CreateList<IOrderBy>;
-  FJoins := TCollections.CreateList<IJoin>;
-  FGroupBy := TCollections.CreateList<string>;
   FLockMode := lmNone;
   FExpression := nil; // Empty expression matches all
   FIsTracking := True; // Tracking enabled by default
@@ -147,12 +143,12 @@ end;
 
 destructor TSpecification<T>.Destroy;
 begin
-  // IList<T> fields are interface-managed (ref-counted), no manual Free needed
-  FIncludes := nil;
-  FSelectedColumns := nil;
-  FOrderBy := nil;
-  FJoins := nil;
-  FGroupBy := nil;
+  FExpression := nil;
+  FIncludes.Clear;
+  FSelectedColumns.Clear;
+  FOrderBy.Clear;
+  FJoins.Clear;
+  FGroupBy.Clear;
   inherited;
 end;
 
@@ -439,11 +435,11 @@ var
   NewSpec: TSpecification<T>;
 begin
   NewSpec := TSpecification<T>.Create(FExpression);
-  NewSpec.FIncludes.AddRange(FIncludes);
-  NewSpec.FSelectedColumns.AddRange(FSelectedColumns);
-  NewSpec.FOrderBy.AddRange(FOrderBy);
-  NewSpec.FJoins.AddRange(FJoins);
-  NewSpec.FGroupBy.AddRange(FGroupBy);
+  NewSpec.FIncludes := FIncludes;
+  NewSpec.FSelectedColumns := FSelectedColumns;
+  NewSpec.FOrderBy := FOrderBy;
+  NewSpec.FJoins := FJoins;
+  NewSpec.FGroupBy := FGroupBy;
   NewSpec.FSkip := FSkip;
   NewSpec.FTake := FTake;
   NewSpec.FIsPagingEnabled := FIsPagingEnabled;

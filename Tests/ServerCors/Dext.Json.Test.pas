@@ -9,6 +9,7 @@ uses
   System.Rtti,
   System.TypInfo,
   Dext.Json,
+  Dext.Json.Types,
   Dext.DI.Core,
   Dext.DI.Extensions,
   Dext.DI.Interfaces,

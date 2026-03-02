@@ -31,6 +31,9 @@ uses
   System.SysUtils,
   System.Rtti,
   System.TypInfo,
+  Dext.Collections,
+  Dext.Collections.Dict,
+  Dext.Collections.Vector,
   Dext.Core.Span,
   Dext.Json.Utf8,
   Dext.Core.DateUtils,
@@ -39,33 +42,101 @@ uses
 type
   EUtf8SerializationException = class(Exception);
 
+  PTUUID = ^TUUID;
+
+  TJsonFieldInfo = record
+    NameBytes: TBytes;
+    Offset: Integer;
+    TypeKind: TTypeKind;
+    TypeInfo: PTypeInfo;
+  end;
+
+  TJsonRecordInfo = record
+    Fields: TArray<TJsonFieldInfo>;
+  end;
+
+  TUtf8JsonSerializerCache = class
+  public class var
+    Cache: IDictionary<PTypeInfo, TJsonRecordInfo>;
+    class constructor Create;
+  end;
+
   TUtf8JsonSerializer = record
   private
+    class function GetRecordInfo(AType: PTypeInfo): TJsonRecordInfo; static;
     class procedure DeserializeRecord(var AReader: TUtf8JsonReader; AType: PTypeInfo; AInstance: Pointer); static;
-    class procedure DeserializeField(var AReader: TUtf8JsonReader; Field: TRttiField; Instance: Pointer); static;
+    class procedure DeserializeFieldDirect(var AReader: TUtf8JsonReader; const FieldInfo: TJsonFieldInfo; Instance: Pointer); static;
   public
     class function Deserialize<T>(const AData: TByteSpan): T; static;
   end;
 
 implementation
 
+{ TUtf8JsonSerializerCache }
+
+class constructor TUtf8JsonSerializerCache.Create;
+begin
+  Cache := TCollections.CreateDictionary<PTypeInfo, TJsonRecordInfo>;
+end;
+
 { TUtf8JsonSerializer }
+
+class function TUtf8JsonSerializer.GetRecordInfo(AType: PTypeInfo): TJsonRecordInfo;
+var
+  Ctx: TRttiContext;
+  RType: TRttiType;
+  Field: TRttiField;
+  FldInfo: TJsonFieldInfo;
+  Fields: TVector<TJsonFieldInfo>;
+begin
+  if TUtf8JsonSerializerCache.Cache.TryGetValue(AType, Result) then
+    Exit;
+
+  Ctx := TRttiContext.Create;
+  try
+    RType := Ctx.GetType(AType);
+    if RType = nil then Exit;
+
+    for Field in RType.GetFields do
+    begin
+      FldInfo.NameBytes := TEncoding.UTF8.GetBytes(Field.Name);
+      FldInfo.Offset := Field.Offset;
+      if Field.FieldType <> nil then
+      begin
+        FldInfo.TypeKind := Field.FieldType.TypeKind;
+        FldInfo.TypeInfo := Field.FieldType.Handle;
+      end
+      else
+      begin
+        FldInfo.TypeKind := tkUnknown;
+        FldInfo.TypeInfo := nil;
+      end;
+      Fields.Add(FldInfo);
+    end;
+
+    Result.Fields := Fields.ToArray;
+    TUtf8JsonSerializerCache.Cache.Add(AType, Result);
+  finally
+    Ctx.Free;
+  end;
+end;
 
 class function TUtf8JsonSerializer.Deserialize<T>(const AData: TByteSpan): T;
 var
   Reader: TUtf8JsonReader;
-  TypeInfo: PTypeInfo;
+  TypeInfoInfo: PTypeInfo;
 begin
   Reader := TUtf8JsonReader.Create(AData);
-  TypeInfo := System.TypeInfo(T);
+  TypeInfoInfo := System.TypeInfo(T);
 
   // Initial Read to get to the start
   if not Reader.Read then
-    Exit(Default(T)); // Or error?
+    Exit(Default(T)); 
 
-  if TypeInfo.Kind = tkRecord then
+  if TypeInfoInfo.Kind = tkRecord then
   begin
-    DeserializeRecord(Reader, TypeInfo, @Result);
+    Result := Default(T);
+    DeserializeRecord(Reader, TypeInfoInfo, @Result);
   end
   else
     raise EUtf8SerializationException.Create('Only Records are supported for zero-allocation deserialization currently.');
@@ -73,95 +144,89 @@ end;
 
 class procedure TUtf8JsonSerializer.DeserializeRecord(var AReader: TUtf8JsonReader; AType: PTypeInfo; AInstance: Pointer);
 var
-  Ctx: TRttiContext;
-  RType: TRttiType;
-  Field: TRttiField;
-  PropName: string;
+  RecInfo: TJsonRecordInfo;
+  I: Integer;
+  Found: Boolean;
+  ValSpan: TByteSpan;
 begin
   if AReader.TokenType <> TJsonTokenType.StartObject then
-   // It might be that we haven't consumed start object yet if recursion?
-   // Or the caller consumed it.
-   // Let's assume Reader is AT StartObject.
    if AReader.TokenType <> TJsonTokenType.StartObject then
      raise EUtf8SerializationException.Create('Expected StartObject');
 
-  Ctx := TRttiContext.Create;
-  try
-    RType := Ctx.GetType(AType);
-    
-    while AReader.Read do
-    begin
-      if AReader.TokenType = TJsonTokenType.EndObject then
-        Break;
+  RecInfo := GetRecordInfo(AType);
 
-      if AReader.TokenType = TJsonTokenType.PropertyName then
+  while AReader.Read do
+  begin
+    if AReader.TokenType = TJsonTokenType.EndObject then
+      Break;
+
+    if AReader.TokenType = TJsonTokenType.PropertyName then
+    begin
+      ValSpan := AReader.ValueSpan;
+      Found := False;
+      
+      for I := 0 to High(RecInfo.Fields) do
       begin
-        // We have the property name in AReader.ValueSpan (raw bytes)
-        // Optimization: Match bytes directly against field names?
-        // For now, simple approach: Convert to string (allocation!) to look up field.
-        // TODO: Optimize this with a Byte-Map or cached field names as bytes.
-        
-        PropName := AReader.GetString; // Allocating string for search
-        Field := RType.GetField(PropName);
-        
-        // Advance to Value
-        if not AReader.Read then
-          raise EUtf8SerializationException.Create('Unexpected end of JSON while reading value');
+        if ValSpan.Equals(TByteSpan.FromBytes(RecInfo.Fields[I].NameBytes)) then
+        begin
+          if not AReader.Read then
+            raise EUtf8SerializationException.Create('Unexpected end of JSON while reading value');
             
-        if Assigned(Field) then
-        begin
-          DeserializeField(AReader, Field, AInstance);
-        end
-        else
-        begin
-          // Unknown field, skip value
-          AReader.Skip;
+          DeserializeFieldDirect(AReader, RecInfo.Fields[I], AInstance);
+          Found := True;
+          Break;
         end;
       end;
+      
+      if not Found then
+      begin
+        // Advance to Value and Skip
+        if AReader.Read then
+          AReader.Skip;
+      end;
     end;
-  finally
-    Ctx.Free;
   end;
 end;
 
-class procedure TUtf8JsonSerializer.DeserializeField(var AReader: TUtf8JsonReader; Field: TRttiField; Instance: Pointer);
+class procedure TUtf8JsonSerializer.DeserializeFieldDirect(var AReader: TUtf8JsonReader; const FieldInfo: TJsonFieldInfo; Instance: Pointer);
+var
+  P: Pointer;
 begin
-  case Field.FieldType.TypeKind of
+  P := Pointer(NativeUInt(Instance) + NativeUInt(FieldInfo.Offset));
+  case FieldInfo.TypeKind of
     tkInteger:
-      Field.SetValue(Instance, TValue.From<Integer>(AReader.GetInt32));
+      PInteger(P)^ := AReader.GetInt32;
       
     tkInt64:
-      Field.SetValue(Instance, TValue.From<Int64>(AReader.GetInt64));
+      PInt64(P)^ := AReader.GetInt64;
       
     tkFloat:
-      if (Field.FieldType.Handle = TypeInfo(TDateTime)) or 
-         (Field.FieldType.Handle = TypeInfo(TDate)) or 
-         (Field.FieldType.Handle = TypeInfo(TTime)) then
+      if (FieldInfo.TypeInfo = TypeInfo(TDateTime)) or 
+         (FieldInfo.TypeInfo = TypeInfo(TDate)) or 
+         (FieldInfo.TypeInfo = TypeInfo(TTime)) then
       begin
          var DateStr := AReader.GetString;
          var Dt: TDateTime;
          if TryParseCommonDate(DateStr, Dt) then
-           Field.SetValue(Instance, TValue.From<TDateTime>(Dt))
+           PDateTime(P)^ := Dt
          else
-           Field.SetValue(Instance, TValue.From<TDateTime>(0));
+           PDateTime(P)^ := 0;
       end
       else
-        Field.SetValue(Instance, TValue.From<Double>(AReader.GetDouble));
+        PDouble(P)^ := AReader.GetDouble;
       
     tkString, tkLString, tkWString, tkUString:
-      Field.SetValue(Instance, TValue.From<string>(AReader.GetString));
+      PString(P)^ := AReader.GetString;
       
     tkEnumeration:
-      if Field.FieldType.Handle = TypeInfo(Boolean) then
-        Field.SetValue(Instance, TValue.From<Boolean>(AReader.GetBoolean))
+      if FieldInfo.TypeInfo = TypeInfo(Boolean) then
+        PBoolean(P)^ := AReader.GetBoolean
       else
-        // TODO: Enum support
         AReader.Skip;
         
     tkRecord:
       begin
-        // Special handling for TGUID and TUUID
-        if Field.FieldType.Handle = TypeInfo(TGUID) then
+        if FieldInfo.TypeInfo = TypeInfo(TGUID) then
         begin
           var GuidStr := AReader.GetString;
           var G: TGUID;
@@ -175,26 +240,18 @@ begin
           else
             G := StringToGUID(GuidStr);
             
-          Field.SetValue(Instance, TValue.From<TGUID>(G));
+          PGUID(P)^ := G;
         end
-        else if Field.FieldType.Handle = TypeInfo(TUUID) then
+        else if FieldInfo.TypeInfo = TypeInfo(TUUID) then
         begin
           var GuidStr := AReader.GetString;
-          var U: TUUID;
-          
           if GuidStr.Trim = '' then
-            U := TUUID.Null
+            PTUUID(P)^ := TUUID.Null
           else
-            U := TUUID.FromString(GuidStr);  // Handles all formats (with/without braces, hyphens)
-            
-          var Val: TValue;
-          TValue.Make(@U, TypeInfo(TUUID), Val);
-          Field.SetValue(Instance, Val);
+            PTUUID(P)^ := TUUID.FromString(GuidStr);
         end
         else
         begin
-          // Other nested records - skip for now
-          // TODO: Support nested record deserialization
           AReader.Skip;
         end;
       end;

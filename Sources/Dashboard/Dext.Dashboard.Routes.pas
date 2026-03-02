@@ -296,7 +296,8 @@ begin
       Obj: IDextJsonObject;
       Res: IResult;
     begin
-      ScanPath := Ctx.Request.Query.Values['path'];
+      if not Ctx.Request.Query.TryGetValue('path', ScanPath) then 
+        ScanPath := '';
       if ScanPath = '' then ScanPath := 'C:\'; 
       
       if (Length(ScanPath) > 3) and ScanPath.EndsWith('\') then 
@@ -339,7 +340,8 @@ begin
       FilePath: string;
       Content: string;
     begin
-      FilePath := Ctx.Request.Query.Values['path'];
+      if not Ctx.Request.Query.TryGetValue('path', FilePath) then
+        FilePath := '';
       if (FilePath = '') or not FileExists(FilePath) then
       begin
         Results.BadRequest('Valid file path required').Execute(Ctx);
@@ -365,7 +367,8 @@ begin
        FinalObj: IDextJsonObject;
        Res: IResult;
     begin
-       ScanPath := Ctx.Request.Query.Values['path'];
+       if not Ctx.Request.Query.TryGetValue('path', ScanPath) then
+         ScanPath := '';
        if ScanPath = '' then 
        begin
           Results.BadRequest('Path required').Execute(Ctx);
@@ -456,7 +459,8 @@ begin
        FixturesArr, MethodsArr: IDextJsonArray;
        Res: IResult;
     begin
-       ProjectPath := Ctx.Request.Query.Values['project'];
+       if not Ctx.Request.Query.TryGetValue('project', ProjectPath) then
+         ProjectPath := '';
        
        if (ProjectPath = '') or not FileExists(ProjectPath) then
        begin
