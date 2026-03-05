@@ -37,9 +37,11 @@
 {                                                                           }
 {***************************************************************************}
 unit Dext.Web.DCS;
+{$I ..\Dext.inc}
 
 interface
 
+{$IFDEF DEXT_ENABLE_DCS}
 uses
   System.Classes,
   System.SysUtils,
@@ -54,7 +56,9 @@ uses
   Dext.DI.Interfaces,
   Dext.Auth.Identity,
   Dext.Json;
+{$ENDIF DEXT_ENABLE_DCS}
 
+{$IFDEF DEXT_ENABLE_DCS}
 type
   // -------------------------------------------------------------------------
   // TDextDCSFormFile — IFormFile backed by a DCS TFormField
@@ -224,8 +228,11 @@ type
     class function Factory: TServerFactory;
   end;
 
+{$ENDIF DEXT_ENABLE_DCS}
+
 implementation
 
+{$IFDEF DEXT_ENABLE_DCS}
 uses
   Dext.Utils,
   Dext.Hosting.ApplicationLifetime;
@@ -805,5 +812,7 @@ begin
       Result := TDextDCSServer.Create(Port, Pipeline, Services);
     end;
 end;
+
+{$ENDIF DEXT_ENABLE_DCS}
 
 end.
