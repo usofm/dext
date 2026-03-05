@@ -306,6 +306,109 @@ Notes:
 - Set `Accept` and `Content-Type` headers explicitly
 - Enums are serialized as strings by default (`"tsOpen"`, not `1`)
 
+## Snapshot Testing
+
+Compare complex objects against a saved JSON baseline instead of writing dozens of `Should.Be` assertions:
+
+```pascal
+[Test]
+procedure TestComplexReport;
+begin
+  var Result := Service.GenerateReport(123);
+
+  // First run: creates __snapshots__/MyTests.TestComplexReport.json
+  // Subsequent runs: compares against the saved file
+  Result.MatchSnapshot;
+end;
+```
+
+Ignore fields that change per-run (timestamps, random IDs):
+```pascal
+Result.MatchSnapshot(procedure(Options: TSnapshotOptions)
+  begin
+    Options.IgnorePaths(['$.GenerationDate', '$.UniqueIdentifier']);
+  end);
+```
+
+Update snapshots after intentional logic changes:
+```bash
+dext test --update-snapshots
+```
+
+Snapshot files are saved in `__snapshots__/` next to the test unit.
+
+## Mock Verification Reference
+
+```pascal
+FMock.Received(Times.Once).Method(arg);         // Exactly once
+FMock.Received(Times.Never).Method(arg);        // Never
+FMock.Received(Times.Exactly(3)).Method(arg);   // Exactly N times
+FMock.Received(Times.AtLeast(2)).Method(arg);   // At least N
+FMock.Received(Times.AtMost(5)).Method(arg);    // At most N
+FMock.DidNotReceive.Delete(Arg.Any<Integer>);   // Alias for Times.Never
+FMock.VerifyNoOtherCalls;                        // No other calls were made
+```
+
+Interfaces must have `{$M+}` to be mockable:
+```pascal
+type
+  {$M+}
+  IMyService = interface
+    ['{...}']
+    function DoWork: Boolean;
+  end;
+  {$M-}
+```
+
+## Full Assertion Reference
+
+```pascal
+// Equality
+Value.Should.Be(42);
+Value.Should.NotBe(0);
+Value.Should.BeGreaterThan(10);
+Value.Should.BeLessThan(100);
+Value.Should.BeInRange(1, 100);
+
+// Nil / Boolean
+Obj.Should.BeNil;
+Obj.Should.NotBeNil;
+Flag.Should.BeTrue;
+Flag.Should.BeFalse;
+
+// String
+Text.Should.Contain('ell');
+Text.Should.StartWith('He');
+Text.Should.EndWith('lo');
+Text.Should.Match('^[A-Z]');  // Regex
+Text.Should.BeEmpty;
+Text.Should.HaveLength(5);
+
+// Collections
+List.Should.HaveCount(5);
+List.Should.BeEmpty;
+List.Should.Contain(Item);
+List.Should.ContainOnly(Item1, Item2);
+List.Should.BeOrdered;
+var u := Prototype.Entity<TUser>;
+Users.Should.AllMatch(u.Age > 0);
+
+// Objects
+Obj.Should.BeOfType<TUser>;
+Obj.Should.BeEquivalentTo(Other);
+
+// Exceptions
+Should.Raise<EArgumentException>(procedure begin Svc.Bad end);
+Should.NotRaise(procedure begin Svc.Safe end);
+
+// Soft assertions (collect all failures)
+Assert.Multiple(procedure
+  begin
+    User.Name.Should.Be('John');
+    User.Age.Should.BeGreaterThan(18);
+  end);
+```
+
 ## Common Mistakes
 
 | Wrong | Correct |
@@ -315,3 +418,11 @@ Notes:
 | `.RegisterFixtures([...])` without `.Verbose` | Always include `.Verbose` |
 | Not freeing child entities in tests | `Item.Free` after `Order.Free` |
 | `Should(Obj).Equal(...)` | `Should(Obj).Be(...)` |
+
+## Examples
+
+| Example | What it shows |
+|---------|---------------|
+| `Orm.EntityDemo` | 18 test suites covering ORM CRUD, relationships, and edge cases |
+| `Desktop.MVVM.CustomerCRUD` | Unit tests for controller + view mock with `Mock<ICustomerView>` |
+| `Web.TicketSales` | Business rule tests: stock limits, half-price logic, SLA enforcement |

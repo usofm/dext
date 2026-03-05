@@ -6,15 +6,45 @@ Focused instruction packages for writing correct, idiomatic **Dext** (Delphi mod
 
 | Skill | File | Load When |
 |-------|------|-----------|
-| **dext-web** | `dext-web.md` | Building HTTP endpoints, Minimal APIs, Controllers, routing, model binding, Results pattern |
-| **dext-orm** | `dext-orm.md` | ORM entities, DbContext, querying, Smart Properties, CRUD, migrations |
-| **dext-di** | `dext-di.md` | Service registration, lifetimes (Scoped/Singleton/Transient), constructor injection, factory registration |
-| **dext-testing** | `dext-testing.md` | Unit tests, Mock<T>, fluent assertions (Should), TestFixture, TearDown |
-| **dext-auth** | `dext-auth.md` | JWT authentication, login endpoints, [Authorize], claims, TClaimsBuilder |
-| **dext-app-structure** | `dext-app-structure.md` | Startup class, middleware pipeline, .dpr bootstrap, project layout, database seeding |
-| **dext-collections** | `dext-collections.md` | IList<T>, TCollections, LINQ operations, ownership semantics, IChannel<T> |
+| **dext-app-structure** | `dext-app-structure.md` | New project setup, Startup class, middleware pipeline, `.dpr` bootstrap, project layout |
+| **dext-web** | `dext-web.md` | HTTP endpoints, Minimal APIs, Controllers, routing, model binding, Results pattern |
+| **dext-orm** | `dext-orm.md` | ORM entities, DbContext, querying, Smart Properties, CRUD |
+| **dext-orm-advanced** | `dext-orm-advanced.md` | Relationships, eager loading, inheritance (TPH/TPT), Specifications, migrations, raw SQL, stored procedures, locking, multi-tenancy |
+| **dext-di** | `dext-di.md` | Service registration, lifetimes (Scoped/Singleton/Transient), constructor injection, `[Inject]` attribute |
+| **dext-auth** | `dext-auth.md` | JWT authentication, login endpoints, `[Authorize]`, claims, `TClaimsBuilder` |
+| **dext-testing** | `dext-testing.md` | Unit tests, `Mock<T>`, fluent assertions (`Should`), `[TestFixture]`, snapshot testing |
+| **dext-collections** | `dext-collections.md` | `IList<T>`, `TCollections`, LINQ operations, ownership semantics, `IChannel<T>` |
+| **dext-api-features** | `dext-api-features.md` | Middleware, CORS, rate limiting, response caching, health checks, OpenAPI/Swagger, static files, compression |
+| **dext-background** | `dext-background.md` | Background workers (`IHostedService`), configuration (`IConfiguration`, Options pattern), async tasks (`TAsyncTask`) |
+| **dext-networking** | `dext-networking.md` | REST client (`TRestClient`), async HTTP requests, typed responses, auth providers, connection pooling |
+| **dext-realtime** | `dext-realtime.md` | Hubs (`THub`), SignalR-compatible real-time messaging, groups, `IHubContext<T>` |
+| **dext-database-as-api** | `dext-database-as-api.md` | Zero-code CRUD REST API from ORM entities (`TDataApiHandler<T>`) |
+| **dext-desktop-ui** | `dext-desktop-ui.md` | VCL desktop apps, Navigator (Flutter-inspired), Magic Binding (declarative two-way), MVVM |
+| **dext-server-adapters** | `dext-server-adapters.md` | Indy adapter (self-hosted), SSL/HTTPS (OpenSSL/Taurus), `Run` vs `Start`, deployment patterns, WebBroker/ISAPI (roadmap) |
+
+## Manual Installation
+
+Copy the `.claude/skills/` folder into your project, then reference skills by filename.
+
+| Agent | Project-level path | Global path |
+|-------|--------------------|-------------|
+| **Claude Code** | `.claude/skills/` | `~/.claude/skills/` |
+| **Cursor** | `.agents/skills/` | `~/.agents/skills/` |
+| **Cline** | `.cline/skills/` | `~/.cline/skills/` |
+| **OpenCode** | `.agents/skills/` | `~/.agents/skills/` |
+| **Continue** | `.continue/skills/` | `~/.continue/skills/` |
+
+## How It Works
+
+Skills are loaded dynamically when the agent needs them. The README is always loaded so the agent knows which skill to activate. Individual skill files are loaded on demand — keeping the context window lean.
 
 ## Trigger Guide
+
+**Load `dext-app-structure`** when:
+- Creating a new Dext project from scratch
+- Setting up the Startup class and middleware pipeline
+- Configuring the `.dpr` entry point
+- Organising project files and modules
 
 **Load `dext-web`** when:
 - Creating or modifying HTTP endpoints (`MapGet`, `MapPost`, `[HttpGet]`, `[HttpPost]`)
@@ -28,17 +58,18 @@ Focused instruction packages for writing correct, idiomatic **Dext** (Delphi mod
 - Querying with `.Where`, `.ToList`, `.Find`, Smart Properties
 - Adding/updating/removing records, database seeding
 
+**Load `dext-orm-advanced`** when:
+- Defining relationships (`[ForeignKey]`, `[InverseProperty]`, `[ManyToMany]`)
+- Using eager loading (`.Include`)
+- Working with TPH/TPT inheritance (`[Inheritance]`, `[DiscriminatorColumn]`)
+- Writing Specification classes, migrations, raw SQL, stored procedures
+- Implementing locking (optimistic/pessimistic) or multi-tenancy
+
 **Load `dext-di`** when:
 - Registering services with `.AddScoped`, `.AddSingleton`, `.AddTransient`
 - Setting up `ConfigureServices` in a Startup class
 - Injecting services via constructors or `[Inject]` attribute
 - Using factory registration with `IServiceProvider`
-
-**Load `dext-testing`** when:
-- Writing `[TestFixture]` classes
-- Using `Mock<T>` (from `Dext.Mocks`)
-- Writing fluent assertions with `Should(...)`
-- Setting up test projects (`.dpr`)
 
 **Load `dext-auth`** when:
 - Implementing JWT authentication
@@ -46,16 +77,52 @@ Focused instruction packages for writing correct, idiomatic **Dext** (Delphi mod
 - Using `[Authorize]`, `[AllowAnonymous]`
 - Building claims with `TClaimsBuilder`
 
-**Load `dext-app-structure`** when:
-- Creating a new Dext project from scratch
-- Setting up the Startup class and middleware pipeline
-- Configuring the `.dpr` entry point
-- Organising project files and modules
+**Load `dext-testing`** when:
+- Writing `[TestFixture]` classes
+- Using `Mock<T>` (from `Dext.Mocks`)
+- Writing fluent assertions with `Should(...)`
+- Setting up test projects (`.dpr`)
+- Using snapshot testing (`MatchSnapshot`)
 
 **Load `dext-collections`** when:
 - Using `IList<T>`, `TCollections.CreateList`, `TCollections.CreateObjectList`
 - Writing LINQ-style queries on in-memory lists
 - Using `IChannel<T>` for thread communication
+
+**Load `dext-api-features`** when:
+- Adding middleware (CORS, rate limiting, compression, static files)
+- Configuring OpenAPI/Swagger documentation
+- Setting up health checks, response caching
+
+**Load `dext-background`** when:
+- Creating background workers with `IHostedService`
+- Loading or binding configuration (`appsettings.json`, environment variables, Options pattern)
+- Using `TAsyncTask` for non-blocking async operations
+
+**Load `dext-networking`** when:
+- Making outbound HTTP requests to external APIs
+- Using `TRestClient` for REST calls
+- Needing async HTTP with typed deserialization
+
+**Load `dext-realtime`** when:
+- Building real-time features (WebSockets, push notifications)
+- Using `THub` and `IHubContext<T>`
+- Sending messages to connected clients or groups
+
+**Load `dext-database-as-api`** when:
+- Needing instant REST CRUD for an entity with zero controller code
+- Using `TDataApiHandler<T>` for admin panels or rapid prototyping
+
+**Load `dext-server-adapters`** when:
+- Configuring SSL/HTTPS (`SslProvider`, `SslCert`, `SslKey`)
+- Choosing between `App.Run` (blocking) and `App.Start` (non-blocking)
+- Deploying behind IIS/nginx reverse proxy
+- Questions about ISAPI/WebBroker or future adapter support
+
+**Load `dext-desktop-ui`** when:
+- Building VCL desktop applications with Dext Navigator
+- Implementing Magic Binding (declarative two-way binding)
+- Following MVVM pattern with ViewModel + Controller + Frame
 
 ## Key Framework Facts
 
@@ -78,3 +145,5 @@ Focused instruction packages for writing correct, idiomatic **Dext** (Delphi mod
 8. **Always `.WithPooling(True)`** for Web API DbContexts
 9. **Always call `.Update(Entity)` before `SaveChanges`** for detached entities
 10. **`Mock<T>` is a Record** — never call `.Free` on it
+11. **`Dext.Entity.Core`** must be in `uses` for `IDbSet<T>` generics to compile
+12. **`SetConsoleCharSet`** is REQUIRED in all console projects (test runners, CLI tools)

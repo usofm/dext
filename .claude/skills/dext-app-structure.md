@@ -308,3 +308,12 @@ Available options: `.CamelCase`, `.PascalCase`, `.CaseInsensitive`, `.ISODateFor
 | `Web.TicketSales` | Gold standard: Controllers + JWT + ORM |
 | `Web.SalesSystem` | Minimal APIs + CQRS |
 | `Web.HelpDesk` | Full-stack with integration tests |
+
+## Examples
+
+| Example | What it shows |
+|---------|---------------|
+| `Web.MinimalAPI` | Simplest Startup + Minimal API endpoints — ideal starting point |
+| `Web.ControllerExample` | Full Startup with controller registration, JWT, filters, versioning |
+| `Web.Dext.Starter.Admin` | Full-stack SaaS admin template with HTMX, Tailwind, dashboard |
+| `Web.DextStore` | E-commerce API: controllers, services, repositories, seeding |

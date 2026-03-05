@@ -492,3 +492,12 @@ Override specific names with `[Table('name')]` / `[Column('name')]`.
 | Query DB again after SaveChanges to get ID | ID is already set on the entity |
 | `.OrderBy(u.Name)` without `.Asc`/`.Desc` | `.OrderBy(u.Name.Asc)` |
 | `TUser.Props.Field` per expression | `var u := TUser.Props; u.Field` |
+
+## Examples
+
+| Example | What it shows |
+|---------|---------------|
+| `Orm.EntityDemo` | Comprehensive ORM: CRUD, relationships, lazy loading, soft delete, concurrency |
+| `Orm.EntityStyles` | Classic (native types) vs Smart Properties side-by-side comparison |
+| `Web.SmartPropsDemo` | `StringType`, `CurrencyType` — type-safe fluent queries, model binding |
+| `Dext.Examples.ComplexQuerying` | JSON fields, aggregations, reporting, date range filters |

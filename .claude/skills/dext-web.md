@@ -331,3 +331,14 @@ end;
 | `[HttpGet('{id}')]` (no slash) | `[HttpGet('/{id}')]` |
 | Method named `Create` | Use `CreateUser`, `CreateOrder`, etc. |
 | `Results.Unauthorized` | `Results.StatusCode(401)` |
+
+## Examples
+
+| Example | What it shows |
+|---------|---------------|
+| `Web.MinimalAPI` | MapGet/MapPost, DI, query params, JSON responses — minimal API basics |
+| `Web.ControllerExample` | `[ApiController]`, parameter binding, validation, filters |
+| `Web.TaskFlowAPI` | Hybrid routing mixing Minimal API and Controllers in one app |
+| `Web.StreamingDemo` | File upload/download, multipart, stream body, Content-Disposition |
+| `Web.TUUIDBindingExample` | Route/body binding for TUUID, UUID v7 generation |
+| `Web.DextStore` | Full e-commerce API with controller pattern, error handling |

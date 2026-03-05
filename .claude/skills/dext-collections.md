@@ -231,3 +231,10 @@ var Open := Chan.IsOpen; // Check if still open and has items
 | `CreateObjectList` for ORM child collections | `CreateList(False)` — DbContext owns them |
 | `.Where(...)` without `.ToList` when storing | Always call `.ToList` to materialise |
 | `TChannel` with no backpressure on high volume | Use `CreateBounded(N)` |
+
+## Examples
+
+| Example | What it shows |
+|---------|---------------|
+| `Dext.Examples.ComplexQuerying` | LINQ-style queries on ORM result sets, aggregation, filtering |
+| `Web.DextStore` | `IList<T>` used for cart items, order lines, product catalogues |

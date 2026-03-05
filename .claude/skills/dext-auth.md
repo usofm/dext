@@ -264,3 +264,11 @@ if Ctx.User.IsInRole('admin') then
 | Secret key shorter than 32 chars | Must be at least 32 characters |
 | Manual token parsing in handler | Use `Ctx.User.FindFirst('sub')` |
 | Not adding `.RequireAuthorization` | Endpoints are public by default |
+
+## Examples
+
+| Example | What it shows |
+|---------|---------------|
+| `Web.JwtAuthDemo` | JWT token generation, role-based authorization, claims builder, protected routes |
+| `Web.DextStore` | Auth integrated in a full e-commerce API with `[Authorize]` controllers |
+| `Web.ControllerExample` | `[Authorize]`, `[AllowAnonymous]`, JWT middleware setup |
