@@ -15,7 +15,7 @@ O objetivo não é apenas criar APIs, mas fornecer uma fundação sólida (DI, C
 
 ## 🎯 Filosofia e Objetivos
 
-* **Paridade com .NET Core**: O objetivo primário é alcançar a paridade de funcionalidades com os frameworks equivalentes do ecossistema .NET (ASP.NET Core, EF Core), mantendo-se atualizado com as novidades da plataforma.
+* **Inspirado nos Padrões .NET**: O objetivo é trazer os robustos padrões arquiteturais do ecossistema .NET (ASP.NET Core, EF Core) para o Delphi, alcançando alta compatibilidade com seus princípios de design.
 * **Performance Nativa**: Após a estabilização funcional da v1, o foco total será em **otimização de performance**, visando competir com frameworks de alta velocidade.
 * **Inovação**: Embora inspirado no .NET, o Dext não se limita a ele, buscando implementar soluções que façam sentido especificamente para a linguagem Delphi.
 
@@ -87,7 +87,7 @@ Um ORM moderno focado em produtividade e performance.
 * **Mapeamento de Herança**:
   * **Table-Per-Hierarchy (TPH)**: Suporte total para classes base e subclasses em uma única tabela.
   * **Hydration Polimórfica**: Instanciação automática da subclasse correta durante a recuperação de dados.
-  * **Mapeamento via Atributos**: Uso de `[Inheritance]`, `[DiscriminatorColumn]` e `[DiscriminatorValue]`.
+  * **Mapeamento via Atributos**: Uso de `[Inheritance]`, `[DiscriminatorColumn]`, e `[DiscriminatorValue]`.
 * **Multi-Database**: Suporte totalmente testado para **SQL Server, PostgreSQL, Firebird, MySQL/MariaDB** e **SQLite** (165 testes passando em todos). Oracle em beta.
 * **Auto-Detecção de Dialeto**: Identificação determinística via Enum (`ddPostgreSQL`, etc) para configuração zero.
 * **Drivers de Alta Performance**:
@@ -112,10 +112,10 @@ Um cliente HTTP fluente de alto desempenho para conectividade moderna.
 A fundação do framework, utilizável em qualquer tipo de aplicação.
 
 * **Dependency Injection**: Container IOC completo e rápido.
-* **Configuration**: Sistema de configuração flexível (JSON, Variáveis de Ambiente).
+* **Configuration**: Sistema de configuração flexível (JSON, YAML, Variáveis de Ambiente).
 * **Logging**: Abstração de log estruturado.
 * **Async/Await**: Primitivas para programação assíncrona real.
-* **Coleções Genéricas** ⭐ **NOVO**: Coleções baseadas em interfaces (`IList<T>`, `IDictionary<K,V>`) com gerenciamento manual de memória ZERO e suporte completo a LINQ (`Where`, `Select`, `Any`, `OrderBy`). Elimina "Memory Leaks" e simplifica a lógica de dados.
+* **Coleções Genéricas** ⭐ **NOVO**: Coleções baseadas em interfaces (`IList<T>`, `IDictionary<K,V>`) com gerenciamento manual de memória ZERO e amplo suporte inspirado em LINQ (`Where`, `Select`, `Any`, `OrderBy`). Elimina "Memory Leaks" e simplifica a lógica de dados.
 * **Specifications**: Encapsulamento e composição de regras de negócio (DDD).
 * **Expressions**: Primitivas de árvores de expressão para avaliação dinâmica de lógica.
 * **Serialização JSON**:

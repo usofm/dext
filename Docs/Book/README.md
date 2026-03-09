@@ -99,7 +99,7 @@
 
 - [Dependency Injection](10-advanced/dependency-injection.md)
 - [Background Services](10-advanced/background-services.md)
-- [Configuration](10-advanced/configuration.md) - `IOptions<T>`
+- [Configuration](10-advanced/configuration.md) - `IOptions<T>` (JSON, YAML)
 - [Async API](10-advanced/async-api.md) - `TAsyncTask`
 
 #### [11. Desktop UI (Dext.UI)](11-desktop-ui/README.md) ⭐ NEW

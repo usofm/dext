@@ -21,7 +21,7 @@ Para detalhes técnicos e status granular de cada módulo, consulte:
 | Feature | Status | Notas |
 |---------|--------|-------|
 | **Minimal APIs** (`MapGet`, `MapPost`) | ✅ Pronto | Testado em `Web.Dext.Starter.Admin` |
-| **Controllers** ([ApiController] / POCO) | ✅ Pronto | Paridade funcional com ASP.NET Core. Sem necessidade de classe base. |
+| **Controllers** ([ApiController] / POCO) | ✅ Pronto | Alta compatibilidade com padrões do ASP.NET Core. Sem necessidade de classe base. |
 | **Model Binding** (JSON Body -> Record/Class) | ✅ Pronto | Suporte a aninhamento, listas e **Binding Misto** (Header/Query/Route/Body) |
 | **Dependency Injection** (Scoped/Singleton/Transient) | ✅ Pronto | Integração total com HttpContext |
 | **Middleware Pipeline** | ✅ Pronto | Custom Middlewares suportados |
@@ -91,7 +91,7 @@ Para detalhes técnicos e status granular de cada módulo, consulte:
 | **Test Results Dashboard** | ✅ Pronto | Visualização de cobertura e relatórios HTML integrada ao `dext ui` |
 | **Async Tasks** (`TAsyncTask`) | ✅ Pronto | Primitivas modernas de concorrência |
 | **Logging** (`ILogger`) | ✅ Pronto | Abstração de log |
-| **Configuration** (`IConfiguration`) | ✅ Pronto | JSON file provider |
+| **Configuration** (`IConfiguration`) | ✅ Pronto | Provedores de arquivos JSON e YAML |
 | **Binary JSON Parser** | ✅ Pronto | Parser JSON binário de alta performance |
 | **AutoMapper** (`TMapper`) | ✅ Pronto | Mapeamento DTO ↔ Entity com RTTI, custom member mapping e collections |
 | **Zero-Leak Record Facades** | ✅ Pronto | Uso de Records para `TDextServices` e Builders para eliminar vazamentos de memória (heap capture) |

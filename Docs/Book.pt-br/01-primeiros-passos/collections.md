@@ -13,7 +13,7 @@ As coleções padrão do Delphi (`System.Generics.Collections`) possuem duas gra
 
 - **Baseado em Interfaces (`IList<T>`)**: Gerenciamento automático de ciclo de vida via contagem de referência.
 - **Ownership Seguro**: Tratamento inteligente de objetos. Eles são destruídos apenas quando a lista é "dona" deles.
-- **Motor LINQ**: Métodos integrados como `Where`, `Select`, `Any`, `First` e `OrderBy`.
+- **Motor inspirado em LINQ**: Métodos integrados como `Where`, `Select`, `Any`, `First` e `OrderBy`.
 - **Integração com ORM**: Filtre os resultados do banco de dados em memória usando os mesmos padrões de especificação.
 
 ---

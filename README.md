@@ -15,7 +15,7 @@ The goal is not merely to build APIs, but to provide a solid foundation (DI, Con
 
 ## 🎯 Philosophy and Goals
 
-* **Parity with .NET Core**: The primary goal is to reach feature parity with equivalent frameworks in the .NET ecosystem (ASP.NET Core, EF Core), staying up-to-date with platform innovations.
+* **Inspired by .NET Patterns**: The goal is to bring the robust architectural patterns of the .NET ecosystem (ASP.NET Core, EF Core) to Delphi, achieving high compatibility with its design principles.
 * **Native Performance**: After functional stabilization of v1, the focus will shift entirely to **performance optimization**, aiming to compete with high-speed frameworks.
 * **Innovation**: While inspired by .NET, Dext is not limited to it, seeking to implement solutions that specifically make sense for the Delphi language.
 
@@ -112,10 +112,10 @@ A high-performance, fluent HTTP client for modern connectivity.
 The foundation of the framework, usable in any type of application.
 
 * **Dependency Injection**: Full and fast IOC container.
-* **Configuration**: Flexible configuration system (JSON, Environment Variables).
+* **Configuration**: Flexible configuration system (JSON, YAML, Environment Variables).
 * **Logging**: Structured logging abstraction.
 * **Async/Await**: Primitives for real asynchronous programming.
-* **Collections** ⭐ **NEW**: High-performance interface-based collections (`IList<T>`, `IDictionary<K,V>`) with automatic memory management and full LINQ support (`Where`, `Select`, `Any`, `OrderBy`). Elimina "Memory Leaks" e simplifica lógica de dados.
+* **Collections** ⭐ **NEW**: High-performance interface-based collections (`IList<T>`, `IDictionary<K,V>`) with automatic memory management and extensive LINQ-inspired support (`Where`, `Select`, `Any`, `OrderBy`). Elimina "Memory Leaks" e simplifica lógica de dados.
 * **Specifications**: Business rule encapsulation and composition (DDD).
 * **Expressions**: Expression tree primitives for dynamic logic evaluation.
 * **JSON Serialization**:

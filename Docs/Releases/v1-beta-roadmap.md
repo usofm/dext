@@ -21,7 +21,7 @@ For technical details and granular status of each module, check:
 | Feature | Status | Notes |
 |---------|--------|-------|
 | **Minimal APIs** (`MapGet`, `MapPost`) | ✅ Ready | Tested in `Web.Dext.Starter.Admin` |
-| **Controllers** ([ApiController] / POCO) | ✅ Ready | Functional parity with ASP.NET Core. No base class required. |
+| **Controllers** ([ApiController] / POCO) | ✅ Ready | High compatibility with ASP.NET Core patterns. No base class required. |
 | **Model Binding** (JSON Body -> Record/Class) | ✅ Ready | Support for nesting, lists, and **Mixed Binding** (Header/Query/Route/Body) |
 | **Dependency Injection** (Scoped/Singleton/Transient) | ✅ Ready | Full integration with HttpContext |
 | **Middleware Pipeline** | ✅ Ready | Custom Middlewares supported |
@@ -90,7 +90,7 @@ For technical details and granular status of each module, check:
 | **CLI Tool** (`dext.exe`) | ✅ Ready | Migrations, Tests & Code Coverage |
 | **Async Tasks** (`TAsyncTask`) | ✅ Ready | Modern concurrency primitives |
 | **Logging** (`ILogger`) | ✅ Ready | Log abstraction |
-| **Configuration** (`IConfiguration`) | ✅ Ready | JSON file provider |
+| **Configuration** (`IConfiguration`) | ✅ Ready | JSON and YAML file providers |
 | **Binary JSON Parser** | ✅ Ready | High-performance binary JSON parser |
 | **AutoMapper** (`TMapper`) | ✅ Ready | DTO ↔ Entity mapping with RTTI, custom member mapping and collections |
 | **Zero-Leak Record Facades** | ✅ Ready | Use of Records for `TDextServices` and Builders to eliminate heap-captured memory leaks |

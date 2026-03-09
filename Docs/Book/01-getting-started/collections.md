@@ -13,7 +13,7 @@ Standard Delphi collections (`System.Generics.Collections`) have two main drawba
 
 - **Interface-based (`IList<T>`)**: Automatic lifecycle management via reference counting.
 - **Safe Ownership**: Smart handling of objects. They are destroyed only when the list "owns" them.
-- **LINQ Engine**: Built-in methods like `Where`, `Select`, `Any`, `First`, and `OrderBy`.
+- **LINQ-inspired Engine**: Built-in methods like `Where`, `Select`, `Any`, `First`, and `OrderBy`.
 - **ORM Integration**: Filter your database results in-memory using the same specification patterns.
 
 ---
