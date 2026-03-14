@@ -10,6 +10,7 @@ uses
   System.SyncObjs,
   Dext.Net.RestClient,
   Dext.Net.RestRequest,
+  Dext.Collections,
   Dext.Threading.Async,
   Dext.Threading.CancellationToken,
   User.Entity in 'User.Entity.pas';
@@ -127,7 +128,7 @@ begin
     var Response := RestClient('https://jsonplaceholder.typicode.com')
       .Get<TPost>('/posts/1')
       .Await; // Blocks and runs on current thread
-      
+
     try
       Writeln('--- Demo: Synchronous Response ---');
       Writeln('Synchronous success!');
@@ -143,14 +144,48 @@ begin
   Writeln;
 end;
 
+procedure DemoSynchronousList;
+begin
+  Writeln('--- Demo: Synchronous List Request ---');
+
+  Writeln;
+
+  try
+    var posts := RestClient('https://jsonplaceholder.typicode.com')
+      .Get<TList<TPost>>('/posts')
+      .Await; // Blocks and runs on current thread
+
+    try
+      Writeln('--- Demo: Synchronous TList<TPost> ---');
+      Writeln('--- Demo: Synchronous TList Count '+posts.Count.ToString+' ---');
+      for var p in posts do
+      begin
+          Writeln('Synchronous success!');
+          Writeln('ID: ', p.id);
+          Writeln('Title: ', p.title);
+      end;
+    finally
+      //sposts.Free; //here : First chance exception at $767E3184. Exception class EInvalidPointer with message 'Invalid pointer operation'. Process RestClientDemo.exe (33268)
+    end;
+  except
+    on E: Exception do
+      Writeln('Synchronous Error: ', E.Message);
+  end;
+
+  Writeln;
+
+  readln;
+end;
+
 begin
   try
     Countdown := TCountdownEvent.Create(1);
     try
-      DemoFluentGet;
-      DemoRequestRequest;
-      DemoWithCancellation;
-      DemoSynchronous;
+      //DemoFluentGet;
+      //DemoRequestRequest;
+      //DemoWithCancellation;
+      //DemoSynchronous;
+      DemoSynchronousList;
       
       Writeln('Waiting for tasks...');
       Countdown.Signal; // Finish setup

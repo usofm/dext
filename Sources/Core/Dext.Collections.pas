@@ -162,12 +162,18 @@ type
   /// <summary>Base class avoiding Delphi explicit interface method mapping bug</summary>
   TListBase<T> = class(TInterfacedObject, Dext.Collections.Base.IEnumerable<T>)
   public
+    // Disable automatic reference counting so TList<T> can be used as a plain class
+    // (caller calls .Free) while still implementing interfaces for polymorphism.
+    // This mirrors the TComponent pattern: _AddRef/_Release return -1 without
+    // touching FRefCount, so BeforeDestruction sees RefCount=0 and .Free works normally.
+    function _AddRef: Integer; stdcall;
+    function _Release: Integer; stdcall;
     function GetInterfaceEnumerator: Dext.Collections.Base.IEnumerator<T>; virtual; abstract;
     function GetEnumerator: Dext.Collections.Base.IEnumerator<T>; virtual;
   end;
 
   {$M+}
-  {$RTTI EXPLICIT METHODS([vcPublic, vcPublished])}
+  {$RTTI EXPLICIT METHODS([vcPublic, vcPublished]) PROPERTIES([vcPublic, vcPublished])}
   TList<T> = class(TListBase<T>, IList<T>, ICollection)
   private
     type P_T = ^T;
@@ -265,6 +271,16 @@ uses
   Dext.Collections.Stack;
 
 { TListBase<T> }
+
+function TListBase<T>._AddRef: Integer;
+begin
+  Result := -1; // Lifetime managed by owner via .Free, not by reference counting
+end;
+
+function TListBase<T>._Release: Integer;
+begin
+  Result := -1; // Lifetime managed by owner via .Free, not by reference counting
+end;
 
 function TListBase<T>.GetEnumerator: Dext.Collections.Base.IEnumerator<T>;
 begin

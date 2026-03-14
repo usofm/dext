@@ -1654,30 +1654,31 @@ begin
     Result := TActivator.CreateInstance(FSettings.FServiceProvider, AType);
 
     var RttiType := TReflection.GetMetadata(AType).RttiType;
-    
+
     // Ensure the list owns its objects if they are classes
     if (ElementType.Kind = tkClass) then
     begin
-       var Collection: ICollection;
-       if Result.Kind = tkInterface then
-       begin
-         if Supports(Result.AsInterface, ICollection, Collection) then
-           Collection.OwnsObjects := True;
-       end
-       else if Result.Kind = tkClass then
-       begin
-        if Supports(Result.AsObject, ICollection, Collection) then
-          Collection.OwnsObjects := True
-        else
-        begin
-          // Try fetching via RTTI if Supports failed (common in some generic scenarios)
-          var OwnsProp := RttiType.GetProperty('OwnsObjects');
-          if (OwnsProp <> nil) and (OwnsProp.PropertyType.Handle = TypeInfo(Boolean)) then
-            OwnsProp.SetValue(Result.AsObject, True);
-        end;
+      if Result.Kind = tkInterface then
+      begin
+        // Safe: tkInterface TValue holds an AddRef, so Supports() refcount changes
+        // are balanced and the object survives past this block.
+        var Collection: ICollection;
+        if Supports(Result.AsInterface, ICollection, Collection) then
+          Collection.OwnsObjects := True;
+      end
+      else if Result.Kind = tkClass then
+      begin
+        // Do NOT use Supports() here. TValue(tkClass) holds no interface reference.
+        // Supports() would AddRef then Release, decrementing refcount to 0 and
+        // destroying the TInterfacedObject-based list before returning it to the caller.
+        // Use RTTI property access instead (enabled by PROPERTIES([vcPublic]) on TList<T>).
+        var OwnsProp := RttiType.GetProperty('OwnsObjects');
+        if OwnsProp <> nil then
+          OwnsProp.SetValue(Result.AsObject, True);
       end;
     end;
 
+    // Resolve the concrete object behind the list TValue.
     var InstObj: TObject := nil;
     if Result.Kind = tkInterface then
       InstObj := Result.AsInterface as TObject
@@ -1690,10 +1691,38 @@ begin
     else
       ActualRttiType := RttiType;
 
+    // --- Resolve AddMethod + TargetInst ----------------------------------------
+    // TList<T>.Add implements IList<T>.Add, so Delphi's RTTI returns it as
+    // TRttiInstanceMethodEx, which dispatches through the interface vtable.
+    // Invoking it with a class TValue causes EInvalidCast.
+    // Fix: find Add on the IList<T> interface and dispatch through that instead.
     AddMethod := nil;
-    
-    // First try concrete instance type
-    if ActualRttiType is TRttiInstanceType then
+    var FListIntfRef: IInterface := nil;  // keeps the interface alive
+    var FListIntfValue: TValue := TValue.Empty;
+
+    if Assigned(InstObj) and (ActualRttiType is TRttiInstanceType) then
+    begin
+      for var ImplIntf in TRttiInstanceType(ActualRttiType).GetImplementedInterfaces do
+      begin
+        if ImplIntf.Name.Contains('IList<') then
+        begin
+          for var Method in ImplIntf.GetMethods do
+            if (Method.Name = 'Add') and (Length(Method.GetParameters) = 1) then
+            begin
+              if InstObj.GetInterface(ImplIntf.GUID, FListIntfRef) then
+              begin
+                AddMethod := Method;
+                TValue.Make(@FListIntfRef, ImplIntf.Handle, FListIntfValue);
+              end;
+              Break;
+            end;
+          if Assigned(AddMethod) then Break;
+        end;
+      end;
+    end;
+
+    // Fallback: class method search (non-IList types, or when interface not found)
+    if not Assigned(AddMethod) and (ActualRttiType is TRttiInstanceType) then
     begin
       for var Method in ActualRttiType.GetMethods do
         if (Method.Name = 'Add') and (Length(Method.GetParameters) = 1) then
@@ -1703,7 +1732,7 @@ begin
         end;
     end;
 
-    // Fallback to interface hierarchy
+    // Fallback: AType is itself an interface (e.g. IList<T> passed directly)
     if not Assigned(AddMethod) and (RttiType is TRttiInterfaceType) then
     begin
       var Intf := TRttiInterfaceType(RttiType);
@@ -1725,6 +1754,20 @@ begin
 
     if not Assigned(AddMethod) then
       raise EDextJsonException.CreateFmt('Could not find Add method for list type %s', [AType.NameFld.ToString]);
+
+    // Determine the stable TargetInst to use across all element invocations
+    var TargetInst: TValue;
+    if not FListIntfValue.IsEmpty then
+      TargetInst := FListIntfValue   // interface dispatch — avoids TRttiInstanceMethodEx
+    else if Result.Kind = tkInterface then
+      TargetInst := Result
+    else
+    begin
+      // Re-wrap InstObj with the exact class TypeInfo so DispatchInvoke sees the
+      // correct type (TValue.From(TObject) stamps TypeInfo(TObject) which fails
+      // type checks inside generic method dispatch).
+      TValue.Make(@InstObj, AType, TargetInst);
+    end;
 
     try
       for I := 0 to AJson.GetCount - 1 do
@@ -1771,12 +1814,15 @@ begin
 
         if not ElementValue.IsEmpty then
         begin
-          var TargetInst: TValue;
-          if Assigned(InstObj) and (AddMethod.Parent.IsInstance) then
-            TargetInst := InstObj
-          else
-            TargetInst := Result;
-            
+          // Ensure ElementValue carries the exact ElementType TypeInfo.
+          // DeserializeObject returns TValue{TypeInfo(TObject)} because CreateInstance
+          // uses TValue.From(TObject). Interface Add methods check the TypeInfo strictly.
+          if (ElementValue.Kind = tkClass) and (ElementValue.TypeInfo <> ElementType) then
+          begin
+            var LObj := ElementValue.AsObject;
+            TValue.Make(@LObj, ElementType, ElementValue);
+          end;
+
           AddMethod.Invoke(TargetInst, [ElementValue]);
         end;
       end;
