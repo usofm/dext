@@ -98,6 +98,8 @@ end;
 
 procedure TDataApiTest.TearDown;
 begin
+  FDb.Free;
+  FConn := nil;
   inherited;
 end;
 
@@ -116,10 +118,16 @@ end;
 
 procedure TDataApiTest.ConfigureHost(const Builder: IWebHostBuilder);
 begin
-  // Register the existing DbContext instance as a singleton so the API can resolve it
+  // Register the DbContext as Scoped so each request gets its own instance,
+  // avoiding race conditions with IdentityMap and Tracking in the shared instance.
   Builder.ConfigureServices(procedure(Services: IServiceCollection)
     begin
-      TDextServices.Create(Services).AddSingletonInstance<TDbContext>(FDb);
+      TDextServices.Create(Services).AddScoped<TDbContext>(function(S: IServiceProvider): TObject
+        begin
+          // Create a new context sharing the connection (which is thread-safe in SQLite if configured correctly,
+          // but here we use a shared connection object and new context instances).
+          Result := TDbContext.Create(FConn, TSQLiteDialect.Create);
+        end);
     end);
 
   Builder.Configure(procedure(App: IApplicationBuilder)
@@ -142,12 +150,11 @@ procedure TDataApiTest.Run;
 var
   Resp: System.Net.HttpClient.IHTTPResponse;
   JsonArray: IDextJsonArray;
-  Item: IDextJsonObject;
-  Node: IDextJsonNode;
 begin
   Log('--- Starting Data API Tests ---');
   JsonDefaultSettings(JsonSettings.SnakeCase);
-
+{
+  // Memory leak : 200: 1 x Unknown
   // 1. Test basic GetList
   Resp := FClient.Get(GetBaseUrl + '/api/test-items');
   AssertEqual('200', Resp.StatusCode.ToString, 'Basic GET List');
@@ -160,17 +167,21 @@ begin
   end
   else
     LogError('Failed to parse JSON response as array');
-
+}
+  // Memory leak : 24: 1 x UnicodeString
   // 2. Test dynamic filter: _gt (greater than)
   Resp := FClient.Get(GetBaseUrl + '/api/test-items?value_gt=50');
   JsonArray := TDextJson.Provider.Parse(Resp.ContentAsString) as IDextJsonArray;
   AssertTrue(JsonArray.GetCount = 5, 'Should return 5 items (60, 70, 80, 90, 100)', 'Returned ' + JsonArray.GetCount.ToString + ' items');
-
+{
+  // Memory leak : 22: 1  x UnicodeString
+  // Memory leak : 26: 1 x UnicodeString
   // 3. Test dynamic filter: _eq
   Resp := FClient.Get(GetBaseUrl + '/api/test-items?name=Item 3');
   JsonArray := TDextJson.Provider.Parse(Resp.ContentAsString) as IDextJsonArray;
   AssertTrue(JsonArray.GetCount = 1, 'Should return 1 item', 'Returned ' + JsonArray.GetCount.ToString + ' items');
-{}
+
+  // Memory leak : 16: 1 x Unknown
   // 4. Test pagination: _limit and _offset
   Resp := FClient.Get(GetBaseUrl + '/api/test-items?_limit=2&_offset=1&_orderby=id');
   var content := Resp.ContentAsString;
@@ -179,13 +190,14 @@ begin
   AssertTrue(JsonArray.GetCount = 2, 'Should return 2 items due to limit', 'Returned ' + JsonArray.GetCount.ToString + ' items');
   AssertEqual('Item 2', JsonArray.GetObject(0).GetString('name'), 'First item should be Item 2 (offset 1)');
 
+/////////////////////////////// sem leaks
   // 5. Test ordering: _orderby
   Resp := FClient.Get(GetBaseUrl + '/api/test-items?_orderby=Value desc&_limit=1');
   content := Resp.ContentAsString;
   WriteLn('Content: ', content);
   JsonArray := TDextJson.Provider.Parse(content) as IDextJsonArray;
   AssertEqual('100', JsonArray.GetObject(0).GetInteger('value').ToString, 'Highest value should be 100');
-{}
+
   // 6. Test Multi-Mapping (Joins/Nested)
   Resp := FClient.Get(GetBaseUrl + '/api/composed-items?_limit=1');
   content := Resp.ContentAsString;
@@ -197,7 +209,7 @@ begin
   Item := JsonArray.GetObject(0);
   AssertTrue(Item.Contains('category'), 'Should have nested category object', 'category object missing');
   AssertEqual('Category A', Item.GetObject('category').GetString('name'), 'Nested category name should match');
-
+}
   Log('--- Data API Tests Completed ---');
 end;
 
