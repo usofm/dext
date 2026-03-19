@@ -49,6 +49,7 @@ uses
   Winapi.Windows,
   {$ENDIF}
   Dext.Logging,
+  Dext.Events.Types,
   Dext.Events.Interfaces;
 
 type

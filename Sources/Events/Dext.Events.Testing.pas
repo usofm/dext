@@ -52,6 +52,7 @@ uses
   Dext.Collections,
   Dext,
   Dext.DI.Interfaces,
+  Dext.Events.Types,
   Dext.Events.Interfaces;
 
 type

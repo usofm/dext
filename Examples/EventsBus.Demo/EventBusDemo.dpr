@@ -1,4 +1,4 @@
-﻿program EventBusDemo;
+program EventBusDemo;
 
 {***************************************************************************}
 {                                                                           }
@@ -23,7 +23,7 @@ uses
   System.Threading,
   Dext,                    // TDextServices, IServiceProvider
   Dext.Events,             // facade
-  Dext.Events.Extensions,  // AddEventBus, AddEventHandler, etc.
+  Dext.Events.Extensions,  // TEventBusServices, TEventBusBuilder
   Dext.Events.Interfaces,  // IEventBus, TEventBusExtensions
   Dext.Events.Behaviors,   // TEventExceptionBehavior (must be direct for generic resolution)
   Dext.Events.Testing,     // TEventBusTracker
@@ -75,8 +75,9 @@ begin
   Provider := BuildProvider(
     procedure(S: TDextServices)
     begin
-      S.AddEventBus
-       .AddEventHandler<TOrderPlacedEvent, TEmailNotificationHandler>;
+      TEventBusServices.AddEventBus(S)
+       .AddHandler<TOrderPlacedEvent, TEmailNotificationHandler>
+       .Build;
     end);
 
   Bus := GetBus(Provider);
@@ -106,10 +107,11 @@ begin
   Provider := BuildProvider(
     procedure(S: TDextServices)
     begin
-      S.AddEventBus
-       .AddEventHandler<TOrderPlacedEvent, TEmailNotificationHandler>
-       .AddEventHandler<TOrderPlacedEvent, TAuditLogHandler>
-       .AddEventHandler<TOrderPlacedEvent, TInventoryDeductHandler>;
+      TEventBusServices.AddEventBus(S)
+       .AddHandler<TOrderPlacedEvent, TEmailNotificationHandler>
+       .AddHandler<TOrderPlacedEvent, TAuditLogHandler>
+       .AddHandler<TOrderPlacedEvent, TInventoryDeductHandler>
+       .Build;
     end);
 
   Bus := GetBus(Provider);
@@ -138,10 +140,11 @@ begin
   Provider := BuildProvider(
     procedure(S: TDextServices)
     begin
-      S.AddEventBus
-       .AddEventHandler<TOrderPlacedEvent, TEmailNotificationHandler>
-       .AddEventHandler<TOrderPlacedEvent, TAuditLogHandler>
-       .AddEventBehavior<TConsolePipelineBehavior>;  // global — wraps ALL handlers
+      TEventBusServices.AddEventBus(S)
+       .AddHandler<TOrderPlacedEvent, TEmailNotificationHandler>
+       .AddHandler<TOrderPlacedEvent, TAuditLogHandler>
+       .AddBehavior<TConsolePipelineBehavior>
+       .Build;
     end);
 
   Bus := GetBus(Provider);
@@ -167,13 +170,12 @@ begin
   Provider := BuildProvider(
     procedure(S: TDextServices)
     begin
-      S.AddEventBus
-       .AddEventHandler<TOrderPlacedEvent, TEmailNotificationHandler>
-       .AddEventHandler<TPaymentProcessedEvent, TPaymentReceiptHandler>
-       // Global behavior runs outermost for ALL events
-       .AddEventBehavior<TConsolePipelineBehavior>
-       // Per-event behavior: only applied to TOrderPlacedEvent, runs INSIDE global
-       .AddEventBehaviorFor<TOrderPlacedEvent, TOrderValidationBehavior>;
+      TEventBusServices.AddEventBus(S)
+       .AddHandler<TOrderPlacedEvent, TEmailNotificationHandler>
+       .AddHandler<TPaymentProcessedEvent, TPaymentReceiptHandler>
+       .AddBehavior<TConsolePipelineBehavior>
+       .AddBehaviorFor<TOrderPlacedEvent, TOrderValidationBehavior>
+       .Build;
     end);
 
   Bus := GetBus(Provider);
@@ -217,15 +219,14 @@ begin
   Provider := BuildProvider(
     procedure(S: TDextServices)
     begin
-      S.AddEventBus
-       .AddEventHandler<TOrderPlacedEvent,    TEmailNotificationHandler>
-       .AddEventHandler<TOrderPlacedEvent,    TAuditLogHandler>
-       .AddEventHandler<TPaymentProcessedEvent, TPaymentReceiptHandler>
-       .AddEventHandler<TInventoryLowEvent,   TInventoryAlertHandler>
-       // Register typed publishers
-       .AddEventPublisher<TOrderPlacedEvent>
-       // Application services
-       .AddTransient<IOrderService,   TOrderService>
+      TEventBusServices.AddEventBus(S)
+       .AddHandler<TOrderPlacedEvent,       TEmailNotificationHandler>
+       .AddHandler<TOrderPlacedEvent,       TAuditLogHandler>
+       .AddHandler<TPaymentProcessedEvent,  TPaymentReceiptHandler>
+       .AddHandler<TInventoryLowEvent,      TInventoryAlertHandler>
+       .AddPublisher<TOrderPlacedEvent>
+       .Build;
+      S.AddTransient<IOrderService,   TOrderService>
        .AddTransient<IPaymentService, TPaymentService>;
     end);
 
@@ -255,10 +256,11 @@ begin
   Provider := BuildProvider(
     procedure(S: TDextServices)
     begin
-      S.AddEventBus
-       .AddEventHandler<TOrderPlacedEvent, TEmailNotificationHandler>
-       .AddEventHandler<TOrderPlacedEvent, TAuditLogHandler>
-       .AddEventBehavior<TEventExceptionBehavior>; // recommended for background
+      TEventBusServices.AddEventBus(S)
+       .AddHandler<TOrderPlacedEvent, TEmailNotificationHandler>
+       .AddHandler<TOrderPlacedEvent, TAuditLogHandler>
+       .AddBehavior<TEventExceptionBehavior>
+       .Build;
     end);
 
   Bus := GetBus(Provider);
@@ -290,10 +292,11 @@ begin
   Provider := BuildProvider(
     procedure(S: TDextServices)
     begin
-      S.AddEventBus
-       .AddEventHandler<TOrderPlacedEvent, TEmailNotificationHandler> // succeeds
-       .AddEventHandler<TOrderPlacedEvent, TAlwaysFailHandler>        // raises
-       .AddEventHandler<TOrderPlacedEvent, TAuditLogHandler>;         // still runs
+      TEventBusServices.AddEventBus(S)
+       .AddHandler<TOrderPlacedEvent, TEmailNotificationHandler>
+       .AddHandler<TOrderPlacedEvent, TAlwaysFailHandler>
+       .AddHandler<TOrderPlacedEvent, TAuditLogHandler>
+       .Build;
     end);
 
   Bus := GetBus(Provider);

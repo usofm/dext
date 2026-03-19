@@ -49,12 +49,12 @@ end;
 ### 3. Register at startup
 
 ```pascal
-Services
-  .AddEventBus
-  .AddEventHandler<TOrderPlacedEvent, TOrderEmailHandler>
-  .AddEventPublisher<TOrderPlacedEvent>        // typed publisher (preferred)
-  .AddEventBehavior<TEventExceptionBehavior>   // structured error handling
-  .AddEventBehavior<TEventLoggingBehavior>;    // structured ILogger output
+TEventBusServices.AddEventBus(Services)
+  .AddHandler<TOrderPlacedEvent, TOrderEmailHandler>
+  .AddPublisher<TOrderPlacedEvent>              // typed publisher (preferred)
+  .AddBehavior<TEventExceptionBehavior>         // structured error handling
+  .AddBehavior<TEventLoggingBehavior>           // structured ILogger output
+  .Build;
 ```
 
 ### 4. Publish
@@ -95,11 +95,11 @@ TEventBusExtensions.Publish<TOrderPlacedEvent>(FBus, Event);
 Register as many handlers as needed for the same event — they all run in registration order:
 
 ```pascal
-Services
-  .AddEventBus
-  .AddEventHandler<TOrderPlacedEvent, TOrderEmailHandler>     // sends email
-  .AddEventHandler<TOrderPlacedEvent, TOrderAuditHandler>     // writes audit log
-  .AddEventHandler<TOrderPlacedEvent, TInventoryHandler>;     // deducts stock
+TEventBusServices.AddEventBus(Services)
+  .AddHandler<TOrderPlacedEvent, TOrderEmailHandler>     // sends email
+  .AddHandler<TOrderPlacedEvent, TOrderAuditHandler>     // writes audit log
+  .AddHandler<TOrderPlacedEvent, TInventoryHandler>      // deducts stock
+  .Build;
 ```
 
 > [!IMPORTANT]
@@ -116,7 +116,9 @@ Services
 Each `Publish` call creates a fresh DI scope. Handlers are isolated from each other and from the caller. Best for background services and CLI apps.
 
 ```pascal
-Services.AddEventBus;  // singleton IEventBus, new scope per Publish
+TEventBusServices.AddEventBus(Services)  // singleton IEventBus, new scope per Publish
+  // ... handlers, behaviors ...
+  .Build;
 ```
 
 ### Scoped bus (web API)
@@ -124,7 +126,9 @@ Services.AddEventBus;  // singleton IEventBus, new scope per Publish
 `Publish` reuses the current DI scope (the HTTP request scope). Handlers share the same `DbContext`, identity, and unit-of-work as the controller that published the event. Best for web API controllers.
 
 ```pascal
-Services.AddScopedEventBus;  // IEventBus created per HTTP request
+TEventBusServices.AddScopedEventBus(Services)  // IEventBus created per HTTP request
+  // ... handlers, behaviors ...
+  .Build;
 ```
 
 ---
@@ -168,10 +172,10 @@ publish one event type. Narrower interface — easier to read, easier to mock.
 
 ```pascal
 // Registration
-Services
-  .AddEventBus
-  .AddEventHandler<TOrderPlacedEvent, TOrderEmailHandler>
-  .AddEventPublisher<TOrderPlacedEvent>;  // <-- register typed publisher
+TEventBusServices.AddEventBus(Services)
+  .AddHandler<TOrderPlacedEvent, TOrderEmailHandler>
+  .AddPublisher<TOrderPlacedEvent>     // <-- register typed publisher
+  .Build;
 
 // Injection — declares exactly what this class can emit
 type
@@ -219,20 +223,20 @@ The recommended production behavior. Resolves `ILoggerFactory` from DI (no extra
 On failure the exception is re-raised so the pipeline (and `TEventExceptionBehavior` if present) continues to handle it.
 
 ```pascal
-Services
-  .AddEventBus
-  .AddEventBehavior<TEventExceptionBehavior>  // outer: wraps with event context
-  .AddEventBehavior<TEventLoggingBehavior>;   // inner: ILogger timing + error
+TEventBusServices.AddEventBus(Services)
+  .AddBehavior<TEventExceptionBehavior>    // outer: wraps with event context
+  .AddBehavior<TEventLoggingBehavior>      // inner: ILogger timing + error
+  .Build;
 ```
 
 ### Global behaviors (all event types)
 
 ```pascal
-Services
-  .AddEventBus
-  .AddEventBehavior<TEventExceptionBehavior>   // outermost
-  .AddEventBehavior<TEventLoggingBehavior>;    // inner (production)
-  // .AddEventBehavior<TEventTimingBehavior>;  // alternative: dev/debug only
+TEventBusServices.AddEventBus(Services)
+  .AddBehavior<TEventExceptionBehavior>     // outermost
+  .AddBehavior<TEventLoggingBehavior>       // inner (production)
+  // .AddBehavior<TEventTimingBehavior>     // alternative: dev/debug only
+  .Build;
 ```
 
 ### Per-event behaviors (one event type only)
@@ -240,10 +244,10 @@ Services
 Per-event behaviors run *inside* global behaviors, closer to the handler.
 
 ```pascal
-Services
-  .AddEventBus
-  .AddEventBehavior<TEventExceptionBehavior>                          // global (outermost)
-  .AddEventBehaviorFor<TOrderPlacedEvent, TOrderValidationBehavior>;  // per-event (inner)
+TEventBusServices.AddEventBus(Services)
+  .AddBehavior<TEventExceptionBehavior>                          // global (outermost)
+  .AddBehaviorFor<TOrderPlacedEvent, TOrderValidationBehavior>   // per-event (inner)
+  .Build;
 ```
 
 ### Writing a custom behavior
@@ -283,10 +287,11 @@ end;
 Register per-event so it only wraps `TOrderPlacedEvent` handlers:
 
 ```pascal
-Services
-  .AddEventBehavior<TEventExceptionBehavior>                      // global
-  .AddEventBehavior<TEventLoggingBehavior>                        // global
-  .AddEventBehaviorFor<TOrderPlacedEvent, TRetryBehavior>;        // per-event
+TEventBusServices.AddEventBus(Services)
+  .AddBehavior<TEventExceptionBehavior>                       // global
+  .AddBehavior<TEventLoggingBehavior>                         // global
+  .AddBehaviorFor<TOrderPlacedEvent, TRetryBehavior>          // per-event
+  .Build;
 ```
 
 > [!IMPORTANT]
@@ -299,11 +304,11 @@ Services
 Bridge `IHostApplicationLifetime` signals to the event bus with a single call:
 
 ```pascal
-Services
-  .AddEventBus
-  .AddEventHandler<TApplicationStartedEvent,  TMyStartupHandler>
-  .AddEventHandler<TApplicationStoppingEvent, TMyShutdownHandler>
-  .AddEventBusLifecycle;   // registers the lifecycle bridge as a hosted service
+TEventBusServices.AddEventBus(Services)
+  .AddHandler<TApplicationStartedEvent,  TMyStartupHandler>
+  .AddHandler<TApplicationStoppingEvent, TMyShutdownHandler>
+  .AddLifecycle      // registers the lifecycle bridge as a hosted service
+  .Build;
 ```
 
 The three lifecycle events are plain empty records:
@@ -324,7 +329,8 @@ replacement in unit tests.
 ```pascal
 uses
   Dext.Testing,        // TTestFixture, TTest, Should
-  Dext.Events.Testing; // TEventBusTracker
+  Dext.Events.Testing, // TEventBusTracker
+  Dext.Events.Extensions; // TEventBusServices
 
 type
   TOrderServiceTests = class(TTestFixture)
@@ -340,9 +346,10 @@ var
   Provider: IServiceProvider;
   Service: IOrderService;
 begin
-  Services := TDextServices.Create;
-  TEventBusTracker.Register(Services, Tracker)  // registers fake IEventBus
-    .AddTransient<IOrderService, TOrderService>;
+  Services := TDextServices.New;
+  TEventBusTracker.Register(Services, Tracker);  // registers fake IEventBus
+  TEventBusServices.AddPublisher<TOrderPlacedEvent>(Services);
+  Services.AddTransient<IOrderService, TOrderService>;
 
   Provider := Services.BuildServiceProvider;
   Service  := TServiceProviderExtensions.GetRequiredService<IOrderService>(Provider);
@@ -378,6 +385,25 @@ end;
 
 ---
 
+## Architecture
+
+The Event Bus splits its API across focused units:
+
+| Unit | Responsibility |
+|------|---------------|
+| `Dext.Events.Types` | Value types, delegates, exceptions (zero dependencies) |
+| `Dext.Events.Interfaces` | Interfaces (`IEventBus`, `IEventHandler<T>`, etc.) and `TEventBusExtensions` |
+| `Dext.Events.Extensions` | `TEventBusServices` static class + `TEventBusBuilder` for DI registration |
+| `Dext.Events.Bus` | Core dispatch implementation |
+| `Dext.Events.Behaviors` | Built-in behaviors (logging, timing, exception wrapping) |
+| `Dext.Events.Lifecycle` | Application lifecycle event bridge |
+| `Dext.Events.Testing` | `TEventBusTracker` test double |
+| `Dext.Events` | Facade — re-exports all public types from a single `uses` entry |
+
+`TEventBusServices` is a static class (not a record helper) — it works alongside `TWebServicesHelper` and other helpers without Delphi's single-record-helper limitation.
+
+---
+
 ## Performance Notes
 
 | Optimization | Detail |
@@ -402,29 +428,29 @@ Dext.Core also ships higher-concurrency primitives (`Dext.Collections.Concurrent
 procedure TStartup.ConfigureServices(const Services: TDextServices;
   const Configuration: IConfiguration);
 begin
-  Services
-    // Choose bus lifetime:
-    .AddEventBus                // singleton — new scope per Publish
-    // .AddScopedEventBus       // scoped   — shares HTTP request scope
+  TEventBusServices.AddEventBus(Services)
+    // .AddScopedEventBus(Services)  // alternative: shares HTTP request scope
 
     // Handlers
-    .AddEventHandler<TOrderPlacedEvent,   TOrderEmailHandler>
-    .AddEventHandler<TOrderPlacedEvent,   TOrderAuditHandler>
-    .AddEventHandler<TPaymentDoneEvent,   TPaymentNotifyHandler>
+    .AddHandler<TOrderPlacedEvent,   TOrderEmailHandler>
+    .AddHandler<TOrderPlacedEvent,   TOrderAuditHandler>
+    .AddHandler<TPaymentDoneEvent,   TPaymentNotifyHandler>
 
     // Typed publishers (optional)
-    .AddEventPublisher<TOrderPlacedEvent>
-    .AddEventPublisher<TPaymentDoneEvent>
+    .AddPublisher<TOrderPlacedEvent>
+    .AddPublisher<TPaymentDoneEvent>
 
     // Global behaviors (outermost first)
-    .AddEventBehavior<TEventExceptionBehavior>    // always recommended
-    .AddEventBehavior<TEventLoggingBehavior>      // production ILogger output
+    .AddBehavior<TEventExceptionBehavior>      // always recommended
+    .AddBehavior<TEventLoggingBehavior>        // production ILogger output
 
     // Per-event behaviors
-    .AddEventBehaviorFor<TOrderPlacedEvent, TOrderValidationBehavior>
+    .AddBehaviorFor<TOrderPlacedEvent, TOrderValidationBehavior>
 
     // Lifecycle bridge (optional)
-    .AddEventBusLifecycle;
+    .AddLifecycle
+
+    .Build;
 end;
 ```
 

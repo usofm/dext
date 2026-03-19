@@ -28,17 +28,11 @@ Web.EventBus.Demo/
 ├── Web.EventBusDemo.dpr                 # Entry point — listens on port 8080
 ├── Web.EventBusDemo.dproj               # Delphi project file
 ├── EventBusWebDemo.Startup.pas          # IStartup — delegates event bus config, adds controllers
-├── EventBusWebDemo.EventBusConfig.pas   # Isolated event bus registration (record helper scope)
+├── EventBusWebDemo.EventBusConfig.pas   # Isolated event bus registration
 ├── EventBusWebDemo.Controller.pas       # TTaskController — publishes events on each action
 ├── EventBusWebDemo.Events.pas           # Event records + handlers (WriteLn output)
 └── Test.Web.EventBusDemo.ps1            # PowerShell integration test script
 ```
-
-> **Why a separate `EventBusConfig` unit?** Delphi allows only one record helper per
-> type in a compilation scope. `TEventBusDIExtensions` (from `Dext.Events.Extensions`)
-> and `TWebServicesHelper` (from `Dext.Web`) both extend `TDextServices`. Isolating
-> the event bus registration in its own unit prevents the helpers from shadowing
-> each other.
 
 ## Running
 
@@ -96,19 +90,17 @@ If a handler raises an exception, `TEventExceptionBehavior` wraps it as `EEventD
 
 ## Registration Pattern
 
-Event bus registration is isolated in `EventBusWebDemo.EventBusConfig.pas`:
+Event bus registration uses `TEventBusServices` — a static class that returns a fluent `TEventBusBuilder`:
 
 ```pascal
 procedure ConfigureEventBus(const Services: TDextServices);
 begin
-  Services
-    .AddScopedEventBus
-
-    .AddEventHandler<TTaskCreatedEvent, TTaskCreatedHandler>
-    .AddEventHandler<TTaskCompletedEvent, TTaskCompletedHandler>
-    .AddEventHandler<TTaskCancelledEvent, TTaskCancelledHandler>
-
-    .AddEventBehavior<TEventExceptionBehavior>;
+  TEventBusServices.AddScopedEventBus(Services)
+    .AddHandler<TTaskCreatedEvent, TTaskCreatedHandler>
+    .AddHandler<TTaskCompletedEvent, TTaskCompletedHandler>
+    .AddHandler<TTaskCancelledEvent, TTaskCancelledHandler>
+    .AddBehavior<TEventExceptionBehavior>
+    .Build;
 end;
 ```
 
@@ -122,6 +114,10 @@ begin
   Services.AddControllers;
 end;
 ```
+
+> **Note:** The `EventBusConfig` unit isolates event bus setup for clarity. Unlike the
+> previous record-helper approach, `TEventBusServices` is a static class, so it
+> works alongside `TWebServicesHelper` without any single-helper conflict.
 
 ## Controller Pattern
 

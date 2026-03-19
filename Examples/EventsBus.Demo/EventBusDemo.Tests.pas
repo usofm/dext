@@ -44,9 +44,9 @@ var
 begin
   // Arrange
   Services := TDextServices.New;
-  TEventBusTracker.Register(Services, Tracker)
-    .AddEventPublisher<TOrderPlacedEvent>
-    .AddTransient<IOrderService, TOrderService>;
+  TEventBusTracker.Register(Services, Tracker);
+  TEventBusServices.AddPublisher<TOrderPlacedEvent>(Services);
+  Services.AddTransient<IOrderService, TOrderService>;
 
   Provider := Services.BuildServiceProvider;
   OrderSvc := TServiceProviderExtensions.GetRequiredService<IOrderService>(Provider);
@@ -75,9 +75,9 @@ var
   OrderSvc: IOrderService;
 begin
   Services := TDextServices.New;
-  TEventBusTracker.Register(Services, Tracker)
-    .AddEventPublisher<TOrderPlacedEvent>
-    .AddTransient<IOrderService, TOrderService>;
+  TEventBusTracker.Register(Services, Tracker);
+  TEventBusServices.AddPublisher<TOrderPlacedEvent>(Services);
+  Services.AddTransient<IOrderService, TOrderService>;
 
   Provider := Services.BuildServiceProvider;
   OrderSvc := TServiceProviderExtensions.GetRequiredService<IOrderService>(Provider);

@@ -56,11 +56,11 @@ end;
 ### Event Bus
 
 ```pascal
-Services
-  .AddEventBus
-  .AddEventHandler<TOrderPlacedEvent, TOrderEmailHandler>
-  .AddEventPublisher<TOrderPlacedEvent>
-  .AddEventBehavior<TEventExceptionBehavior>;
+TEventBusServices.AddEventBus(Services)
+  .AddHandler<TOrderPlacedEvent, TOrderEmailHandler>
+  .AddPublisher<TOrderPlacedEvent>
+  .AddBehavior<TEventExceptionBehavior>
+  .Build;
 
 // Publish — typed, ISP-compliant
 FPublisher.Publish(Event);

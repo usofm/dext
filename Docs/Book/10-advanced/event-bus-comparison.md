@@ -8,7 +8,7 @@ Three Delphi event bus implementations with different design goals:
 | License | Apache 2.0 | Apache 2.0 | MIT |
 | Source | `Sources/Events/` (this repo) | [github/spinettaro/delphi-event-bus](https://github.com/spinettaro/delphi-event-bus) | [github/dalijap/nx-horizon](https://github.com/dalijap/nx-horizon) |
 | Min Delphi | 10.3 Rio | 2010 | XE4 |
-| Code size | ~900 lines (7 units) | ~1 790 lines (4 files) | ~715 lines (1 file) |
+| Code size | ~900 lines (8 units) | ~1 790 lines (4 files) | ~715 lines (1 file) |
 
 ---
 
@@ -19,12 +19,12 @@ Three Delphi event bus implementations with different design goals:
 Explicit, type-safe, DI-driven. Registered once at startup; handlers are resolved from the DI container on every `Publish`.
 
 ```pascal
-Services
-  .AddEventBus
-  .AddEventHandler<TOrderPlacedEvent, TOrderEmailHandler>
-  .AddEventHandler<TOrderPlacedEvent, TOrderAuditHandler>
-  .AddEventBehavior<TEventExceptionBehavior>
-  .AddEventBehavior<TEventLoggingBehavior>;
+TEventBusServices.AddEventBus(Services)
+  .AddHandler<TOrderPlacedEvent, TOrderEmailHandler>
+  .AddHandler<TOrderPlacedEvent, TOrderAuditHandler>
+  .AddBehavior<TEventExceptionBehavior>
+  .AddBehavior<TEventLoggingBehavior>
+  .Build;
 ```
 
 ### Delphi Event Bus (DEB)
@@ -253,7 +253,7 @@ var R := FPublisher.Publish(Event);
 
 | | Dext | DEB | NX Horizon |
 |---|---|---|---|
-| Lines of code | ~900 (7 units) | ~1 790 (4 files) | ~715 (1 file) |
+| Lines of code | ~900 (8 units) | ~1 790 (4 files) | ~715 (1 file) |
 | External dependencies | Dext.Core (DI, collections, logging) | None | None |
 | Global singleton | ❌ (DI-provided) | ✅ `GlobalEventBus` | ✅ `NxHorizon.Instance` |
 | Testable without framework | ✅ | ❌ (global state) | ✅ (own instance) |

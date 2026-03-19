@@ -80,6 +80,7 @@ uses
   Dext.Collections,
   Dext.Collections.Dict,
   Dext.DI.Interfaces,
+  Dext.Events.Types,
   Dext.Events.Interfaces;
 
 type

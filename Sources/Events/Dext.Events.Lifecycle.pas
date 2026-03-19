@@ -65,6 +65,7 @@ uses
   Dext.Threading.CancellationToken,
   Dext.Hosting.ApplicationLifetime,
   Dext.Hosting.BackgroundService,
+  Dext.Events.Types,
   Dext.Events.Interfaces;
 
 type

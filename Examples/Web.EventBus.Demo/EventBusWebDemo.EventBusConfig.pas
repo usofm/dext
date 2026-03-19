@@ -1,14 +1,5 @@
 unit EventBusWebDemo.EventBusConfig;
 
-{***************************************************************************}
-{  Web Event Bus Demo - Event Bus registration                              }
-{                                                                           }
-{  Isolated in its own unit so that TEventBusDIExtensions (record helper    }
-{  for TDextServices from Dext.Events.Extensions) does not shadow           }
-{  TWebServicesHelper (from Dext.Web) in the main Startup unit.             }
-{  Delphi allows only one record helper per type per compilation scope.     }
-{***************************************************************************}
-
 interface
 
 uses
@@ -25,12 +16,12 @@ uses
 
 procedure ConfigureEventBus(const Services: TDextServices);
 begin
-  Services
-    .AddScopedEventBus
-    .AddEventHandler<TTaskCreatedEvent, TTaskCreatedHandler>
-    .AddEventHandler<TTaskCompletedEvent, TTaskCompletedHandler>
-    .AddEventHandler<TTaskCancelledEvent, TTaskCancelledHandler>
-    .AddEventBehavior<TEventExceptionBehavior>;
+  TEventBusServices.AddScopedEventBus(Services)
+    .AddHandler<TTaskCreatedEvent, TTaskCreatedHandler>
+    .AddHandler<TTaskCompletedEvent, TTaskCompletedHandler>
+    .AddHandler<TTaskCancelledEvent, TTaskCancelledHandler>
+    .AddBehavior<TEventExceptionBehavior>
+    .Build;
 end;
 
 end.

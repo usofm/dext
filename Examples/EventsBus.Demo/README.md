@@ -8,11 +8,11 @@ build and run.
 
 | Demo | Feature | Key API |
 |------|---------|---------|
-| 1 | Basic publish/subscribe | `AddEventBus`, `AddEventHandler`, `Publish<T>` |
-| 2 | Multiple handlers per event | `AddEventHandler` × 3 |
-| 3 | Global pipeline behavior | `AddEventBehavior<TBehavior>` |
-| 4 | Per-event behavior + short-circuit | `AddEventBehaviorFor<TEvent, TBehavior>` |
-| 5 | Typed publisher (ISP) | `AddEventPublisher<T>`, `IEventPublisher<T>` |
+| 1 | Basic publish/subscribe | `TEventBusServices.AddEventBus`, `AddHandler`, `Publish<T>` |
+| 2 | Multiple handlers per event | `AddHandler` × 3 |
+| 3 | Global pipeline behavior | `AddBehavior<TBehavior>` |
+| 4 | Per-event behavior + short-circuit | `AddBehaviorFor<TEvent, TBehavior>` |
+| 5 | Typed publisher (ISP) | `AddPublisher<T>`, `IEventPublisher<T>` |
 | 6 | Fire-and-forget | `PublishBackground<T>` |
 | 7 | Exception aggregation | `EEventDispatchAggregate` |
 | 8 | Unit testing | `TEventBusTracker`, `TEventBusTracker.Register` |
@@ -73,11 +73,11 @@ EventsBus.Demo/
 ### Multiple handlers
 
 ```pascal
-Services
-  .AddEventBus
-  .AddEventHandler<TOrderPlacedEvent, TEmailNotificationHandler>
-  .AddEventHandler<TOrderPlacedEvent, TAuditLogHandler>
-  .AddEventHandler<TOrderPlacedEvent, TInventoryDeductHandler>;
+TEventBusServices.AddEventBus(Services)
+  .AddHandler<TOrderPlacedEvent, TEmailNotificationHandler>
+  .AddHandler<TOrderPlacedEvent, TAuditLogHandler>
+  .AddHandler<TOrderPlacedEvent, TInventoryDeductHandler>
+  .Build;
 ```
 
 ### Pipeline behaviors
@@ -112,9 +112,9 @@ constructor TPaymentService.Create(const ABus: IEventBus);
 ### Unit tests with TEventBusTracker
 
 ```pascal
-TEventBusTracker.Register(Services, Tracker)  // fake IEventBus — no real handlers
-  .AddEventPublisher<TOrderPlacedEvent>
-  .AddTransient<IOrderService, TOrderService>;
+TEventBusTracker.Register(Services, Tracker);  // fake IEventBus — no real handlers
+TEventBusServices.AddPublisher<TOrderPlacedEvent>(Services);
+Services.AddTransient<IOrderService, TOrderService>;
 
 OrderSvc.PlaceOrder(101, 55, 3, 149.90);
 
@@ -125,6 +125,7 @@ Assert(Tracker.LastPublished<TOrderPlacedEvent>.OrderId = 101);
 ## See Also
 
 - [Event Bus documentation](../../Docs/Book/10-advanced/event-bus.md)
+- `Sources/Events/Dext.Events.Types.pas` — value types, delegates, exceptions
 - `Sources/Events/Dext.Events.Interfaces.pas` — public interfaces
 - `Sources/Events/Dext.Events.Bus.pas` — implementation details
 - `Sources/Events/Dext.Events.Testing.pas` — TEventBusTracker
