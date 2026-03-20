@@ -81,7 +81,7 @@ type
   ///       .AddEventHandler<TOrderCreatedEvent, TOrderAuditHandler>
   ///       .AddEventBehavior<TEventExceptionBehavior>     // global
   ///       .AddEventBehavior<TEventTimingBehavior>        // global
-  ///       .AddEventBehavior<TOrderCreatedEvent, TOrderValidationBehavior> // per-event
+  ///       .AddEventBehaviorFor<TOrderCreatedEvent, TOrderValidationBehavior> // per-event
   ///   </code>
   ///
   ///   Delphi allows only one record helper for TDextServices per scope. Dext’s

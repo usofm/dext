@@ -339,8 +339,9 @@ replacement in unit tests.
 
 ```pascal
 uses
-  Dext.Testing,        // TTestFixture, TTest, Should
-  Dext.Events.Testing; // TEventBusTracker
+  Dext.Testing,             // TTestFixture, TTest, Should
+  Dext.Events.Extensions,   // AddEventPublisher<T> on TDextServices
+  Dext.Events.Testing;      // TEventBusTracker
 
 type
   TOrderServiceTests = class(TTestFixture)
@@ -356,8 +357,9 @@ var
   Provider: IServiceProvider;
   Service: IOrderService;
 begin
-  Services := TDextServices.Create;
+  Services := TDextServices.New;
   TEventBusTracker.Register(Services, Tracker)  // registers fake IEventBus
+    .AddEventPublisher<TOrderPlacedEvent>
     .AddTransient<IOrderService, TOrderService>;
 
   Provider := Services.BuildServiceProvider;

@@ -196,7 +196,7 @@ type
   end;
 
   /// <summary>
-  ///   Raised by IEventBus.Publish&lt;T&gt; when one or more handlers raise an
+  ///   Raised after synchronous dispatch when one or more handlers raise an
   ///   exception. All handlers are always invoked before this is raised.
   ///   Errors contains one entry per failed handler (ClassName + Message).
   /// </summary>

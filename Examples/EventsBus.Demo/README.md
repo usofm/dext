@@ -1,4 +1,4 @@
-# Core.EventBusDemo — Dext Event Bus Showcase
+# EventsBus.Demo — Dext Event Bus Showcase
 
 A focused console application that walks through all eight event bus features
 in isolated, self-contained demos. No web server or database required — just
