@@ -34,11 +34,13 @@ Web.EventBus.Demo/
 └── Test.Web.EventBusDemo.ps1            # PowerShell integration test script
 ```
 
-> **Why a separate `EventBusConfig` unit?** Delphi allows only one record helper per
-> type in a compilation scope. `TEventBusDIExtensions` (from `Dext.Events.Extensions`)
-> and `TWebServicesHelper` (from `Dext.Web`) both extend `TDextServices`. Isolating
-> the event bus registration in its own unit prevents the helpers from shadowing
-> each other.
+> **Why a separate `EventBusConfig` unit?** This matches how Dext is meant to be used
+> at the **composition root**: keep `Dext`, `Dext.Entity`, and `Dext.Web` **last** (in
+> that order) in your Startup `uses` for the normal web fluent API. Because Delphi allows
+> only **one** record helper on `TDextServices` per unit, `TWebServicesHelper` and
+> `TEventBusDIExtensions` cannot both apply in the same file — so bus registration
+> goes in a small unit that `uses` `Dext.Events.Extensions` only. See
+> [`Docs/Book/10-advanced/event-bus.md`](../../Docs/Book/10-advanced/event-bus.md) — section **Composition root: uses clause convention**.
 
 ## Running
 

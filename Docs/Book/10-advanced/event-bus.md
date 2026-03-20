@@ -11,6 +11,22 @@ The Dext Event Bus is a high-performance, DI-integrated in-process publish/subsc
 | **Behavior** | Cross-cutting wrapper around handlers (logging, retry, timing) |
 | **Bus** | The `IEventBus` service that dispatches events to handlers |
 
+## Composition root: `uses` clause convention
+
+Delphi allows **only one record helper** per type in a given compilation scope. Dext’s fluent registration relies on helpers on `TDextServices` (for example `TWebServicesHelper` in `Dext.Web` and `TEventBusDIExtensions` in `Dext.Events.Extensions`).
+
+**Official Dext convention** (composition root / Startup only — not in every business unit):
+
+1. In your **Startup** (or equivalent composition root) unit, list framework units **`Dext`**, **`Dext.Entity`**, and **`Dext.Web`** in **that exact order**, and **after** all other units in the `uses` clause.
+2. This keeps the intended fluent API for web and entity registration where the host is configured.
+
+**Event Bus + Web in the same app:** you still cannot activate two helpers on `TDextServices` in the *same* unit. The recommended pattern is:
+
+- Keep **Startup** on `Dext` + `Dext.Web` (and the convention above) so `Services.AddControllers` and similar calls resolve as expected.
+- Put **`AddEventBus` / `AddScopedEventBus` / `AddEventHandler` / …** in a **small dedicated unit** (e.g. `MyApp.EventBusConfig.pas`) whose `uses` includes **`Dext.Events.Extensions`** and does **not** include `Dext.Web`, then call `ConfigureEventBus(Services)` from Startup.
+
+See `Examples/Web.EventBus.Demo/EventBusWebDemo.EventBusConfig.pas` for a minimal example.
+
 ## Quick Start
 
 ### 1. Define an event

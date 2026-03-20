@@ -83,6 +83,12 @@ type
   ///       .AddEventBehavior<TEventTimingBehavior>        // global
   ///       .AddEventBehavior<TOrderCreatedEvent, TOrderValidationBehavior> // per-event
   ///   </code>
+  ///
+  ///   Delphi allows only one record helper for TDextServices per scope. Dext’s
+  ///   composition-root convention is to list Dext, Dext.Entity, and Dext.Web
+  ///   last (in that order) in Startup. For Web + Event Bus together, register
+  ///   the bus in a separate unit that uses Dext.Events.Extensions only — see
+  ///   the Event Bus chapter in the Book (10-advanced/event-bus.md).
   /// </summary>
   // Named TEventBusDIExtensions (not TEventBusExtensions) to avoid a naming
   // conflict with TEventBusExtensions in Dext.Events.Interfaces, which holds
