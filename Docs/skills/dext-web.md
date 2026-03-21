@@ -5,11 +5,19 @@ description: Build HTTP endpoints with Dext Web Framework — Minimal APIs and C
 
 # Dext Web Framework
 
-## Core Import
+## Uses Clause Order (CRITICAL)
+
+Delphi only supports one class helper for a given type at a time. To ensure all framework features (Minimal APIs, Routing, Web Helpers) are available, the `uses` order **MUST** be:
+
+1. `Dext`
+2. `Dext.Entity` (if using ORM)
+3. `Dext.Web` (**LAST**)
 
 ```pascal
 uses
-  Dext.Web; // TAppBuilder, IResult, Results, WebApplication
+  Dext,
+  Dext.Entity, // Optional
+  Dext.Web;    // Always last
 ```
 
 ## Application Bootstrap
@@ -134,22 +142,6 @@ Results.StatusCode(418, 'msg') // Custom status
 Results.Ok                   // 200 without body
 ```
 
-## Endpoint Metadata (OpenAPI / Swagger)
-
-```pascal
-Builder.MapGet<IResult>('/api/health',
-  function: IResult
-  begin
-    Result := Results.Ok('healthy');
-  end)
-  .WithTags('Health')
-  .WithSummary('Check API status')
-  .WithDescription('Returns a simple health message.')
-  .RequireAuthorization;  // optional: requires auth
-```
-
-Methods: `.WithTags(...)`, `.WithSummary(...)`, `.WithDescription(...)`, `.WithMetadata(...)`, `.RequireAuthorization`.
-
 ## Endpoints Module Pattern
 
 Organise routes in a dedicated unit:
@@ -177,6 +169,7 @@ end;
 ```
 
 Wire in Startup:
+
 ```pascal
 App.Builder
   .MapEndpoints(TMyEndpoints.MapEndpoints)
@@ -238,6 +231,15 @@ type
 - Route params **must start with `/`**: `[HttpGet('/{id}')]` ✅, `[HttpGet('{id}')]` ❌
 - **NEVER** name a method just `Create` — conflicts with Delphi constructors (E2254). Use `CreateUser`, `CreateOrder`, etc.
 - `[Route]` requires `[ApiController]` to be registered by the scanner.
+
+### Smart Linking Prevention (Controllers)
+
+Delphi's linker removes unreferenced classes. Since Controllers are called via RTTI, you **must** force the inclusion of the class in the unit's initialization block, otherwise the route will return 404.
+
+```pascal
+initialization
+  TUsersController.ClassName;
+```
 
 ### Controller Actions
 
@@ -331,14 +333,3 @@ end;
 | `[HttpGet('{id}')]` (no slash) | `[HttpGet('/{id}')]` |
 | Method named `Create` | Use `CreateUser`, `CreateOrder`, etc. |
 | `Results.Unauthorized` | `Results.StatusCode(401)` |
-
-## Examples
-
-| Example | What it shows |
-|---------|---------------|
-| `Web.MinimalAPI` | MapGet/MapPost, DI, query params, JSON responses — minimal API basics |
-| `Web.ControllerExample` | `[ApiController]`, parameter binding, validation, filters |
-| `Web.TaskFlowAPI` | Hybrid routing mixing Minimal API and Controllers in one app |
-| `Web.StreamingDemo` | File upload/download, multipart, stream body, Content-Disposition |
-| `Web.TUUIDBindingExample` | Route/body binding for TUUID, UUID v7 generation |
-| `Web.DextStore` | Full e-commerce API with controller pattern, error handling |

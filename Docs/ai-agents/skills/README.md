@@ -8,6 +8,8 @@ Focused instruction packages for writing correct, idiomatic **Dext** (Delphi mod
 |-------|------|-----------|
 | **dext-app-structure** | `dext-app-structure.md` | New project setup, Startup class, middleware pipeline, `.dpr` bootstrap, project layout |
 | **dext-web** | `dext-web.md` | HTTP endpoints, Minimal APIs, Controllers, routing, model binding, Results pattern |
+| **dext-view-engine** | `dext-view-engine.md` | Web Stencils SSR, `Results.View`, template syntax (`@if`, `@foreach`, `@switch`), layouts (`@LayoutPage`, `@RenderBody`, `@Import`), `@(Prop(...))` binding, streaming flyweight, AddVar/OnValue, scaffolding, session/auth, whitelist |
+| **dext-htmx** | `dext-htmx.md` | HTMX integration patterns: live search, inline edit, delete, modals, pagination, tabs, infinite scroll, partial rendering, swap strategies, loading indicators |
 | **dext-orm** | `dext-orm.md` | ORM entities, DbContext, querying, Smart Properties, CRUD |
 | **dext-orm-advanced** | `dext-orm-advanced.md` | Relationships, eager loading, inheritance (TPH/TPT), Specifications, migrations, raw SQL, stored procedures, locking, multi-tenancy |
 | **dext-di** | `dext-di.md` | Service registration, lifetimes (Scoped/Singleton/Transient), constructor injection, `[Inject]` attribute |
@@ -39,6 +41,35 @@ Copy the `Docs/ai-agents/skills/` folder into your project, then reference skill
 Skills are loaded dynamically when the agent needs them. The README is always loaded so the agent knows which skill to activate. Individual skill files are loaded on demand — keeping the context window lean. Note that some advanced users prefer to setup symbolic links to point tools like `claude-code` from `.claude/skills` directly to the `Docs/ai-agents/skills` repository.
 
 ## Trigger Guide
+
+**Load `dext-view-engine`** when:
+
+- Setting up Web Stencils as the view/template engine
+- Writing `Results.View` calls or `AddWebStencils` configuration
+- Creating or editing `.html` template files with `@` syntax
+- Using `@if`, `@else`, `@foreach`, `@switch`, `@ForEach`, `@page`, `@query` in templates
+- Working with layouts (`@LayoutPage`, `@RenderBody`, `@RenderHeader`, `@Import`, `@ExtraHeader`)
+- Binding Dext Smart Properties in templates (`@(Prop(...))`)
+- Configuring the Web Stencils whitelist for entity classes
+- Using `AddVar`, `AddModule`, `OnValue`, or `@Scaffolding`
+- Implementing session management (`TWebSessionManager`, `TWebFormsAuthenticator`, `TWebAuthorizer`)
+- Using `@session` object in templates
+- Using `@()` expression evaluation syntax
+- Setting up the streaming flyweight iterator for large datasets
+- Questions about Web Stencils template syntax, layout system, or architecture
+- CSS framework integration (Tailwind, Bootstrap) with Web Stencils
+
+**Load `dext-htmx`** when:
+
+- Adding HTMX interactivity to Web Stencils templates
+- Building live search, inline editing, delete, or modal patterns
+- Configuring `hx-get`, `hx-post`, `hx-put`, `hx-delete`, `hx-target`, `hx-swap`, `hx-trigger`
+- Creating partial views for HTMX fragment responses
+- Implementing pagination, tabs, infinite scroll, or sortable tables with HTMX
+- Using loading indicators (`htmx-indicator`)
+- Integrating AlpineJS or Hyperscript alongside HTMX
+- Understanding HTMX response headers (`HX-Redirect`, `HX-Trigger`, etc.)
+- Debugging layout-still-rendering issues inside HTMX targets
 
 **Load `dext-app-structure`** when:
 
@@ -164,3 +195,8 @@ Skills are loaded dynamically when the agent needs them. The README is always lo
 12. **`SetConsoleCharSet`** is REQUIRED in all console projects (test runners, CLI tools)
 13. **Uses Clause Order (CRITICAL)**: Due to Delphi's single class helper limitation, the `uses` order MUST always be: `Dext` → `Dext.Entity` → `Dext.Web`. The last one always wins and ensures Web methods (like `MapGet`, `AddWebStencils`) are visible.
 14. **Smart Properties**: For entities, always use **IntType**, **StringType**, **DoubleType**, and **BoolType** aliases (from `Dext.Core.SmartTypes`) instead of `Prop<T>`.
+15. **Web Stencils `@(Prop(...))`**: Always use `@(Prop(item.Property))` inside `@()` expression blocks. On Delphi 13+, simple `@item.Property` may work in plain text via HandleLookup auto-unwrap, but `@(Prop(...))` is always correct and safe.
+16. **Web Stencils Whitelist**: `WhitelistEntities = True` is the default — all ORM entities are auto-whitelisted. Only call `WhiteList(TClass)` for non-entity objects (DTOs, view models).
+17. **Records are not supported** in Web Stencils templates (no RTTI for enumerator values).
+18. **HTMX layout auto-suppression**: Dext auto-detects `HX-Request` header and suppresses the layout. Do NOT call `.WithLayout('')` for HTMX partials — it's automatic.
+19. **ViewData dictionaries are case-insensitive**: `@PageTitle` and `@pagetitle` resolve the same value.

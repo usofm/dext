@@ -9,10 +9,11 @@ description: Structure a Dext Web API project — Startup class, middleware pipe
 
 ```pascal
 uses
-  Dext;       // IConfiguration, TDextServices, IServiceProvider
-  Dext.Web;   // IWebApplication, IStartup, TAppBuilder, WebApplication
-  Dext.Utils; // SetConsoleCharSet, ConsolePause
-  Dext.MM;    // Optional: FastMM5 memory manager
+  Dext;          // IConfiguration, TDextServices, IServiceProvider
+  Dext.Web;      // IWebApplication, IStartup, TAppBuilder, WebApplication
+  Dext.Entity;   // AddDbContext, TDbContextOptions 
+  Dext.Utils;    // SetConsoleCharSet, ConsolePause
+  Dext.MM;       // Optional: FastMM5 memory manager
 ```
 
 ## Standard Project Layout
@@ -97,12 +98,22 @@ end;
 
 ### Startup Key Rules
 
-- `TDextServices` is a **Record** — never call `.Free` on it.
+- `TDextServices` is a **Record** — never call `.Free` on it. It is automatically managed by the stack.
+- **Builders (Middlewares/Options)**: Always use functional globals to instantiate builders: `CorsOptions`, `JwtOptions(key)`, `ResponseCacheOptions`, `SwaggerOptions`, `RateLimitPolicy`.
+  - These are also records on the stack. **Never** free them.
+  - E.g.: `App.Builder.UseCors(CorsOptions.AllowAnyOrigin.AllowAnyMethod)`
 - `ConfigureServices` receives `(const Services: TDextServices; const Configuration: IConfiguration)`.
 - `Configure` receives `IWebApplication`, not `IApplicationBuilder`.
 - Use `App.Builder` for the fluent middleware pipeline.
 - Database configuration **must** be in a separate private method.
 - Middleware order matters: exception handler first, swagger last.
+
+### Lifecycle & Memory Management (Golden Rules)
+
+- **IWebApplication**: ALWAYS declare the variable explicitly as `IWebApplication`.
+  - ✅ `var App: IWebApplication := WebApplication;`
+  - ❌ `var App := WebApplication;` (Insecure. The compiler infers the concrete class, causing ARC leaks on shutdown).
+- **Records containing Interfaces**: Records like `TJsonSettings` and `Prop<T>` contain interfaces. They **MUST** be initialized to zero before use to avoid `Invalid pointer operation`. Dext does this via factories, but if you create one manually, make sure it is initialized properly.
 
 ## Main Program (`.dpr`)
 
@@ -149,7 +160,7 @@ end.
 | Missing `IServiceProvider` declare | Declare `Provider: IServiceProvider` |
 | Missing `Dext` in uses | `IServiceProvider` requires `Dext` unit |
 | Forgetting `SetConsoleCharSet` | Always include — broken UTF-8 output |
-| Missing `ConsolePause` | App window closes instantly in IDE |
+| Missing `ConsolePause` | App window closes instantly in IDE (does not affect Production/Docker) |
 
 > `var App := WebApplication;` causes the compiler to infer the concrete class, not `IWebApplication`. This causes ARC/shutdown issues.
 
@@ -247,14 +258,14 @@ uses
 type
   TMyEndpoints = class
   public
-    class procedure MapEndpoints(const Builder: TAppBuilder); static;
+    class procedure MapEndpoints(Builder: TAppBuilder); static;
   end;
 
 implementation
 uses
   MyProject.Services;
 
-class procedure TMyEndpoints.MapEndpoints(const Builder: TAppBuilder);
+class procedure TMyEndpoints.MapEndpoints(Builder: TAppBuilder);
 begin
   Builder.MapGet<IResult>('/health',
     function: IResult
@@ -271,6 +282,7 @@ end;
 ```
 
 Wire up in Startup:
+
 ```pascal
 App.Builder
   .MapEndpoints(TMyEndpoints.MapEndpoints)
@@ -286,7 +298,14 @@ Configure JSON serialization globally in `Configure`:
 JsonDefaultSettings(JsonSettings.CamelCase.CaseInsensitive.ISODateFormat);
 ```
 
-Available options: `.CamelCase`, `.PascalCase`, `.CaseInsensitive`, `.ISODateFormat`, `.EnumAsString`, `.IgnoreNil`.
+Available fluent config options:
+
+- `CamelCase`, `PascalCase`, `SnakeCase`
+- `CaseInsensitive`
+- `ISODateFormat`, `UnixTimestamp`, `CustomDateFormat(str)`
+- `EnumAsString`, `EnumAsNumber`
+- `IgnoreNullValues`
+- `ServiceProvider(provider)`
 
 ## Standard Middleware Pipeline Order
 
@@ -300,20 +319,3 @@ Available options: `.CamelCase`, `.PascalCase`, `.CaseInsensitive`, `.ISODateFor
 7. UseSwagger(...)       — OpenAPI/Swagger UI (always last)
 ```
 
-## Reference Examples
-
-| Example | Pattern |
-|---------|---------|
-| `Web.EventHub` | Modern minimal APIs (2026) |
-| `Web.TicketSales` | Gold standard: Controllers + JWT + ORM |
-| `Web.SalesSystem` | Minimal APIs + CQRS |
-| `Web.HelpDesk` | Full-stack with integration tests |
-
-## Examples
-
-| Example | What it shows |
-|---------|---------------|
-| `Web.MinimalAPI` | Simplest Startup + Minimal API endpoints — ideal starting point |
-| `Web.ControllerExample` | Full Startup with controller registration, JWT, filters, versioning |
-| `Web.Dext.Starter.Admin` | Full-stack SaaS admin template with HTMX, Tailwind, dashboard |
-| `Web.DextStore` | E-commerce API: controllers, services, repositories, seeding |

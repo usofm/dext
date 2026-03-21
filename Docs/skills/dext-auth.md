@@ -9,8 +9,8 @@ description: Secure Dext Web APIs with JWT authentication — setup, login endpo
 
 ```pascal
 uses
-  Dext.Web.Auth;      // TJwtHelper, TClaimsBuilder, TAuthenticationOptions
-  Dext.Web.Auth.JWT;  // IJwtTokenHandler (for DI factory registration)
+  Dext.Web;      // JwtOptions helper
+  Dext.Auth.JWT; // IJwtTokenHandler, TClaim, TClaimsBuilder, TJwtTokenHandler
 ```
 
 ## JWT Flow
@@ -27,47 +27,33 @@ procedure TStartup.ConfigureServices(
   const Services: TDextServices;
   const Configuration: IConfiguration);
 begin
-  Services
-    .AddAuthentication(procedure(Options: TAuthenticationOptions)
-      begin
-        Options.SecretKey := 'your-secret-key-must-be-at-least-32-characters';
-        Options.Issuer := 'your-app-name';
-        Options.Audience := 'your-api-name';
-        Options.ExpirationMinutes := 60;
-      end)
-    .AddScoped<IAuthService, TAuthService>
-    .AddControllers;
+  // 1. MANDATORY Registration of the Handler (Dext.Auth.JWT)
+  Services.AddSingleton<IJwtTokenHandler, TJwtTokenHandler>(
+    function(Provider: IServiceProvider): TObject
+    begin
+      Result := TJwtTokenHandler.Create(JWT_SECRET, JWT_ISSUER, JWT_AUDIENCE, 60);
+    end);
+
+  // 2. Recommended: Claims Builder for your project
+  Services.AddTransient<IClaimsBuilder, TClaimsBuilder>;
 end;
 
 procedure TStartup.Configure(const App: IWebApplication);
 begin
   App.Builder
     .UseExceptionHandler
-    .UseAuthentication  // MUST come before routes
+    // 3. Activate Auth Middleware (Fluent Builder)
+    .UseJwtAuthentication(
+      JwtOptions(JWT_SECRET)
+        .Issuer(JWT_ISSUER)
+        .Audience(JWT_AUDIENCE)
+    )
     .MapControllers
     .UseSwagger(Swagger.Title('My API').Version('v1'));
 end;
 ```
 
-> `UseAuthentication` middleware **must be added before** route mapping.
-
-## 2. Alternative: DI Factory for JwtTokenHandler
-
-For finer control, register `IJwtTokenHandler` via factory:
-
-```pascal
-const
-  JWT_SECRET = 'your-secret-key-must-be-at-least-32-characters';
-  JWT_ISSUER = 'my-app';
-  JWT_AUDIENCE = 'my-api';
-  JWT_EXPIRATION = 60; // minutes
-
-Services.AddSingleton<IJwtTokenHandler, TJwtTokenHandler>(
-  function(Provider: IServiceProvider): TObject
-  begin
-    Result := TJwtTokenHandler.Create(JWT_SECRET, JWT_ISSUER, JWT_AUDIENCE, JWT_EXPIRATION);
-  end);
-```
+> `UseJwtAuthentication` middleware **must be added before** route mapping.
 
 ## 3. Login Endpoint
 
@@ -84,20 +70,16 @@ type
     Token: string;
   end;
 
-Builder.MapPost<TLoginRequest, IAuthService, IResult>('/api/auth/login',
-  function(Req: TLoginRequest; Auth: IAuthService): IResult
+Builder.MapPost<TLoginRequest, IAuthService, IJwtTokenHandler, IClaimsBuilder, IResult>('/api/auth/login',
+  function(Req: TLoginRequest; Auth: IAuthService; Jwt: IJwtTokenHandler; Claims: IClaimsBuilder): IResult
   begin
     if not Auth.ValidateCredentials(Req.Username, Req.Password) then
       Exit(Results.StatusCode(401));
 
-    var Claims := TClaimsBuilder.Create
-      .AddSub(Auth.GetUserId(Req.Username))
-      .AddName(Req.Username)
-      .AddEmail(Auth.GetEmail(Req.Username))
-      .AddRole('user')
-      .Build;
-
-    var Token := TJwtHelper.GenerateToken(JWT_SECRET, Claims, JWT_EXPIRATION);
+    var UserClaims := Claims.BuildClaims(Req.Username, 'user');
+    
+    // GenerateToken accepts TArray<TClaim>. Do NOT pass strings directly.
+    var Token := Jwt.GenerateToken(UserClaims);
 
     var Response: TLoginResponse;
     Response.Token := Token;
@@ -113,8 +95,10 @@ type
   TAuthController = class
   private
     FAuthService: IAuthService;
+    FJwt: IJwtTokenHandler;
+    FClaims: IClaimsBuilder;
   public
-    constructor Create(AuthService: IAuthService);
+    constructor Create(AuthService: IAuthService; Jwt: IJwtTokenHandler; Claims: IClaimsBuilder);
 
     [HttpPost('/login')]
     function Login([Body] Request: TLoginRequest): IResult;
@@ -125,13 +109,9 @@ begin
   if not FAuthService.ValidateCredentials(Request.Username, Request.Password) then
     Exit(Results.StatusCode(401));
 
-  var Claims := TClaimsBuilder.Create
-    .AddSub(FAuthService.GetUserId(Request.Username))
-    .AddName(Request.Username)
-    .AddRole('user')
-    .Build;
-
-  var Token := TJwtHelper.GenerateToken(JWT_SECRET, Claims, JWT_EXPIRATION);
+  var UserClaims := FClaims.BuildClaims(Request.Username, 'user');
+  var Token := FJwt.GenerateToken(UserClaims);
+  
   Result := Results.Ok(TLoginResponse.Create(Token));
 end;
 ```
@@ -237,9 +217,10 @@ if Ctx.User.IsInRole('admin') then
   // Admin logic...
 ```
 
-## 7. Token Validation
+## 6. Token Validation
 
-`UseAuthentication` middleware validates automatically:
+`UseJwtAuthentication` middleware validates automatically:
+
 - Signature (HMAC-SHA256 by default)
 - Expiration (`exp` claim)
 - Issuer (`iss`) — if `Options.Issuer` is set
@@ -247,7 +228,7 @@ if Ctx.User.IsInRole('admin') then
 
 ## Standard JWT Claim Names
 
-| Method | Claim key |
+| Custom Builder Method | Claim key |
 |--------|-----------|
 | `.AddSub('id')` | `sub` |
 | `.AddName('name')` | `name` |
@@ -260,15 +241,9 @@ if Ctx.User.IsInRole('admin') then
 | Wrong | Correct |
 |-------|---------|
 | `Results.Unauthorized` | `Results.StatusCode(401)` |
-| `UseAuthentication` after routes | `UseAuthentication` before routes |
+| `UseJwtAuthentication` after routes | `UseJwtAuthentication` before routes |
 | Secret key shorter than 32 chars | Must be at least 32 characters |
-| Manual token parsing in handler | Use `Ctx.User.FindFirst('sub')` |
+| Creating your own `IJwtTokenHandler` interface | Always use `Dext.Auth.JWT.IJwtTokenHandler` |
+| `Jwt.GenerateToken(User, Role)` | Use `Jwt.GenerateToken(TArray<TClaim>)` |
 | Not adding `.RequireAuthorization` | Endpoints are public by default |
 
-## Examples
-
-| Example | What it shows |
-|---------|---------------|
-| `Web.JwtAuthDemo` | JWT token generation, role-based authorization, claims builder, protected routes |
-| `Web.DextStore` | Auth integrated in a full e-commerce API with `[Authorize]` controllers |
-| `Web.ControllerExample` | `[Authorize]`, `[AllowAnonymous]`, JWT middleware setup |

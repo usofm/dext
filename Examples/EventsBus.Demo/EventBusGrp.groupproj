@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{6776E357-0DE1-4F14-801E-9B4D8BD498C2}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="..\Web.EventBus.Demo\Web.EventBusDemo.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="EventBusDemo.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="Web_EventBusDemo">
+        <MSBuild Projects="..\Web.EventBus.Demo\Web.EventBusDemo.dproj"/>
+    </Target>
+    <Target Name="Web_EventBusDemo:Clean">
+        <MSBuild Projects="..\Web.EventBus.Demo\Web.EventBusDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_EventBusDemo:Make">
+        <MSBuild Projects="..\Web.EventBus.Demo\Web.EventBusDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="EventBusDemo">
+        <MSBuild Projects="EventBusDemo.dproj"/>
+    </Target>
+    <Target Name="EventBusDemo:Clean">
+        <MSBuild Projects="EventBusDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="EventBusDemo:Make">
+        <MSBuild Projects="EventBusDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="Web_EventBusDemo;EventBusDemo"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="Web_EventBusDemo:Clean;EventBusDemo:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="Web_EventBusDemo:Make;EventBusDemo:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

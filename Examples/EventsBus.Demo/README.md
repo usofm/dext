@@ -111,16 +111,31 @@ constructor TPaymentService.Create(const ABus: IEventBus);
 
 ### Unit tests with TEventBusTracker
 
+Add to the unit **`uses`** (interface or implementation): `Dext`, `Dext.Events.Extensions`, `Dext.Events.Testing`, plus your domain units (e.g. events, services).
+
 ```pascal
-TEventBusTracker.Register(Services, Tracker)  // fake IEventBus — no real handlers
-  .AddEventPublisher<TOrderPlacedEvent>
-  .AddTransient<IOrderService, TOrderService>;
+procedure Test_OrderService_PublishesOrderPlacedEvent;
+var
+  Services: TDextServices;
+  Tracker: TEventBusTracker;
+  Provider: IServiceProvider;
+  OrderSvc: IOrderService;
+begin
+  Services := TDextServices.New;
+  TEventBusTracker.Register(Services, Tracker)  // fake IEventBus — no real handlers
+    .AddEventPublisher<TOrderPlacedEvent>
+    .AddTransient<IOrderService, TOrderService>;
 
-OrderSvc.PlaceOrder(101, 55, 3, 149.90);
+  Provider := Services.BuildServiceProvider;
+  OrderSvc := TServiceProviderExtensions.GetRequiredService<IOrderService>(Provider);
+  OrderSvc.PlaceOrder(101, 55, 3, 149.90);
 
-Assert(Tracker.HasPublished<TOrderPlacedEvent>);
-Assert(Tracker.LastPublished<TOrderPlacedEvent>.OrderId = 101);
+  Assert(Tracker.HasPublished<TOrderPlacedEvent>);
+  Assert(Tracker.LastPublished<TOrderPlacedEvent>.OrderId = 101);
+end;
 ```
+
+Full working example: `EventBusDemo.Tests.pas`.
 
 ## See Also
 

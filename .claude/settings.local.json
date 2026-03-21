@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(ls /c/apps_delphi/Comp12/dext/Sources/*.dproj)",
+      "WebFetch(domain:en.delphipraxis.net)",
+      "Bash(ls:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:dalijap.blogspot.com)",
+      "Bash(dir \"C:\\\\apps_delphi\\\\Comp12\\\\dext\" /b)",
+      "Bash(cmd /c debug_events.bat)",
+      "Bash(cmd /c \"C:\\\\apps_delphi\\\\Comp12\\\\dext\\\\Scripts\\\\debug_events.bat\")",
+      "Bash(echo \"EXIT_CODE: $?\")",
+      "Bash(cmd /c \"echo test && \\\\\"C:\\\\Program Files \\(x86\\)\\\\Embarcadero\\\\Studio\\\\23.0\\\\bin\\\\rsvars.bat\\\\\" 2>&1 && echo RSVARS_DONE\" 2>&1)",
+      "Bash(cmd /c \"echo HELLO_TEST\" 2>&1)",
+      "Bash(powershell -Command \"Write-Host 'PS_TEST'\" 2>&1)",
+      "Bash(powershell -Command \"delphi-lookup.exe 'TServiceProviderExtensions' -n 3\" 2>&1)",
+      "Bash(powershell -Command \"delphi-lookup.exe 'deprecated Dext.DI.Extensions' -n 2\" 2>&1)",
+      "Bash(powershell -Command \"grep -n 'deprecated' 'C:\\\\apps_delphi\\\\Comp12\\\\dext\\\\Sources\\\\Core\\\\Dext.DI.Extensions.pas' | head -5\" 2>&1)",
+      "Bash(powershell -Command \"grep -n ''TServiceProviderExtensions\\\\|GetRequiredService'' ''C:\\\\apps_delphi\\\\Comp12\\\\dext\\\\Sources\\\\Events\\\\Dext.Events.Extensions.pas''\")",
+      "Bash(powershell -Command \"grep -n ''TServiceProviderExtensions\\\\|GetRequiredService'' ''C:\\\\apps_delphi\\\\Comp12\\\\dext\\\\Sources\\\\Events\\\\Dext.Events.Lifecycle.pas''\")",
+      "Bash(powershell -Command \"Select-String -Path 'C:\\\\apps_delphi\\\\Comp12\\\\dext\\\\Sources\\\\Events\\\\Dext.Events.Lifecycle.pas' -Pattern 'Extensions|GetRequired'\" 2>&1)",
+      "Bash(powershell -Command \"delphi-lookup.exe 'TDextServices' -n 2\" 2>&1)",
+      "Bash(powershell -Command \"Select-String -Path 'C:\\\\apps_delphi\\\\Comp12\\\\dext\\\\Examples\\\\EventsBus.Demo\\\\EventBusDemo.Tests.pas' -Pattern '^uses|Dext\\\\.' | Select-Object -First 10 | ForEach-Object { Write-Host \\\\$_.LineNumber': '\\\\$_.Line }\" 2>&1)",
+      "Bash(powershell -Command \"Select-String -Path 'C:\\\\apps_delphi\\\\Comp12\\\\dext\\\\Sources\\\\Events\\\\Dext.Events.Extensions.pas' -Pattern 'TEventBusExtensions\\\\.' | ForEach-Object { Write-Host \\\\$_.LineNumber': '\\\\$_.Line }\" 2>&1)",
+      "Bash(powershell -Command \"\\(Get-Content 'C:\\\\apps_delphi\\\\Comp12\\\\dext\\\\Sources\\\\Events\\\\Dext.Events.Extensions.pas'\\) -replace 'TEventBusExtensions\\\\.', 'TEventBusDIExtensions.' | Set-Content 'C:\\\\apps_delphi\\\\Comp12\\\\dext\\\\Sources\\\\Events\\\\Dext.Events.Extensions.pas'\" 2>&1)",
+      "Bash(powershell -Command \"Select-String -Path 'C:\\\\apps_delphi\\\\Comp12\\\\dext\\\\Examples\\\\EventsBus.Demo\\\\Core.EventBusDemo.dpr' -Pattern 'uses|AddEvent|Dext' | Select-Object -First 20 | ForEach-Object { Write-Host \\\\$_.LineNumber': '\\\\$_.Line }\" 2>&1)",
+      "Bash(cmd /c \"C:\\\\apps_delphi\\\\Comp12\\\\dext\\\\Scripts\\\\debug_events_demo.bat\" 2>&1)",
+      "Bash(cmd /c \"call \\\\\"C:\\\\Program Files \\(x86\\)\\\\Embarcadero\\\\Studio\\\\23.0\\\\bin\\\\rsvars.bat\\\\\" && msbuild \\\\\"C:\\\\apps_delphi\\\\Comp12\\\\dext\\\\Examples\\\\EventsBus.Demo\\\\Core.EventBusDemo.dproj\\\\\" /t:Build /p:Config=Debug /p:Platform=Win32 /v:normal /nologo > C:\\\\apps_delphi\\\\Comp12\\\\dext\\\\Scripts\\\\demo_build.log 2>&1 && echo BUILD_OK || echo BUILD_FAIL\" 2>&1)",
+      "Bash(delphi-lookup.exe \"TDextServices\" -n 3 2>&1)"
+    ]
+  }
+}
