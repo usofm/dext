@@ -98,14 +98,14 @@ begin
       .Build;
 
     WriteLn;
-    WriteLn('🚀 Starting server on http://localhost:8080');
+    WriteLn('🚀 Starting server on http://localhost:5000');
     WriteLn;
     WriteLn('Test with:');
-    WriteLn('  curl http://localhost:8080/users/123');
-    WriteLn('  curl http://localhost:8080/posts/hello-world');
-    WriteLn('  curl -X PUT http://localhost:8080/users/456');
-    WriteLn('  curl -X DELETE http://localhost:8080/users/789');
-    WriteLn('  curl -X POST http://localhost:8080/users -H "Content-Type: application/json" -d "{\"name\":\"John\",\"email\":\"john@example.com\"}"');
+    WriteLn('  curl http://localhost:5000/users/123');
+    WriteLn('  curl http://localhost:5000/posts/hello-world');
+    WriteLn('  curl -X PUT http://localhost:5000/users/456');
+    WriteLn('  curl -X DELETE http://localhost:5000/users/789');
+    WriteLn('  curl -X POST http://localhost:5000/users -H "Content-Type: application/json" -d "{\"name\":\"John\",\"email\":\"john@example.com\"}"');
     WriteLn;
     WriteLn('Press Enter to stop...');
     WriteLn;

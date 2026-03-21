@@ -755,8 +755,6 @@ begin
   end;
 end;
 
-
-
 { TSQLColumnMapper<T> }
 
 constructor TSQLColumnMapper<T>.Create(ANamingStrategy: INamingStrategy);
@@ -886,42 +884,24 @@ begin
   if (FSchema <> '') and FDialect.UseSchemaPrefix then
     Result := FDialect.QuoteIdentifier(FSchema) + '.' + Result;
 end;
+
 function TSQLGenerator<T>.TryUnwrapSmartValue(var AValue: TValue): Boolean;
-var
-  RType: TRttiType;
-  FValue: TRttiField;
 begin
-  Result := False;
-  if AValue.Kind = tkRecord then
-  begin
-    RType := FRttiContext.GetType(AValue.TypeInfo);
-    if RType <> nil then
-    begin
-        // Check if it's a Smart Type (Prop<T>)
-        FValue := RType.GetField('FValue');
-        if (FValue <> nil) and 
-           (RType.Name.Contains('Prop<') or RType.Name.Contains('TProp') or 
-            (RType.Name.EndsWith('Type') and (RType.TypeKind = tkRecord))) then
-        begin
-          AValue := FValue.GetValue(AValue.GetReferenceToRawData);
-          Result := True;
-      end;
-    end;
-  end;
+  Result := TReflection.TryUnwrapProp(AValue, AValue);
 end;
 
 function TSQLGenerator<T>.GetSoftDeleteFilter: string;
 var
-  Typ: TRttiType;
   Attr: TCustomAttribute;
-  SoftDeleteAttr: SoftDeleteAttribute;
-  Prop: TRttiProperty;
   ColumnName: string;
-  PropName: string;
   DeletedVal, NotDeletedVal: Variant;
   IsSoftDelete: Boolean;
+  Prop: TRttiProperty;
   PropMap: TPropertyMap;
+  PropName: string;
+  SoftDeleteAttr: SoftDeleteAttribute;
   TargetPropType: PTypeInfo;
+  Typ: TRttiType;
 begin
   Result := '';
   IsSoftDelete := False;

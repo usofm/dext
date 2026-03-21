@@ -43,7 +43,7 @@ type
   ///   Represents an expression in a query (e.g., "Age > 18").
   /// </summary>
   IExpression = interface
-    ['{10000000-0000-0000-0000-000000000001}']
+    ['{D8D6EF4A-ED35-4833-8521-4B91D8C6901F}']
     function ToString: string; // For debugging/logging
   end;
 
@@ -51,7 +51,7 @@ type
   ///   Represents an order by clause.
   /// </summary>
   IOrderBy = interface
-    ['{10000000-0000-0000-0000-000000000002}']
+    ['{52493B12-2C04-4274-B07A-90074FED13B0}']
     function GetPropertyName: string;
     function GetAscending: Boolean;
   end;
@@ -60,7 +60,7 @@ type
   ///   Represents a JOIN clause.
   /// </summary>
   IJoin = interface
-    ['{10000000-0000-0000-0000-000000000005}']
+    ['{0466EABA-BC1B-45B3-9D07-6F54E4C8E522}']
     function GetTableName: string;
     function GetAlias: string;
     function GetJoinType: TJoinType;
@@ -71,7 +71,7 @@ type
   ///   Base interface for specifications containing non-generic query members.
   /// </summary>
   ISpecification = interface
-    ['{10000000-0000-0000-0000-000000000006}']
+    ['{07C752B7-2DB8-42C7-85CC-B12398799703}']
     function GetExpression: IExpression;
     function GetIncludes: TArray<string>;
     function GetOrderBy: TArray<IOrderBy>;
@@ -110,7 +110,7 @@ type
   ///   Encapsulates query logic for an entity type T.
   /// </summary>
   ISpecification<T> = interface(ISpecification)
-    ['{10000000-0000-0000-0000-000000000003}']
+    ['{1FBFFBCF-768E-44DB-8F6B-91C9B4A8EF45}']
     function Clone: ISpecification<T>;
   end;
 
@@ -119,7 +119,7 @@ type
   ///   This is used by the ORM/Repository to translate expressions to SQL.
   /// </summary>
   IExpressionVisitor = interface
-    ['{10000000-0000-0000-0000-000000000004}']
+    ['{970B2E95-CBB3-459B-8F51-3009CC4C366D}']
     procedure Visit(const AExpression: IExpression);
   end;
 

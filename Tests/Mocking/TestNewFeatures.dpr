@@ -170,7 +170,7 @@ begin
     TTestRunner.Run('Class Mocking', TestClassMocking);
     TTestRunner.Run('AutoMocker (Class)', TestAutoMockerWithClass);
     TTestRunner.Run('Snapshot Testing', TestSnapshot);
-    
+
     TTestRunner.PrintSummary;
   except
     on E: Exception do

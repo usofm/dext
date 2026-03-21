@@ -1,22 +1,24 @@
-﻿unit Dext.Entity.SqlGenerator.Tests;
+unit Dext.Entity.SqlGenerator.Tests;
 
 interface
 
 uses
   System.SysUtils,
   System.Rtti,
-  Dext.Assertions,
   Dext.Mocks,
   Dext.Mocks.Matching,
+  Dext.Testing,
   Dext.Testing.Attributes,
   Dext.Entity.Dialects,
   Dext.Specifications.SQL.Generator,
   Dext.Specifications.Base,
   Dext.Specifications.Interfaces,
+  Dext.Entity,
   Dext.Entity.Mapping,
   Dext.Entity.Core;
 
 type
+  {$M+}
   [Table('Users')]
   TTestUser = class
   private
@@ -28,11 +30,12 @@ type
     property Name: string read FName write FName;
     property IsDeleted: Boolean read FIsDeleted write FIsDeleted;
   end;
+  {$M-}
 
   [TestFixture('SQL Generator Tests (Mocked Dialect)')]
   TSqlGeneratorTests = class
   private
-    FDialectMock: Mock<IDialect>;
+    FDialectMock: Mock<ISQLDialect>;
     FGenerator: TSqlGenerator<TTestUser>;
   public
     [Setup]
@@ -54,15 +57,21 @@ implementation
 
 procedure TSqlGeneratorTests.Setup;
 begin
-  FDialectMock := Mock<IDialect>.Create;
+  // Register the entity to ensure mapping is discovered correctly
+  TModelBuilder.Instance.Entity<TTestUser>.Table('Users');
+  TModelBuilder.Instance.Entity<TTestUser>.Prop('IsDeleted').Ignore();
+
+  FDialectMock := Mock<ISQLDialect>.Create;
   
   // Setup default dialect behavior: QuoteIdentifier just wraps in brackets
-  FDialectMock.Setup.Callback(
-    function(Args: TArray<TValue>): TValue
-    begin
-      Result := '[' + Args[0].AsString + ']';
-    end).When.QuoteIdentifier(Arg.Any<string>);
-    
+  FDialectMock
+    .Setup.Executes(procedure(Inv: IInvocation)
+      begin
+        Inv.Result := '[' + Inv.Arguments[0].AsString + ']';
+
+      end)
+    .When.QuoteIdentifier(Arg.Any<string>);
+
   // Default schema behavior
   FDialectMock.Setup.Returns(TValue.From<Boolean>(False)).When.UseSchemaPrefix;
 
@@ -80,7 +89,6 @@ var
   SQL: string;
 begin
   Spec := TSpecification<TTestUser>.Create;
-  
   SQL := FGenerator.GenerateSelect(Spec);
   
   // Simple check: SQL should contain our quoted table and columns

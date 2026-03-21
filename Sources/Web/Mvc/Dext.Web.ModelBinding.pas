@@ -29,16 +29,17 @@ interface
 
 uses
   System.Classes,
+  System.Rtti,
   System.SysUtils,
+  System.TypInfo,
   Dext.Collections,
   Dext.Collections.Dict,
-  System.Rtti,
-  System.TypInfo,
-  Dext.Types.UUID,
   Dext.DI.Interfaces,
-  Dext.Web.Interfaces,
   Dext.Json,
-  Dext.Json.Types;
+  Dext.Json.Types,
+  Dext.Types.UUID,
+  Dext.Web.Interfaces,
+  Dext.Utils;
 
 type
   EBindingException = class(Exception);
@@ -479,7 +480,7 @@ begin
             Field.SetValue(Result.GetReferenceToRawData, Val);
           except
              on E: Exception do
-               Writeln(Format('BindQuery warning: Error converting field "%s": %s', [FieldName, E.Message]));
+               SafeWriteln(Format('BindQuery warning: Error converting field "%s": %s', [FieldName, E.Message]));
           end;
         end;
       end;
@@ -506,7 +507,7 @@ begin
                 Prop.SetValue(Result.AsObject, Val);
               except
                  on E: Exception do
-                   Writeln(Format('BindQuery warning: Error converting property "%s": %s', [FieldName, E.Message]));
+                   SafeWriteln(Format('BindQuery warning: Error converting property "%s": %s', [FieldName, E.Message]));
               end;
            end;
        end;
@@ -602,7 +603,7 @@ begin
         except
           on E: Exception do
           begin
-            Writeln(Format('⚠️ BindRoute warning: Error converting field "%s" value "%s": %s',
+            SafeWriteln(Format('⚠️ BindRoute warning: Error converting field "%s" value "%s": %s',
               [FieldName, FieldValue, E.Message]));
           end;
         end; // try
@@ -662,7 +663,7 @@ begin
         except
           on E: Exception do
           begin
-            Writeln(Format('⚠️ BindHeader warning: Error converting field "%s" value "%s": %s',
+            SafeWriteln(Format('⚠️ BindHeader warning: Error converting field "%s" value "%s": %s',
               [FieldName, FieldValue, E.Message]));
           end;
         end; // try
@@ -1156,7 +1157,7 @@ begin
           on E: Exception do
           begin
             // Silently continue with other fields on binding error
-            // Uncomment for debugging: WriteLn(Format('Warning: Error binding field "%s": %s', [Field.Name, E.Message]));
+            // Uncomment for debugging: SafeWriteln(Format('Warning: Error binding field "%s": %s', [Field.Name, E.Message]));
           end;
         end;
       end;

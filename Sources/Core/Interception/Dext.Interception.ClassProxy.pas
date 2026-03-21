@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -91,7 +91,11 @@ end;
 procedure TClassProxy.Unproxify;
 begin
   if Assigned(FVMI) then
+  begin
+    if Assigned(FInstance) and not FInstanceIsDead then
+      FVMI.Unproxify(FInstance);
     FreeAndNil(FVMI);
+  end;
 end;
 
 destructor TClassProxy.Destroy;
@@ -114,10 +118,20 @@ begin
     if SameText(Method.Name, 'BeforeDestruction') then
     begin
       // Revert VMT now while instance is still valid to avoid AV in destructor
-      FVMI.Unproxify(Instance);
-      FInstanceIsDead := True;
-      FOwnsInstance := False;
+      if Assigned(FVMI) then
+      begin
+        FVMI.Unproxify(Instance);
+        FInstanceIsDead := True;
+        FOwnsInstance := False;
+      end;
     end;
+    DoInvoke := True;
+    Exit;
+  end;
+
+  // Don't intercept if dying
+  if FInstanceIsDead then
+  begin
     DoInvoke := True;
     Exit;
   end;

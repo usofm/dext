@@ -98,6 +98,7 @@ type
     function BeAfter(Expected: TDateTime): ShouldDateTime;
     function BeBefore(Expected: TDateTime): ShouldDateTime;
     function BeSameDateAs(Expected: TDateTime): ShouldDateTime; // Ignores time
+    function BeToday: ShouldDateTime;
     function Because(const Reason: string): ShouldDateTime;
   end;
 
@@ -417,6 +418,7 @@ type
     constructor Create(const Value: System.IEnumerable<T>); overload;
     constructor Create(const Value: Dext.Collections.Base.IEnumerable<T>); overload;
     constructor Create(const Value: TArray<T>); overload;
+    // TODO : add explicit IList<T>
 
     function BeEmpty: ShouldList<T>;
     function NotBeEmpty: ShouldList<T>;
@@ -1175,7 +1177,7 @@ function ShouldObject.BeOfType<T>: ShouldObject;
 begin
   if FValue = nil then
     Fail(Format('Expected %s but was nil', [T.ClassName]))
-  else if FValue.ClassType <> T then
+  else if not (FValue is T) then
     Fail(Format('Expected %s but was %s', [T.ClassName, FValue.ClassName]));
   Result := Self;
 end;
@@ -1883,6 +1885,13 @@ begin
   if not SameDate(FValue, Expected) then
     Fail(Format('Expected date to be %s but found %s (ignoring time)',
       [DateToStr(Expected), DateToStr(FValue)]));
+  Result := Self;
+end;
+
+function ShouldDateTime.BeToday: ShouldDateTime;
+begin
+  if not SameDate(FValue, Now) then
+    Fail(Format('Expected today (%s) but found %s', [DateToStr(Now), DateToStr(FValue)]));
   Result := Self;
 end;
 

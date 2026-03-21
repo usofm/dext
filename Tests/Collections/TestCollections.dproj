@@ -103,6 +103,7 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
+        <DCCReference Include="TestCollections.RawList.pas"/>
         <DCCReference Include="TestCollections.Lists.pas"/>
         <DCCReference Include="TestCollections.Dictionaries.pas"/>
         <DCCReference Include="TestCollections.Factory.pas"/>
@@ -113,6 +114,8 @@
         <DCCReference Include="TestCollections.Algorithms.pas"/>
         <DCCReference Include="TestCollections.Comparers.pas"/>
         <DCCReference Include="TestCollections.QueuesAndStacks.pas"/>
+        <DCCReference Include="TestCollections.Robustness.pas"/>
+        <DCCReference Include="TestCollections.PersonList.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

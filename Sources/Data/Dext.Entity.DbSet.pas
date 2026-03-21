@@ -222,7 +222,15 @@ type
     ///   Perfect for high-performance view rendering.
     /// </summary>
     function RequestStreamingIterator(const ASpec: ISpecification<T>): IEnumerator<T>;
+    
+    class constructor Create;
   end;
+
+  TDynamicDbSetFactory<T: class> = class(TInterfacedObject, IDynamicDbSetFactory)
+  public
+    function CreateDbSet(const AContext: IInterface): IInterface;
+  end;
+
 
 
 function TValueToVariant(const AValue: TValue): Variant;
@@ -437,7 +445,13 @@ end;
 
 { TDbSet<T> }
 
+class constructor TDbSet<T>.Create;
+begin
+  TModelBuilder.Instance.RegisterFactory(TypeInfo(T), TDynamicDbSetFactory<T>.Create);
+end;
+
 function TDbSet<T>.GetFContext: IDbContext;
+
 begin
   Result := IDbContext(FContextPtr);
 end;
@@ -1828,7 +1842,6 @@ begin
       var TargetRefId := TargetDbSet.GetEntityId(Obj);
       var KeyStr := TValueToKeyString(TargetRefId);
       LoadedMap.AddOrSetValue(KeyStr, Obj);
-      // Dext.Utils.SafeWriteLn(Format('[LoadAndAssign][%s] Map Key: "%s"', [NavPropName, KeyStr]));
     end;
     
     for var Pair in FKMap do
@@ -2011,10 +2024,6 @@ begin
     // Query targets using Property Name
     var Expr := TPropExpression.Create(TargetPropName).&In(IdValues);
     
-    // Log the expression/query intent for debugging
-    // Dext.Utils.SafeWriteLn(Format('[LoadOneToMany][%s] Querying targets where %s IN (%d values)', 
-    //   [NavPropName, TargetPropName, ParentIds.Count]));
-       
     TargetList := TargetDbSet.ListObjects(Expr);
 
     // 4. Assign children to parents
@@ -2831,6 +2840,13 @@ end;
 
 
 
+
+{ TDynamicDbSetFactory<T> }
+
+function TDynamicDbSetFactory<T>.CreateDbSet(const AContext: IInterface): IInterface;
+begin
+  Result := TDbSet<T>.Create(AContext as IDbContext);
+end;
 
 end.
 

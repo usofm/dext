@@ -34,6 +34,7 @@ FHost.Start; // Does not freeze the UI!
 - [Navigator Framework](navigator.md) - Push/Pop navigation with middlewares
 - [Magic Binding](magic-binding.md) - Declarative UI data binding
 - [MVVM Patterns](mvvm-patterns.md) - Architecture guide
+- [Entity DataSet](entity-dataset.md) - DB-Aware traditional grid compatibility
 
 ---
 

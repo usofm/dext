@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -500,9 +500,11 @@ end;
 
 function TFluentQuery<T>.GetEnumerator: IEnumerator<T>;
 begin
+  Result := nil;
   if Assigned(FIteratorFactory) then
-     Result := FIteratorFactory()
-  else
+     Result := FIteratorFactory();
+     
+  if Result = nil then
      Result := TEmptyIterator<T>.Create;
 end;
 
@@ -905,9 +907,12 @@ begin
     
     // Fallback for filtered/projected queries
     Result := TCollections.CreateList<T>(OwnsObjects);
+    if Enumerator = nil then Exit;
+
     try
       while Enumerator.MoveNext do
         Result.Add(Enumerator.Current);
+
     except
       // If exception happens, result list is freed. 
       // If OwnsObjects=True, it frees *its copy* of references. 

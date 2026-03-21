@@ -1,4 +1,4 @@
-﻿unit Dext.Core.Reflection;
+unit Dext.Core.Reflection;
 
 interface
 
@@ -7,7 +7,8 @@ uses
   System.SysUtils,
   System.TypInfo,
   Dext.Collections,
-  Dext.Collections.Dict;
+  Dext.Collections.Dict,
+  Dext.Types.Lazy;
 
 type
   TCustomAttributeClass = class of TCustomAttribute;
@@ -51,7 +52,12 @@ type
     class procedure SetValue(AInstance: Pointer; AMember: TRttiMember; const AValue: TValue); static;
     class procedure SetValueByPath(AInstance: TObject; const APath: string; const AValue: TValue); static;
     class function IsSmartProp(AType: PTypeInfo): Boolean; static;
+    class function GetUnderlyingType(AType: PTypeInfo): PTypeInfo; static;
     class function TryUnwrapProp(const ASource: TValue; var ADest: TValue): Boolean; static;
+    class function TryWrapProp(var ADest: TValue; const ASource: TValue): Boolean; static;
+    class function CreateInstance(AClass: TClass): TObject; static;
+    class function GetFieldPtr(Instance: TObject; const FieldName: string): Pointer; static;
+    class property Context: TRttiContext read FContext;
   end;
 
 implementation
@@ -109,12 +115,67 @@ begin
       begin
         ValueField := Field;
         InnerType := Field.FieldType.Handle;
-        
-        // Se tem FValue/Value e é um record, tratamos como SmartProp no contexto do Dext
         IsSmartProp := True;
       end
       else if LFieldName.ToLower.Contains('hasvalue') then
-        HasValueField := Field;
+        HasValueField := Field
+      else if SameText(LFieldName, 'FInstance') and (Field.FieldType.Handle = TypeInfo(ILazy)) then
+      begin
+        IsSmartProp := True;
+        ValueField := Field;
+      end;
+    end;
+
+    // Fallback: se não encontrou via RTTI (comum em records genéricos sem metadados explícitos)
+    if not IsSmartProp then
+    begin
+      var LTypeName := string(RttiType.Handle.Name);
+      if LTypeName.Contains('Prop<') or LTypeName.Contains('Nullable<') or 
+         LTypeName.Contains('Lazy<') or LTypeName.Contains('TProp<') or
+         LTypeName.Contains('PropType') then
+      begin
+        IsSmartProp := True;
+        
+        // Tenta encontrar o campo por convenção se o GetFields falhou
+        if ValueField = nil then
+          ValueField := RttiType.GetField('FValue');
+        if ValueField = nil then
+          ValueField := RttiType.GetField('FInstance');
+        if ValueField = nil then
+          ValueField := RttiType.GetField('Value');
+      end;
+    end;
+
+    // Se não encontrou o tipo interno via campos/propriedades, tenta via nome (último recurso)
+    if (InnerType = nil) and IsSmartProp then
+    begin
+      var LTypeName := string(RttiType.Handle.Name);
+      if LTypeName.Contains('<') and LTypeName.EndsWith('>') then
+      begin
+        // Tenta extrair o tipo do nome genérico: Nome<T>
+        var LTMark := LTypeName.IndexOf('<');
+        var LInnerTypeName := LTypeName.Substring(LTMark + 1, LTypeName.Length - LTMark - 2);
+        
+        // Tenta encontrar o tipo via contexto RTTI
+        var LInnerRtti := TReflection.Context.FindType(LInnerTypeName);
+        if LInnerRtti = nil then
+          LInnerRtti := TReflection.Context.FindType('System.' + LInnerTypeName);
+          
+        if LInnerRtti <> nil then
+          InnerType := LInnerRtti.Handle;
+
+        // Map common simple types if FindType fails (sometimes it does for basic types)
+        if InnerType = nil then
+        begin
+          if SameText(LInnerTypeName, 'Integer') then InnerType := TypeInfo(Integer)
+          else if SameText(LInnerTypeName, 'string') then InnerType := TypeInfo(string)
+          else if SameText(LInnerTypeName, 'Boolean') then InnerType := TypeInfo(Boolean)
+          else if SameText(LInnerTypeName, 'Double') then InnerType := TypeInfo(Double)
+          else if SameText(LInnerTypeName, 'TDateTime') then InnerType := TypeInfo(TDateTime)
+          else if SameText(LInnerTypeName, 'Currency') then InnerType := TypeInfo(Currency)
+          else if SameText(LInnerTypeName, 'Int64') then InnerType := TypeInfo(Int64);
+        end;
+      end;
     end;
   end;
 end;
@@ -130,6 +191,7 @@ end;
 class destructor TReflection.Destroy;
 begin
   FCache := nil;
+  FContext.Free;
 end;
 
 class function TReflection.GetMetadata(AType: PTypeInfo): TTypeMetadata;
@@ -149,6 +211,29 @@ begin
   if AMember is TRttiProperty then TargetType := TRttiProperty(AMember).PropertyType.Handle
   else if AMember is TRttiField then TargetType := TRttiField(AMember).FieldType.Handle
   else Exit;
+  // Handling SmartProps during SetValue
+  if IsSmartProp(TargetType) then
+  begin
+    // Fast path: if the value is already of the target type, just set it directly
+    if AValue.TypeInfo = TargetType then
+    begin
+      if AMember is TRttiProperty then TRttiProperty(AMember).SetValue(AInstance, AValue)
+      else if AMember is TRttiField then TRttiField(AMember).SetValue(AInstance, AValue);
+      Exit;
+    end;
+
+    var Current: TValue;
+    if AMember is TRttiProperty then Current := TRttiProperty(AMember).GetValue(AInstance)
+    else if AMember is TRttiField then Current := TRttiField(AMember).GetValue(AInstance);
+    
+    if TryWrapProp(Current, AValue) then
+    begin
+      if AMember is TRttiProperty then TRttiProperty(AMember).SetValue(AInstance, Current)
+      else if AMember is TRttiField then TRttiField(AMember).SetValue(AInstance, Current);
+      Exit;
+    end;
+  end;
+
   var Converted := TValueConverter.Convert(AValue, TargetType);
   if AMember is TRttiProperty then TRttiProperty(AMember).SetValue(AInstance, Converted)
   else if AMember is TRttiField then TRttiField(AMember).SetValue(AInstance, Converted);
@@ -233,45 +318,125 @@ begin
   Result := GetMetadata(AType).IsSmartProp;
 end;
 
+class function TReflection.GetUnderlyingType(AType: PTypeInfo): PTypeInfo;
+begin
+  Result := GetMetadata(AType).InnerType;
+end;
+
 class function TReflection.TryUnwrapProp(const ASource: TValue; var ADest: TValue): Boolean;
 var
   PData: Pointer;
+  Unwrapped: TValue;
 begin
   ADest := ASource;
   Result := False;
 
   if ASource.TypeInfo = nil then Exit;
 
-  // Use the same approach as TSQLGenerator.TryUnwrapSmartValue which is proven to work.
-  // Check both Kind sources for maximum compatibility with Delphi RTTI inconsistencies.
-  if (ASource.Kind <> tkRecord) and (ASource.TypeInfo.Kind <> tkRecord) then Exit;
+  // Direct support for ILazy interface
+  if ASource.Kind = tkInterface then
+  begin
+    var LIntf := ASource.AsInterface;
+    var LLazy: ILazy;
+    if (LIntf <> nil) and (LIntf.QueryInterface(ILazy, LLazy) = S_OK) then
+    begin
+       Unwrapped := LLazy.Value;
+       if TryUnwrapProp(Unwrapped, ADest) then
+         Result := True
+       else
+       begin
+         ADest := Unwrapped;
+         Result := True;
+       end;
+       Exit;
+    end;
+  end;
 
-  // Check for Smart Types (marked with [SmartProp] attribute)
+  // For other types, only unwrap if it is a registered SmartProp (Record or Class)
+  if not (ASource.Kind in [tkRecord, tkClass]) then Exit;
+
   var Meta := GetMetadata(ASource.TypeInfo);
   if Meta.IsSmartProp and (Meta.ValueField <> nil) then
   begin
+    PData := ASource.GetReferenceToRawData;
+    if PData = nil then Exit;
+
     // For Nullable<T>, check HasValue first
-    if Meta.IsNullable then
+    if Meta.IsNullable and (Meta.HasValueField <> nil) then
     begin
-      if Meta.HasValueField <> nil then
-      begin
-        PData := ASource.GetReferenceToRawData;
-        if (PData = nil) or not Meta.HasValueField.GetValue(PData).AsBoolean then
+        if not Meta.HasValueField.GetValue(PData).AsBoolean then
         begin
           ADest := TValue.Empty;
           Result := True;
           Exit;
         end;
-      end;
     end;
 
-    PData := ASource.GetReferenceToRawData;
-    if PData <> nil then
+    Unwrapped := Meta.ValueField.GetValue(PData);
+
+    // If unwrapped is an ILazy interface, extract its value
+    if (Unwrapped.Kind = tkInterface) then
     begin
-      ADest := Meta.ValueField.GetValue(PData);
+       var LIntf := Unwrapped.AsInterface;
+       var LLazy: ILazy;
+       if (LIntf <> nil) and (LIntf.QueryInterface(ILazy, LLazy) = S_OK) then
+       begin
+          Unwrapped := LLazy.Value;
+       end;
+    end;
+    
+    // RECURSIVE UNWRAP
+    if TryUnwrapProp(Unwrapped, ADest) then
+      Result := True
+    else
+    begin
+      ADest := Unwrapped;
       Result := True;
     end;
   end;
+end;
+
+class function TReflection.TryWrapProp(var ADest: TValue; const ASource: TValue): Boolean;
+var
+  PData: Pointer;
+begin
+  Result := False;
+  if ADest.TypeInfo = nil then Exit;
+
+  var Meta := GetMetadata(ADest.TypeInfo);
+  if Meta.IsSmartProp and (Meta.ValueField <> nil) then
+  begin
+    PData := ADest.GetReferenceToRawData;
+    if PData <> nil then
+    begin
+      // If it's Nullable, also set HasValue
+      if Meta.IsNullable and (Meta.HasValueField <> nil) then
+        Meta.HasValueField.SetValue(PData, not ASource.IsEmpty);
+
+      if not ASource.IsEmpty then
+      begin
+        var Converted := TValueConverter.Convert(ASource, Meta.InnerType);
+        Meta.ValueField.SetValue(PData, Converted);
+      end;
+      Result := True;
+    end;
+  end;
+end;
+
+class function TReflection.CreateInstance(AClass: TClass): TObject;
+begin
+  Result := TActivator.CreateInstance(AClass, []);
+end;
+
+class function TReflection.GetFieldPtr(Instance: TObject; const FieldName: string): Pointer;
+var
+  RField: TRttiField;
+begin
+  RField := FContext.GetType(Instance.ClassType).GetField(FieldName);
+  if RField <> nil then
+    Result := PByte(Instance) + RField.Offset
+  else
+    Result := nil;
 end;
 
 end.

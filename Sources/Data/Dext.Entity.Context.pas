@@ -188,6 +188,7 @@ type
     ///   This is called during constructor execution.
     /// </summary>
     procedure OnConfiguring(Options: TDbContextOptions); virtual;
+    function CreateDynamicDbSet(AEntityType: PTypeInfo): IDbSet; virtual;
     
   public
     class var FModelCache: IDictionary<TClass, TModelBuilder>;
@@ -431,8 +432,14 @@ begin
   if FConnection <> nil then
     FConnection.Disconnect;
     
-  FProxies := nil;
-  FCache := nil;
+  // 1. Clear Proxies first. This restores original VMTs while entity instances
+  // are still held by IdentityMaps in DbSets.
+  FProxies := nil; 
+  
+  // 2. Clear DbSets second. This will call Free on entity instances.
+  // Since proxies were unproxified in step 1, they will destroy as normal objects.
+  FCache := nil;   
+  
   if FOwnsModelBuilder then
     FModelBuilder.Free;
   inherited;
@@ -658,44 +665,28 @@ begin
 end;
 
 function TDbContext.DataSet(AEntityType: PTypeInfo): IDbSet;
-var
-  Ctx: TRttiContext;
 begin
   ApplyTenantConfig;
   if FCache.ContainsKey(AEntityType) then
-    Exit(IDbSet(FCache[AEntityType]));
+    Exit(FCache[AEntityType] as IDbSet);
 
-  // Dynamic creation of DbSet<T> using RTTI is complex because we need to invoke a generic method.
-  // However, since we are inside TDbContext, we can use a trick or just rely on the user calling Entities<T> first?
-  // No, that defeats the purpose.
-  
-  // For now, let's assume the user has registered it or we use RTTI to invoke "Entities<T>"
-  Ctx := TRttiContext.Create;
-  //Typ := Ctx.GetType(TDbContext);
-  //Method := Typ.GetMethod('Entities');
-  
-  // We need to specialize the method. Delphi RTTI doesn't support invoking generic methods easily if not instantiated.
-  // BUT, we can use TActivator to create TDbSet<T> directly!
-  
-  // Actually, we can just create TDbSet<T> via RTTI if we know the type.
-  // Let's use a helper or TActivator if it supports it.
-  // Since TDbSet<T> constructor takes IDbContext, we can create it.
-  
-  // Simplified approach: We can't easily create generic types at runtime without some registration or heavy RTTI hacks.
-  // Constraint: For this phase, let's assume we can only get Set if it was already created OR
-  // we implement a non-generic way to create it.
-  
-  // Let's try to find the generic type TDbSet<T>
-  // This is getting complicated for "Basic".
-  
-  // Alternative: The user calls Entities<T> which registers it.
-  // But Hydrate needs it automatically.
-  
-  // Let's throw error if not found for now, or use a registry.
-  // Better: Use TActivator to create TDbSet<T>.
-  // TActivator.CreateInstance(TDbSet<T>) requires T.
-  
-  raise Exception.Create('Dynamic DbSet creation not fully implemented. Ensure Entities<T> is called once before using Set().');
+  // Create the DbSet instance dynamically for this type.
+  // This is required when we discover types from ModelBuilder (fluent) 
+  // that haven't been accessed via generic Entities<T> properties yet.
+  Result := CreateDynamicDbSet(AEntityType);
+  if Result <> nil then
+    FCache.Add(AEntityType, Result);
+end;
+
+function TDbContext.CreateDynamicDbSet(AEntityType: PTypeInfo): IDbSet;
+var
+  Factory: IDynamicDbSetFactory;
+begin
+  Factory := ModelBuilder.GetFactory(AEntityType);
+  if Factory <> nil then
+    Exit(Factory.CreateDbSet(IDbContext(Self)) as IDbSet);
+
+  raise Exception.CreateFmt('Could not create DbSet for type %s. Please ensure TDbSet<%s> is instantiated somewhere or call Entities<%s> to register it.', [AEntityType.Name, AEntityType.Name, AEntityType.Name]);
 end;
 
 function TDbContext.Entities<T>: IDbSet<T>;
@@ -738,6 +729,11 @@ begin
   Created := TCollections.CreateList<PTypeInfo>;
   if FCache.Count = 0 then
     PreloadDBSets;
+    
+  // Ensure all entities registered in the ModelBuilder (via Fluent API or attributes) 
+  // are also present in the cache for schema creation.
+  for var Map in ModelBuilder.GetMaps do
+    DataSet(Map.EntityType);
   Ctx := TRttiContext.Create;
   try
     // 1. Build Dependency Graph

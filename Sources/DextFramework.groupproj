@@ -6,9 +6,6 @@
         <Projects Include="Dext.Core.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Dext.EF.Core.dproj">
-            <Dependencies/>
-        </Projects>
         <Projects Include="Dext.Web.Core.dproj">
             <Dependencies/>
         </Projects>
@@ -33,6 +30,18 @@
         <Projects Include="..\Apps\Sidecar\DextSidecar.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="Dext.EF.Core.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Dext.EF.Design.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Tests\Dext.EntityDataSet.Tests.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Examples\Desktop.EntityDataSet.Demo\Desktop.EntityDataSet.Demo.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -49,15 +58,6 @@
     </Target>
     <Target Name="Dext_Core:Make">
         <MSBuild Projects="Dext.Core.dproj" Targets="Make"/>
-    </Target>
-    <Target Name="Dext_EF_Core">
-        <MSBuild Projects="Dext.EF.Core.dproj"/>
-    </Target>
-    <Target Name="Dext_EF_Core:Clean">
-        <MSBuild Projects="Dext.EF.Core.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="Dext_EF_Core:Make">
-        <MSBuild Projects="Dext.EF.Core.dproj" Targets="Make"/>
     </Target>
     <Target Name="Dext_Web_Core">
         <MSBuild Projects="Dext.Web.Core.dproj"/>
@@ -131,14 +131,50 @@
     <Target Name="DextSidecar:Make">
         <MSBuild Projects="..\Apps\Sidecar\DextSidecar.dproj" Targets="Make"/>
     </Target>
+    <Target Name="Dext_EF_Core">
+        <MSBuild Projects="Dext.EF.Core.dproj"/>
+    </Target>
+    <Target Name="Dext_EF_Core:Clean">
+        <MSBuild Projects="Dext.EF.Core.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_EF_Core:Make">
+        <MSBuild Projects="Dext.EF.Core.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Dext_EF_Design">
+        <MSBuild Projects="Dext.EF.Design.dproj"/>
+    </Target>
+    <Target Name="Dext_EF_Design:Clean">
+        <MSBuild Projects="Dext.EF.Design.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_EF_Design:Make">
+        <MSBuild Projects="Dext.EF.Design.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Dext_EntityDataSet_Tests">
+        <MSBuild Projects="Tests\Dext.EntityDataSet.Tests.dproj"/>
+    </Target>
+    <Target Name="Dext_EntityDataSet_Tests:Clean">
+        <MSBuild Projects="Tests\Dext.EntityDataSet.Tests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_EntityDataSet_Tests:Make">
+        <MSBuild Projects="Tests\Dext.EntityDataSet.Tests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Desktop_EntityDataSet_Demo">
+        <MSBuild Projects="..\Examples\Desktop.EntityDataSet.Demo\Desktop.EntityDataSet.Demo.dproj"/>
+    </Target>
+    <Target Name="Desktop_EntityDataSet_Demo:Clean">
+        <MSBuild Projects="..\Examples\Desktop.EntityDataSet.Demo\Desktop.EntityDataSet.Demo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Desktop_EntityDataSet_Demo:Make">
+        <MSBuild Projects="..\Examples\Desktop.EntityDataSet.Demo\Desktop.EntityDataSet.Demo.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Dext_Core;Dext_EF_Core;Dext_Web_Core;Dext_Testing;Dext_Web_Hubs;Dext_Net;Dext_Hosting;Dext_UI;DextTool;DextSidecar"/>
+        <CallTarget Targets="Dext_Core;Dext_Web_Core;Dext_Testing;Dext_Web_Hubs;Dext_Net;Dext_Hosting;Dext_UI;DextTool;DextSidecar;Dext_EF_Core;Dext_EF_Design;Dext_EntityDataSet_Tests;Desktop_EntityDataSet_Demo"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Dext_Core:Clean;Dext_EF_Core:Clean;Dext_Web_Core:Clean;Dext_Testing:Clean;Dext_Web_Hubs:Clean;Dext_Net:Clean;Dext_Hosting:Clean;Dext_UI:Clean;DextTool:Clean;DextSidecar:Clean"/>
+        <CallTarget Targets="Dext_Core:Clean;Dext_Web_Core:Clean;Dext_Testing:Clean;Dext_Web_Hubs:Clean;Dext_Net:Clean;Dext_Hosting:Clean;Dext_UI:Clean;DextTool:Clean;DextSidecar:Clean;Dext_EF_Core:Clean;Dext_EF_Design:Clean;Dext_EntityDataSet_Tests:Clean;Desktop_EntityDataSet_Demo:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Dext_Core:Make;Dext_EF_Core:Make;Dext_Web_Core:Make;Dext_Testing:Make;Dext_Web_Hubs:Make;Dext_Net:Make;Dext_Hosting:Make;Dext_UI:Make;DextTool:Make;DextSidecar:Make"/>
+        <CallTarget Targets="Dext_Core:Make;Dext_Web_Core:Make;Dext_Testing:Make;Dext_Web_Hubs:Make;Dext_Net:Make;Dext_Hosting:Make;Dext_UI:Make;DextTool:Make;DextSidecar:Make;Dext_EF_Core:Make;Dext_EF_Design:Make;Dext_EntityDataSet_Tests:Make;Desktop_EntityDataSet_Demo:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

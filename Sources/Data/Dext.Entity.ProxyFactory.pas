@@ -272,7 +272,9 @@ begin
     Ctx.Free;
   end;
     
-  Proxy := TClassProxy.Create(TClass(T), Interceptors.ToArray, True);
+  // DbSet IdentityMap manages the entity lifetime, so Proxy should NOT own the instance.
+  // This prevents Double Free during TDbContext.Destroy.
+  Proxy := TClassProxy.Create(TClass(T), Interceptors.ToArray, False);
   AContext.TrackProxy(Proxy);
   Result := T(Proxy.Instance);
 end;

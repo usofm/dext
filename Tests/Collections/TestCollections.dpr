@@ -12,8 +12,7 @@
 {                                                                           }
 {           Unless required by applicable law or agreed to in writing,      }
 {           software distributed under the License is distributed on an     }
-{           "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITION
-S OF ANY KIND,    }
+{           "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,    }
 {           either express or implied. See the License for the specific     }
 {           language governing permissions and limitations under the        }
 {           License.                                                        }
@@ -39,6 +38,7 @@ uses
   Dext.Testing,
   Dext.Collections,
   Dext.Collections.Dict,
+  TestCollections.RawList in 'TestCollections.RawList.pas',
   TestCollections.Lists in 'TestCollections.Lists.pas',
   TestCollections.Dictionaries in 'TestCollections.Dictionaries.pas',
   TestCollections.Factory in 'TestCollections.Factory.pas',
@@ -49,7 +49,8 @@ uses
   TestCollections.Algorithms in 'TestCollections.Algorithms.pas',
   TestCollections.Comparers in 'TestCollections.Comparers.pas',
   TestCollections.QueuesAndStacks in 'TestCollections.QueuesAndStacks.pas',
-  TestCollections.Robustness in 'TestCollections.Robustness.pas';
+  TestCollections.Robustness in 'TestCollections.Robustness.pas',
+  TestCollections.PersonList in 'TestCollections.PersonList.pas';
 
 begin
   SetConsoleCharSet;
@@ -62,6 +63,7 @@ begin
       TTest.Configure
         .Verbose
         .RegisterFixtures([
+          TRawListTests,
           TListBasicTests,
           TestCollections.Lists.TListStringTests,
           TListInterfaceTests,
@@ -85,9 +87,10 @@ begin
           TAlgorithmsTests,
           TComparerTests,
           TTestQueuesAndStacks,
-          TRobustnessTests
-        ])
-        .Run
+          TRobustnessTests,
+          TRawListTests,
+          TListPersonTests
+        ]).Run
     );
   except
     on E: Exception do

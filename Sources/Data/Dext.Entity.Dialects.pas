@@ -53,9 +53,7 @@ type
   );
 
   TReturningPosition = (rpAtEnd, rpBeforeValues);
-
-
-
+  {$M+}
   /// <summary>
   ///   Abstracts database-specific SQL syntax differences.
   /// </summary>
@@ -100,6 +98,7 @@ type
     // Locking Support
     function GetLockingSQL(ALockMode: TLockMode): string;
   end;
+  {$M-}
 
   /// <summary>
   ///   Factory for creating ISQLDialect instances from TDatabaseDialect enum.
