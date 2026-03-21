@@ -49,7 +49,7 @@ type
     function GetAppliedMigrations: IList<string>;
     procedure Migrate;
     procedure Rollback(const ATargetId: string = '');
-    
+
     /// <summary>
     ///   Checks if the database schema is compatible with the expected version.
     ///   Returns True if the last applied migration is equal to or greater than the ExpectedVersion.
@@ -80,7 +80,7 @@ var
 begin
   if FContext.Connection.TableExists('__DextMigrations') then
     Exit;
-    
+
   Builder := TSchemaBuilder.Create;
   try
     Builder.CreateTable('__DextMigrations', procedure(T: TTableBuilder)
@@ -88,11 +88,11 @@ begin
       T.Column('Id', 'VARCHAR', 255).PrimaryKey;
       T.Column('AppliedAt', 'TIMESTAMP').Default('CURRENT_TIMESTAMP');
     end);
-    
+
     // Generate SQL
     Op := Builder.Operations[0];
     SQL := FContext.Dialect.GenerateMigration(Op);
-    
+
     // Execute
     CmdIntf := FContext.Connection.CreateCommand(SQL);
     Cmd := CmdIntf as IDbCommand;
@@ -111,8 +111,8 @@ begin
   Result := TCollections.CreateList<string>;
   try
     EnsureHistoryTable;
-    
-    CmdIntf := FContext.Connection.CreateCommand('SELECT ' + FContext.Dialect.QuoteIdentifier('Id') + 
+
+    CmdIntf := FContext.Connection.CreateCommand('SELECT ' + FContext.Dialect.QuoteIdentifier('Id') +
                                                ' FROM ' + FContext.Dialect.QuoteIdentifier('__DextMigrations'));
     Cmd := CmdIntf as IDbCommand;
     Reader := Cmd.ExecuteQuery;
@@ -138,14 +138,14 @@ var
   CmdIntf: IInterface;
   Cmd: IDbCommand;
 begin
-  SafeWriteLn('   ?? Applying migration: ' + AMigration.GetId);
-  
+  SafeWriteLn('   → Applying migration: ' + AMigration.GetId);
+
   FContext.BeginTransaction;
   try
     Builder := TSchemaBuilder.Create;
     try
       AMigration.Up(Builder);
-      
+
       for Op in Builder.Operations do
       begin
         SQL := FContext.Dialect.GenerateMigration(Op);
@@ -156,23 +156,23 @@ begin
           Cmd.ExecuteNonQuery;
         end;
       end;
-      
+
       // Record in History
-      SQL := 'INSERT INTO ' + FContext.Dialect.QuoteIdentifier('__DextMigrations') + 
-             ' (' + FContext.Dialect.QuoteIdentifier('Id') + ', ' + FContext.Dialect.QuoteIdentifier('AppliedAt') + ') VALUES (' + 
-             FContext.Dialect.GetParamPrefix + 'Id, ' + 
+      SQL := 'INSERT INTO ' + FContext.Dialect.QuoteIdentifier('__DextMigrations') +
+             ' (' + FContext.Dialect.QuoteIdentifier('Id') + ', ' + FContext.Dialect.QuoteIdentifier('AppliedAt') + ') VALUES (' +
+             FContext.Dialect.GetParamPrefix + 'Id, ' +
              FContext.Dialect.GetParamPrefix + 'AppliedAt)';
-             
+
       CmdIntf := FContext.Connection.CreateCommand(SQL);
       Cmd := CmdIntf as IDbCommand;
       Cmd.AddParam('Id', AMigration.GetId);
       Cmd.AddParam('AppliedAt', Now);
       Cmd.ExecuteNonQuery;
-      
+
     finally
       Builder.Free;
     end;
-    
+
     FContext.Commit;
   except
     FContext.Rollback;
@@ -188,14 +188,14 @@ var
   CmdIntf: IInterface;
   Cmd: IDbCommand;
 begin
-  SafeWriteLn('   ? Rolling back migration: ' + AMigration.GetId);
-  
+  SafeWriteLn('   ↩ Rolling back migration: ' + AMigration.GetId);
+
   FContext.BeginTransaction;
   try
     Builder := TSchemaBuilder.Create;
     try
       AMigration.Down(Builder);
-      
+
       for Op in Builder.Operations do
       begin
         SQL := FContext.Dialect.GenerateMigration(Op);
@@ -206,21 +206,21 @@ begin
           Cmd.ExecuteNonQuery;
         end;
       end;
-      
+
       // Remove from History
-      SQL := 'DELETE FROM ' + FContext.Dialect.QuoteIdentifier('__DextMigrations') + 
-             ' WHERE ' + FContext.Dialect.QuoteIdentifier('Id') + ' = ' + 
+      SQL := 'DELETE FROM ' + FContext.Dialect.QuoteIdentifier('__DextMigrations') +
+             ' WHERE ' + FContext.Dialect.QuoteIdentifier('Id') + ' = ' +
              FContext.Dialect.GetParamPrefix + 'Id';
-             
+
       CmdIntf := FContext.Connection.CreateCommand(SQL);
       Cmd := CmdIntf as IDbCommand;
       Cmd.AddParam('Id', AMigration.GetId);
       Cmd.ExecuteNonQuery;
-      
+
     finally
       Builder.Free;
     end;
-    
+
     FContext.Commit;
   except
     FContext.Rollback;
@@ -238,7 +238,7 @@ begin
   Applied := GetAppliedMigrations;
   try
     Available := TMigrationRegistry.Instance.GetMigrations;
-    
+
     // Reverse order for rollback
     for i := High(Available) downto Low(Available) do
     begin
@@ -247,9 +247,9 @@ begin
       begin
         if (ATargetId <> '') and (CompareText(Migration.GetId, ATargetId) < 0) then
           Break;
-          
+
         DownMigration(Migration);
-        
+
         // If target ID not specified, rollback only one
         if ATargetId = '' then
           Exit;
@@ -269,21 +269,17 @@ begin
   Applied := GetAppliedMigrations;
   try
     Available := TMigrationRegistry.Instance.GetMigrations;
-    
+
     if Length(Available) = 0 then
-      SafeWriteLn('   ??No migrations found in registry.')
+      SafeWriteLn('   ℹ No migrations found in registry.')
     else
-      SafeWriteLn('   ?? Found ' + Length(Available).ToString + ' migrations in registry.');
-    
+      SafeWriteLn('   🔍 Found ' + Length(Available).ToString + ' migrations in registry.');
+
     for Migration in Available do
     begin
       if not Applied.Contains(Migration.GetId) then
       begin
         ApplyMigration(Migration);
-      end
-      else
-      begin
-        // SafeWriteLn('   ?? Skipping applied migration: ' + Migration.GetId);
       end;
     end;
   finally
@@ -298,15 +294,15 @@ var
 begin
   if ExpectedVersion.IsEmpty then
     Exit(True);
-    
+
   Applied := GetAppliedMigrations;
   try
     if Applied.Count = 0 then
       Exit(False); // No migrations applied, definitely not compatible if we expect something
-      
+
     Applied.Sort; // Sort lexicographically (timestamps work well)
     LastApplied := Applied.Last;
-    
+
     // Check if LastApplied >= ExpectedVersion
     Result := CompareText(LastApplied, ExpectedVersion) >= 0;
   finally

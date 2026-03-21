@@ -1,4 +1,4 @@
-﻿unit Dext.Entity.SmartTypes.Tests;
+unit Dext.Entity.SmartTypes.Tests;
 
 interface
 
@@ -6,7 +6,8 @@ uses
   System.SysUtils,
   Dext.Assertions,
   Dext.Testing.Attributes,
-  Dext.Core.SmartTypes;
+  Dext.Core.SmartTypes,
+  Dext.Types.Nullable;
 
 type
   [TestFixture('SmartTypes (Prop<T>) Tests')]
@@ -78,7 +79,7 @@ var
   Value: Prop<Integer>;
 begin
   Value := 100;
-  Should(Value.As<Int64>).Be(100);
+  Should(Value.AsType<Int64>()).Be(100);
 end;
 
 procedure TSmartTypesTests.TestSmartAssertions;
@@ -107,7 +108,7 @@ begin
   ShouldDate(D).BeToday;
   
   // Test failure case (Manual check if needed, but here we just verify success)
-  N := Nullable<Integer>.Null;
+  N.Clear;
   // Should(N).Be(0); // This would call Assert.Fail as expected
 end;
 

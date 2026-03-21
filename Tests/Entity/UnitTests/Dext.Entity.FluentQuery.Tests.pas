@@ -5,6 +5,7 @@ interface
 uses
   System.SysUtils,
   Dext.Assertions,
+  Dext.Collections,
   Dext.Testing.Attributes,
   Dext.Entity.Query,
   Dext.Specifications.Interfaces,
@@ -67,7 +68,7 @@ begin
   Query.Include('Orders.Items');
   
   Includes := Spec.GetIncludes;
-  Should(Includes).Contain('Orders.Items');
+  Should.List<string>(Includes).Contain('Orders.Items');
 end;
 
 procedure TFluentQueryTests.TestIgnoreQueryFiltersPropagation;

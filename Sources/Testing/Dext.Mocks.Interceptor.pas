@@ -284,7 +284,10 @@ begin
         begin
           if Assigned(Setup.Action) then Setup.Action(Invocation);
           if Setup.ExceptionClass <> nil then raise Setup.ExceptionClass.Create(Setup.ExceptionMessage);
-          Invocation.Result := Setup.GetNextReturnValue;
+          
+          // Only overwrite result if ReturnValues were explicitly set
+          if Length(Setup.ReturnValues) > 0 then
+            Invocation.Result := Setup.GetNextReturnValue;
           Exit;
         end;
       end;

@@ -6,7 +6,7 @@ echo Finding rsvars.bat...
 set "RSVARS="
 
 REM Search for rsvars.bat in likely locations (newest first)
-for %%v in (24.0 23.0 22.0 21.0 20.0 19.0) do (
+for %%v in (37.0 24.0 23.0 22.0 21.0 20.0 19.0) do (
     if exist "C:\Program Files (x86)\Embarcadero\Studio\%%v\bin\rsvars.bat" (
         set "RSVARS=C:\Program Files (x86)\Embarcadero\Studio\%%v\bin\rsvars.bat"
         goto :Found

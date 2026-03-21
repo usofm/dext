@@ -64,10 +64,17 @@ end;
 
 destructor TAutoMocker.Destroy;
 begin
-  // FMocks is ARC
-  // FClassProxies is ARC
-  // FInterceptors is ARC
+  if FInterceptors <> nil then
+  begin
+    for var Interceptor in FInterceptors.Values do
+      (Interceptor as TMockInterceptor).ClearInterceptors;
+    FInterceptors := nil;
+  end;
+
   FContext.Free;
+  FMocks := nil;
+  FClassProxies := nil; // own objects
+
   inherited;
 end;
 
@@ -158,7 +165,9 @@ begin
            CProxy := TClassProxy.Create(ParamInfo.TypeData.ClassType, [Interceptor], False);
            FClassProxies.Add(ParamInfo, CProxy);
          end;
-         Args[I] := TValue.From<TObject>(TClassProxy(CProxy).Instance);
+          // Fix: Use TValue.Make with correct TypeInfo to avoid RTTI typecast errors
+          var ObjInstance := TClassProxy(CProxy).Instance;
+          TValue.Make(@ObjInstance, ParamInfo, Args[I]);
        end
        else
        begin
