@@ -8,7 +8,16 @@ echo.
 call "C:\Program Files (x86)\Embarcadero\Studio\37.0\bin\rsvars.bat"
 
 echo.
-echo [1/3] Building Dext.EF.Core...
+echo [1/4] Building Dext.Core...
+msbuild "C:\dev\Dext\DextRepository\Sources\Dext.Core.dproj" /t:Build /p:Config=Debug /p:Platform=Win32 /v:minimal /nologo
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: Build failed for Dext.Core
+    exit /b %errorlevel%
+)
+
+echo.
+echo [2/4] Building Dext.EF.Core...
 msbuild "C:\dev\Dext\DextRepository\Sources\Dext.EF.Core.dproj" /t:Build /p:Config=Debug /p:Platform=Win32 /v:minimal /nologo
 if %errorlevel% neq 0 (
     echo.
@@ -17,17 +26,17 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo [2/3] Building Dext.EntityDataSet.Tests...
-msbuild "C:\dev\Dext\DextRepository\Sources\Tests\Dext.EntityDataSet.Tests.dproj" /t:Build /p:Config=Debug /p:Platform=Win32 /v:minimal /nologo
+echo [3/4] Building Dext.EntityDataSet.UnitTests...
+msbuild "C:\dev\Dext\DextRepository\Tests\Entity\UnitTests\Dext.Entity.UnitTests.dproj" /t:Build /p:Config=Debug /p:Platform=Win32 /v:minimal /nologo
 if %errorlevel% neq 0 (
     echo.
-    echo ERROR: Build failed for Dext.EntityDataSet.Tests
+    echo ERROR: Build failed for Dext.Entity.UnitTests
     exit /b %errorlevel%
 )
 
 echo.
-echo [3/3] Running Tests...
-"C:\dev\Dext\DextRepository\Output\Dext.EntityDataSet.Tests.exe"
+echo [4/4] Running UnitTests...
+"C:\dev\Dext\DextRepository\Tests\Output\Dext.Entity.UnitTests.exe"
 
 set EXIT_CODE=%errorlevel%
 if %EXIT_CODE% neq 0 (

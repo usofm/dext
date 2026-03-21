@@ -1,4 +1,4 @@
-﻿unit Dext.Entity.DataSet;
+unit Dext.Entity.DataSet;
 
 interface
 
@@ -72,6 +72,8 @@ type
     /// </summary>
     function ReadFieldValue(Field: TField; out Value: Variant): Boolean;
   protected
+    // TDataSet overrides for filtering and sorting
+    procedure InternalHandleException; override;
     function IsCursorOpen: Boolean; override;
     function GetRecord(Buffer: TRecordBuffer; GetMode: TGetMode; DoSearch: Boolean): TGetResult; override;
     procedure SetFiltered(Value: Boolean); override;
@@ -141,9 +143,40 @@ type
     procedure LoadFromUtf8Json(const ASpan: TByteSpan; AClass: TClass);
 
     property Items: IList<TObject> read FItems write SetItems;
-    property ReadOnly: Boolean read FReadOnly write FReadOnly default False;
+  published
+    property Active;
+    property Filter;
+    property Filtered;
+    property FilterOptions;
     property IncludeShadowProperties: Boolean read FIncludeShadowProperties write FIncludeShadowProperties default False;
     property IndexFieldNames: string read FIndexFieldNames write SetIndexFieldNames;
+    property ReadOnly: Boolean read FReadOnly write FReadOnly default False;
+
+    property AfterCancel;
+    property AfterClose;
+    property AfterDelete;
+    property AfterEdit;
+    property AfterInsert;
+    property AfterOpen;
+    property AfterPost;
+    property AfterRefresh;
+    property AfterScroll;
+    property BeforeCancel;
+    property BeforeClose;
+    property BeforeDelete;
+    property BeforeEdit;
+    property BeforeInsert;
+    property BeforeOpen;
+    property BeforePost;
+    property BeforeRefresh;
+    property BeforeScroll;
+
+    property OnCalcFields;
+    property OnDeleteError;
+    property OnEditError;
+    property OnFilterRecord;
+    property OnNewRecord;
+    property OnPostError;
   end;
 
 implementation
@@ -896,9 +929,6 @@ procedure TEntityDataSet.InternalInitFieldDefs;
 
   function MapTypeToFieldType(ATypeInfo: PTypeInfo): TFieldType;
   var
-    Context: TRttiContext;
-    RttiField: TRttiField;
-    RttiType: TRttiType;
     TypeName: string;
   begin
     if ATypeInfo = nil then Exit(ftUnknown);
@@ -928,32 +958,11 @@ procedure TEntityDataSet.InternalInitFieldDefs;
         Exit(ftVariant);
       tkRecord:
       begin
-        // TODO : refactory - use helper for Prop<T>
-        // Detect Smart Types (Prop<T>) or Nullable Types (Nullable<T>)
-        TypeName := string(ATypeInfo.Name);
-        if TypeName.StartsWith('Prop<') or TypeName.StartsWith('Nullable<') then
-        begin
-           // Extract the T from the generic or check known aliases for performance
-           if TypeName.Contains('<Integer>') or TypeName.Contains('<System.Integer>') then Exit(ftInteger)
-           else if TypeName.Contains('<string>') or TypeName.Contains('<System.string>') or TypeName.Contains('<UnicodeString>') then Exit(ftWideString)
-           else if TypeName.Contains('<Boolean>') or TypeName.Contains('<System.Boolean>') then Exit(ftBoolean)
-           else if TypeName.Contains('<Int64>') or TypeName.Contains('<System.Int64>') then Exit(ftLargeint)
-           else if TypeName.Contains('<Double>') or TypeName.Contains('<System.Double>') then Exit(ftFloat)
-           else if TypeName.Contains('<Currency>') or TypeName.Contains('<System.Currency>') then Exit(ftCurrency)
-           else if TypeName.Contains('<TDateTime>') or TypeName.Contains('<System.TDateTime>') then Exit(ftDateTime);
-           
-           // Fallback to RTTI if name check is ambiguous or represents a nested generic (e.g., Nullable<Prop<Integer>>)
-           Context := TRttiContext.Create;
-           try
-             RttiType := Context.GetType(ATypeInfo);
-             RttiField := RttiType.GetField('FValue');
-             if RttiField <> nil then
-               Exit(MapTypeToFieldType(RttiField.FieldType.Handle));
-           finally
-             Context.Free;
-           end;
-        end;
-        Exit(ftUnknown);
+        var InnerInfo := TReflection.GetUnderlyingType(ATypeInfo);
+        if InnerInfo <> nil then
+          Exit(MapTypeToFieldType(InnerInfo))
+        else
+          Exit(ftUnknown);
       end;
     else
       Exit(ftUnknown);
@@ -1274,16 +1283,10 @@ end;
 function TEntityDataSet.ReadFieldValue(Field: TField; out Value: Variant): Boolean;
 var
   BlobData: TArray<Byte>;
-  Context: TRttiContext;
   CurrentObj: TObject;
   Header: PEntityRecordHeader;
   PropMap: TPropertyMap;
   PValue: Pointer;
-  RttiField: TRttiField;
-  RttiProp: TRttiProperty;
-  RttiType: TRttiType;
-  TempValue: TValue;
-  UnwrappedValue: TValue;
 begin
   Result := False;
   Value := Unassigned;
@@ -1317,43 +1320,40 @@ begin
   if (PropMap.FieldValueOffset <= 0) or 
      ((PropMap.PropertyType <> nil) and TReflection.IsSmartProp(PropMap.PropertyType)) then
   begin
-   Context := TRttiContext.Create;
-    try
-      RttiType := Context.GetType(FEntityClass);
-      if RttiType <> nil then
+    var RttiType := TReflection.Context.GetType(FEntityClass);
+    if RttiType <> nil then
+    begin
+      var RttiProp := RttiType.GetProperty(Field.FieldName);
+      if RttiProp <> nil then
       begin
-        RttiProp := RttiType.GetProperty(Field.FieldName);
-        if RttiProp <> nil then
+        var TempValue := RttiProp.GetValue(CurrentObj);
+        var UnwrappedValue: TValue;
+        if TReflection.TryUnwrapProp(TempValue, UnwrappedValue) then
         begin
-          TempValue := RttiProp.GetValue(CurrentObj);
-          if TReflection.TryUnwrapProp(TempValue, UnwrappedValue) then
-          begin
-            if UnwrappedValue.IsEmpty then Exit;
-            Value := UnwrappedValue.AsVariant;
-          end
-          else
-            Value := TempValue.AsVariant;
-          Result := True;
-          Exit;
-        end;
-
-        RttiField := RttiType.GetField(Field.FieldName);
-        if RttiField <> nil then
-        begin
-          TempValue := RttiField.GetValue(CurrentObj);
-          if TReflection.TryUnwrapProp(TempValue, UnwrappedValue) then
-          begin
-            if UnwrappedValue.IsEmpty then Exit;
-            Value := UnwrappedValue.AsVariant;
-          end
-          else
-            Value := TempValue.AsVariant;
-          Result := True;
-          Exit;
-        end;
+          if UnwrappedValue.IsEmpty then Exit;
+          Value := UnwrappedValue.AsVariant;
+        end
+        else
+          Value := TempValue.AsVariant;
+        Result := True;
+        Exit;
       end;
-    finally
-      Context.Free;
+
+      var RttiField := RttiType.GetField(Field.FieldName);
+      if RttiField <> nil then
+      begin
+        var TempValue := RttiField.GetValue(CurrentObj);
+        var UnwrappedValue: TValue;
+        if TReflection.TryUnwrapProp(TempValue, UnwrappedValue) then
+        begin
+          if UnwrappedValue.IsEmpty then Exit;
+          Value := UnwrappedValue.AsVariant;
+        end
+        else
+          Value := TempValue.AsVariant;
+        Result := True;
+        Exit;
+      end;
     end;
     Exit;
   end;
@@ -1490,15 +1490,11 @@ end;
 
 procedure TEntityDataSet.SetFieldData(Field: TField; Buffer: TValueBuffer);
 var
-  Context: TRttiContext;
   CurrentObj: TObject;
   Header: PEntityRecordHeader;
   P: Pointer;
   PropMap: TPropertyMap;
   PValue: Pointer;
-  RttiProp: TRttiProperty;
-  RttiField: TRttiField;
-  RttiType: TRttiType;
 begin
   CurrentObj := nil;
   Header := nil;
@@ -1541,35 +1537,30 @@ begin
   if (PropMap.FieldValueOffset <= 0) or
      ((PropMap.PropertyType <> nil) and TReflection.IsSmartProp(PropMap.PropertyType)) then
   begin
-    Context := TRttiContext.Create;
-    try
-     RttiType := Context.GetType(FEntityClass);
-      if RttiType <> nil then
+    var RttiType := TReflection.Context.GetType(FEntityClass);
+    if RttiType <> nil then
+    begin
+      var RttiProp := RttiType.GetProperty(Field.FieldName);
+      if RttiProp <> nil then
       begin
-        RttiProp := RttiType.GetProperty(Field.FieldName);
-        if RttiProp <> nil then
-        begin
-          if P = nil then
-            TReflection.SetValue(CurrentObj, RttiProp, TValue.Empty)
-          else
-            TReflection.SetValue(CurrentObj, RttiProp, TValueBufferToValue(Buffer, Field.DataType));
-          SetModified(True);
-          Exit;
-        end;
-
-        RttiField := RttiType.GetField(Field.FieldName);
-        if RttiField <> nil then
-        begin
-          if P = nil then
-            TReflection.SetValue(CurrentObj, RttiField, TValue.Empty)
-          else
-            TReflection.SetValue(CurrentObj, RttiField, TValueBufferToValue(Buffer, Field.DataType));
-          SetModified(True);
-          Exit;
-        end;
+        if P = nil then
+          TReflection.SetValue(CurrentObj, RttiProp, TValue.Empty)
+        else
+          TReflection.SetValue(CurrentObj, RttiProp, TValueBufferToValue(Buffer, Field.DataType));
+        SetModified(True);
+        Exit;
       end;
-    finally
-      Context.Free;
+
+      var RttiField := RttiType.GetField(Field.FieldName);
+      if RttiField <> nil then
+      begin
+        if P = nil then
+          TReflection.SetValue(CurrentObj, RttiField, TValue.Empty)
+        else
+          TReflection.SetValue(CurrentObj, RttiField, TValueBufferToValue(Buffer, Field.DataType));
+        SetModified(True);
+        Exit;
+      end;
     end;
   end;
 
@@ -1613,6 +1604,11 @@ begin
   end;
 
   SetModified(True);
+end;
+
+procedure TEntityDataSet.InternalHandleException;
+begin
+  // No-op. Exceções em memória não exigem buffer rollback ou handle físico de database.
 end;
 
 function TEntityDataSet.IsCursorOpen: Boolean;

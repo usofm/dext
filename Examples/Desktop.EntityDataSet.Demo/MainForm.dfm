@@ -11,7 +11,6 @@ object FormMain: TFormMain
   Font.Name = 'Segoe UI'
   Font.Style = []
   OnCreate = FormCreate
-  OnDestroy = FormDestroy
   TextHeight = 15
   object DBGridProducts: TDBGrid
     Left = 0
@@ -19,7 +18,7 @@ object FormMain: TFormMain
     Width = 628
     Height = 401
     Align = alClient
-    DataSource = DataSource1
+    DataSource = DataSource
     TabOrder = 0
     TitleFont.Charset = DEFAULT_CHARSET
     TitleFont.Color = clWindowText
@@ -35,17 +34,21 @@ object FormMain: TFormMain
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 1
-    object DBNavigator1: TDBNavigator
+    object DBNavigator: TDBNavigator
       Left = 8
       Top = 8
       Width = 240
       Height = 25
-      DataSource = DataSource1
+      DataSource = DataSource
       TabOrder = 0
     end
   end
-  object DataSource1: TDataSource
+  object DataSource: TDataSource
     Left = 320
+    Top = 184
+  end
+  object EntityDataSet: TEntityDataSet
+    Left = 184
     Top = 184
   end
 end

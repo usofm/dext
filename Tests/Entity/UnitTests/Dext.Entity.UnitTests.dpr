@@ -25,7 +25,8 @@ begin
     WriteLn('=========================');
     WriteLn;
 
-    if TTest.Configure
+    var TestResult := TTest
+      .Configure
       .Verbose
       .RegisterFixtures([
         TSmartTypesTests,
@@ -33,14 +34,11 @@ begin
         TFluentQueryTests,
         TSqlGeneratorTests,
         TFluentMappingTests,
-        TAsyncTests
-      ])
-      .ExportToJUnit('entity-unit-tests.xml')
-      .Run then
-      ExitCode := 0
-    else
-      ExitCode := 1;
+        TAsyncTests,
+        TDataSetSmartTypesTests
+      ]).Run;
 
+    TTest.SetExitCode(TestResult);
   except
     on E: Exception do
     begin

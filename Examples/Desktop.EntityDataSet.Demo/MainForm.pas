@@ -5,7 +5,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.DBCtrls, Vcl.Grids,
-  Vcl.DBGrids, Data.DB, Dext.Entity.DataSet, Dext.Entity.Attributes, Vcl.Buttons;
+  Vcl.DBGrids, Data.DB, Dext.Entity.DataSet, Dext.Entity.Attributes, Vcl.Buttons,
+  Dext.Collections;
 
 type
   [Table('products')]
@@ -15,6 +16,8 @@ type
     FDescription: string;
     FPrice: Double;
   public
+    constructor Create(Id: Integer; const Description: string; Price: Double);
+
     [PK, AutoInc]
     property Id: Integer read FId write FId;
     property Description: string read FDescription write FDescription;
@@ -24,13 +27,13 @@ type
   TFormMain = class(TForm)
     PanelTop: TPanel;
     DBGridProducts: TDBGrid;
-    DBNavigator1: TDBNavigator;
-    DataSource1: TDataSource;
+    DBNavigator: TDBNavigator;
+    DataSource: TDataSource;
+    EntityDataSet: TEntityDataSet;
     procedure FormCreate(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
   private
     FDataSet: TEntityDataSet;
-    FProducts: TArray<TObject>;
+    FProducts: IList<TProduct>;
   end;
 
 var
@@ -41,34 +44,35 @@ implementation
 {$R *.dfm}
 
 procedure TFormMain.FormCreate(Sender: TObject);
-var
-  I: Integer;
-  P: TProduct;
 begin
   FDataSet := TEntityDataSet.Create(Self);
-  DataSource1.DataSet := FDataSet;
-  DBGridProducts.DataSource := DataSource1;
+  DataSource.DataSet := FDataSet;
+  DBGridProducts.DataSource := DataSource;
 
-  // Criando 100 dados mockados para o showcase
-  SetLength(FProducts, 100);
-  
-  for I := 0 to 99 do
+  FProducts := TCollections.CreateList<TProduct>(True);
+
+  for var i := 0 to 99 do
   begin
-    P := TProduct.Create;
-    P.Id := 100 + I;
-    P.Description := 'Product ' + IntToStr(I + 1);
-    P.Price := 100.0 * (I + 1);
-    FProducts[I] := P;
+    FProducts.Add(TProduct.Create(
+      100 + i, {Id}
+      'Product ' + IntToStr(i + 1), {Description}
+      100.0 * (i + 1) {Price}
+    ));
   end;
 
   // Carregando dados no DataSet
-  FDataSet.Load(FProducts, TProduct);
+  // TODO
+  // FDataSet.Items := FProducts;
 end;
 
-procedure TFormMain.FormDestroy(Sender: TObject);
+{ TProduct }
+
+constructor TProduct.Create(Id: Integer; const Description: string; Price: Double);
 begin
-  for var I := 0 to High(FProducts) do
-    FProducts[I].Free;
+  inherited Create;
+  FId := Id;
+  FDescription := Description;
+  FPrice := Price;
 end;
 
 end.
