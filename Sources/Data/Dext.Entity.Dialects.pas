@@ -1012,7 +1012,9 @@ end;
 
 function TSQLServerDialect.QuoteIdentifier(const AName: string): string;
 begin
-  Result := '[' + AName + ']';
+  // Replaces "core.documents" with "core].[documents" 
+  // then wraps the whole thing in [] to get "[core].[documents]"
+  Result := '[' + StringReplace(AName, '.', '].[', [rfReplaceAll]) + ']';
 end;
 
 function TSQLServerDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string;

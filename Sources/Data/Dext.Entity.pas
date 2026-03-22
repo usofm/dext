@@ -546,7 +546,8 @@ begin
         end;
 
         // 3. Create Context
-        var Ctx := TDbContextClass(T).Create(Connection, Dialect, nil);
+        // TEMP FIX: pass naming strategy from options (was hardcoded nil — bug reported to author)
+        var Ctx := TDbContextClass(T).Create(Connection, Dialect, Options.BuildNamingStrategy);
         Result := Ctx;
         
       except

@@ -248,6 +248,10 @@ type
     
     function Max(const ASelector: TFunc<T, Double>): Double; overload;
     function Max(const APropertyName: string): Double; overload;
+    function Max(const AProp: IPropInfo): Double; overload;
+    function MaxOrDefault(const ASelector: TFunc<T, Double>; const ADefault: Double = 0): Double; overload;
+    function MaxOrDefault(const APropertyName: string; const ADefault: Double = 0): Double; overload;
+    function MaxOrDefault(const AProp: IPropInfo; const ADefault: Double = 0): Double; overload;
 
     /// <summary>
     /// </summary>
@@ -1405,6 +1409,68 @@ begin
   
   if not HasValue then
     raise Exception.Create('Sequence contains no elements');
+end;
+
+function TFluentQuery<T>.Max(const AProp: IPropInfo): Double;
+begin
+  Result := Max(AProp.PropertyName);
+end;
+
+function TFluentQuery<T>.MaxOrDefault(const AProp: IPropInfo; const ADefault: Double): Double;
+begin
+  Result := MaxOrDefault(AProp.PropertyName, ADefault);
+end;
+
+function TFluentQuery<T>.MaxOrDefault(const ASelector: TFunc<T, Double>; const ADefault: Double): Double;
+var
+  Enumerator: IEnumerator<T>;
+  Val: Double;
+begin
+  Result := ADefault;
+  Enumerator := GetEnumerator;
+  try
+    if Enumerator.MoveNext then
+    begin
+      Result := ASelector(Enumerator.Current);
+      while Enumerator.MoveNext do
+      begin
+        Val := ASelector(Enumerator.Current);
+        if Val > Result then Result := Val;
+      end;
+    end;
+  finally
+    Enumerator := nil;
+  end;
+end;
+
+function TFluentQuery<T>.MaxOrDefault(const APropertyName: string; const ADefault: Double): Double;
+var
+  Enumerator: IEnumerator<T>;
+  Val: Double;
+  Ctx: TRttiContext;
+  Obj: TObject;
+  Prop: TRttiProperty;
+begin
+  Result := ADefault;
+  Ctx := TRttiContext.Create;
+  Enumerator := GetEnumerator;
+  try
+    if Enumerator.MoveNext then
+    begin
+      Obj := TValue.From<T>(Enumerator.Current).AsObject;
+      if Obj = nil then raise Exception.Create('Item is not an object');
+      Prop := Ctx.GetType(Obj.ClassType).GetProperty(APropertyName);
+      Result := Prop.GetValue(Obj).AsType<Double>;
+      while Enumerator.MoveNext do
+      begin
+        Obj := TValue.From<T>(Enumerator.Current).AsObject;
+        Val := Prop.GetValue(Obj).AsType<Double>;
+        if Val > Result then Result := Val;
+      end;
+    end;
+  finally
+    Enumerator := nil;
+  end;
 end;
 
 function TFluentQuery<T>.Paginate(const APageNumber, APageSize: Integer): IPagedResult<T>;
