@@ -1552,9 +1552,16 @@ begin
         
         // 2. Add to SET clause: Version = :NewVersion (OldVersion + 1)
         
-        // Handle Smart Types even for version if needed (unlikely)
+        // Unwrap Prop<T> smart types (IntType = Prop<Integer>, etc.).
+        // TryUnwrapSmartValue may fail when the type alias name hides the generic name,
+        // so also apply direct FValue field extraction as a reliable fallback.
         TryUnwrapSmartValue(Val);
-        
+        if Val.Kind = tkRecord then
+        begin
+          var FVF := FRttiContext.GetType(Val.TypeInfo).AsRecord.GetField('FValue');
+          if FVF <> nil then Val := FVF.GetValue(Val.GetReferenceToRawData);
+        end;
+
         ParamNameNew := GetNextParamName;
         if Val.IsEmpty then NewVersionVal := 1 else NewVersionVal := Val.AsInteger + 1;
         FParams.Add(ParamNameNew, NewVersionVal);

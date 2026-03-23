@@ -1245,6 +1245,12 @@ begin
           if Attr is VersionAttribute then
           begin
             Val := Prop.GetValue(Pointer(AEntity));
+            // Unwrap Prop<T> (e.g. IntType = Prop<Integer>) before calling AsInteger.
+            if Val.Kind = tkRecord then
+            begin
+              var FVF := Ctx.GetType(Val.TypeInfo).AsRecord.GetField('FValue');
+              if FVF <> nil then Val := FVF.GetValue(Val.GetReferenceToRawData);
+            end;
             if Val.IsEmpty then NewVer := 1 else NewVer := Val.AsInteger + 1;
             TReflection.SetValue(Pointer(AEntity), Prop, NewVer);
             Break;

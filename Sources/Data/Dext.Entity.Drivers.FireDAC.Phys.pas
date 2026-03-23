@@ -382,7 +382,24 @@ begin
     Param.Clear;
     Exit;
   end;
-  
+
+  // Unwrap Prop<T> smart property records (CurrencyType, FloatType, IntType, etc.).
+  // Delphi RTTI stores the alias name, not 'Prop<...>', so detect by FValue field presence.
+  if AValue.Kind = tkRecord then
+  begin
+    var Ctx := TRttiContext.Create;
+    try
+      var FValueField := Ctx.GetType(AValue.TypeInfo).AsRecord.GetField('FValue');
+      if FValueField <> nil then
+      begin
+        SetParamValueWithType(Param, FValueField.GetValue(AValue.GetReferenceToRawData), ADataType);
+        Exit;
+      end;
+    finally
+      Ctx.Free;
+    end;
+  end;
+
   // Set value based on the explicit type
   case ADataType of
     ftString, ftWideString, ftMemo, ftWideMemo:
@@ -396,13 +413,27 @@ begin
     ftBCD:
       Param.AsBCD := AValue.AsType<Currency>;
     ftFMTBcd:
-      Param.AsFMTBCD := StrToBcd(AValue.AsString);
+      case AValue.Kind of
+        tkFloat:    Param.AsFMTBCD := DoubleToBcd(AValue.AsExtended);
+        tkInteger, tkInt64: Param.AsFMTBCD := DoubleToBcd(AValue.AsInt64);
+        tkString, tkUString, tkWString, tkLString: Param.AsFMTBCD := StrToBcd(AValue.AsString);
+        else Param.AsFMTBCD := StrToBcd(AValue.AsString);
+      end;
     ftDate:
-      Param.AsDate := AValue.AsType<TDate>;
+    begin
+      var DtVal := AValue.AsType<TDate>;
+      if DtVal = 0 then Param.Clear else Param.AsDate := DtVal;
+    end;
     ftTime:
-      Param.AsTime := AValue.AsType<TTime>;
+    begin
+      var DtVal := AValue.AsType<TTime>;
+      if DtVal = 0 then Param.Clear else Param.AsTime := DtVal;
+    end;
     ftDateTime, ftTimeStamp:
-      Param.AsDateTime := AValue.AsType<TDateTime>;
+    begin
+      var DtVal := AValue.AsType<TDateTime>;
+      if DtVal = 0 then Param.Clear else Param.AsDateTime := DtVal;
+    end;
     ftBoolean:
       Param.AsBoolean := AValue.AsBoolean;
     ftBlob, ftGraphic, ftParadoxOle, ftDBaseOle, ftTypedBinary, ftOraBlob:
@@ -666,17 +697,20 @@ begin
         if ConvertedValue.TypeInfo = TypeInfo(TDateTime) then
         begin
           Param.DataType := ftDateTime;
-          Param.AsDateTime := ConvertedValue.AsType<TDateTime>;
+          var DtVal1 := ConvertedValue.AsType<TDateTime>;
+          if DtVal1 = 0 then Param.Clear else Param.AsDateTime := DtVal1;
         end
         else if ConvertedValue.TypeInfo = TypeInfo(TDate) then
         begin
           Param.DataType := ftDate;
-          Param.AsDate := ConvertedValue.AsType<TDate>;
+          var DtVal2 := ConvertedValue.AsType<TDate>;
+          if DtVal2 = 0 then Param.Clear else Param.AsDate := DtVal2;
         end
         else if ConvertedValue.TypeInfo = TypeInfo(TTime) then
         begin
           Param.DataType := ftTime;
-          Param.AsTime := ConvertedValue.AsType<TTime>;
+          var DtVal3 := ConvertedValue.AsType<TTime>;
+          if DtVal3 = 0 then Param.Clear else Param.AsTime := DtVal3;
         end
         else
         begin
@@ -720,17 +754,20 @@ begin
         if AValue.TypeInfo = TypeInfo(TDateTime) then
         begin
           Param.DataType := ftDateTime;
-          Param.AsDateTime := AValue.AsType<TDateTime>;
+          var DtVal4 := AValue.AsType<TDateTime>;
+          if DtVal4 = 0 then Param.Clear else Param.AsDateTime := DtVal4;
         end
         else if AValue.TypeInfo = TypeInfo(TDate) then
         begin
           Param.DataType := ftDate;
-          Param.AsDate := AValue.AsType<TDate>;
+          var DtVal5 := AValue.AsType<TDate>;
+          if DtVal5 = 0 then Param.Clear else Param.AsDate := DtVal5;
         end
         else if AValue.TypeInfo = TypeInfo(TTime) then
         begin
           Param.DataType := ftTime;
-          Param.AsTime := AValue.AsType<TTime>;
+          var DtVal6 := AValue.AsType<TTime>;
+          if DtVal6 = 0 then Param.Clear else Param.AsTime := DtVal6;
         end
         else
         begin
