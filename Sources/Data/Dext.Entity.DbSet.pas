@@ -815,7 +815,14 @@ begin
   for i := 0 to Reader.GetColumnCount - 1 do
   begin
     ColName := Reader.GetColumnName(i);
-    Val := Reader.GetValue(i);
+    try
+      Val := Reader.GetValue(i);
+    except
+      on E: Exception do
+        raise Exception.CreateFmt(
+          'Error reading result column "%s" while hydrating %s: %s',
+          [ColName, Target.ClassName, E.Message]);
+    end;
     
     if FProps.TryGetValue(ColName.ToLower, Prop) then
     begin

@@ -806,7 +806,17 @@ begin
            end;
         end
         else
-           Param.Value := AValue.AsVariant;
+        begin
+		  //Try Unwrap SmartTypes
+          var Unwrapped: TValue;
+          if TReflection.TryUnwrapProp(AValue, Unwrapped) then
+            SetParamValue(Param, Unwrapped)
+          else
+          begin
+            Param.DataType := ftString;
+            Param.Value := AValue.AsVariant;
+          end;
+        end;
       end;
     else
       Param.Value := AValue.AsVariant;

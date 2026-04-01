@@ -162,13 +162,48 @@ uses
   Dext.Core.Reflection;
 
 function FireDACFieldToTValue(Field: TField): TValue;
+
+  /// <summary>
+  ///  Fallback when TFieldType is missing or non-standard (e.g. PostgreSQL
+  ///  <c>timestamptz</c> often reported as <c>ftUnknown</c>): try
+  ///  <c>TValue.FromVariant</c>, then <c>AsDateTime</c> (FireDAC maps most date/time this way),
+  ///  then <c>AsString</c>. Raises with <c>FieldName</c> only if all fail.
+  /// </summary>
+  function TValueFromVariant: TValue;
+  begin
+
+    try
+      Result := TValue.FromVariant(Field.Value);
+    except
+     on E:Exception do
+     begin
+        // PG timestamptz / odd ODBC types: often ftUnknown while AsDateTime still works.
+          try
+            Result := TValue.From<TDateTime>(Field.AsDateTime);
+          except
+          on E: Exception do
+             begin
+                try
+                  Result := TValue.From<string>(Trim(Field.AsString));
+                except
+                on E: Exception do
+                   raise Exception.CreateFmt('TValueFromVariant failed for field "%s": %s', [Field.FieldName, E.Message]);
+                end;
+             end;
+          end;
+     end;
+    end;
+
+
+  end;
+
 begin
   if (Field = nil) or Field.IsNull then
     Exit(TValue.Empty);
   try
     case Field.DataType of
       ftUnknown:
-        Result := TValue.FromVariant(Field.Value);
+        Result := TValueFromVariant;
       ftString, ftWideString, ftMemo, ftWideMemo, ftFixedChar, ftFixedWideChar:
         Result := TValue.From<string>(Field.AsString);
       ftSmallint, ftShortint:
@@ -186,11 +221,7 @@ begin
       ftCurrency, ftBCD:
         Result := TValue.From<Currency>(Field.AsCurrency);
       ftFMTBcd:
-        try
-          Result := TValue.From<Currency>(Field.AsCurrency);
-        except
           Result := TValue.From<Double>(Field.AsFloat);
-        end;
       ftBoolean:
         Result := TValue.From<Boolean>(Field.AsBoolean);
       ftDate:
@@ -203,16 +234,16 @@ begin
         try
           Result := TValue.From<TBytes>(Field.AsBytes);
         except
-          Result := TValue.FromVariant(Field.Value);
+          Result := TValueFromVariant;
         end;
       ftGuid:
         Result := TValue.From<TGUID>(Field.AsGuid);
     else
-      Result := TValue.FromVariant(Field.Value);
+      Result := TValueFromVariant;
     end;
   except
     on E: EVariantTypeCastError do
-      Result := TValue.FromVariant(Field.Value);
+      Result := TValueFromVariant;
   end;
 end;
 
@@ -380,7 +411,8 @@ var
 begin
   if Length(AValues) = 0 then
     Exit;
-  FQuery.Prepare;
+  // Do not Prepare before binding: PostgreSQL (Phys PG) rejects unknown param types at Prepare
+  // when values/types have not been assigned yet. Params are created when SQL.Text is set.
   if FQuery.Params.Count <> Length(AValues) then
     raise Exception.CreateFmt(
       'FromSql parameter count mismatch: SQL has %d parameter(s) but %d value(s) were supplied.',
@@ -742,7 +774,17 @@ begin
            end;
         end
         else
-           Param.Value := AValue.AsVariant;
+        begin
+		  //Try Unwrap SmartTypes
+          var Unwrapped: TValue;
+          if TReflection.TryUnwrapProp(AValue, Unwrapped) then
+            SetParamValue(Param, Unwrapped)
+          else
+          begin
+            Param.DataType := ftString;
+            Param.Value := AValue.AsVariant;
+          end;
+        end;
       end;  // end case AValue.Kind
     else
       Param.Value := AValue.AsVariant;
