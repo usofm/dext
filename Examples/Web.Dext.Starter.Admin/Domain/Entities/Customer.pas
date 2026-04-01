@@ -3,7 +3,8 @@ unit Customer;
 interface
 
 uses
-  Dext.Entity; // Correct unit
+  Dext.Entity,
+  Dext.Core.SmartTypes; // Correct unit
 
 type
   TCustomerStatus = (Active, Inactive, Blocked);
@@ -11,26 +12,26 @@ type
   [Table('Customers')]
   TCustomer = class
   private
-    FId: Integer;
-    FName: string;
-    FEmail: string;
+    FId: IntType;
+    FName: StringType;
+    FEmail: StringType;
     FStatus: TCustomerStatus;
-    FTotalSpent: Double;
+    FTotalSpent: FloatType;
   public
     [PK, AutoInc]
-    property Id: Integer read FId write FId;
+    property Id: IntType read FId write FId;
     
     [Column('name')]
-    property Name: string read FName write FName;
+    property Name: StringType read FName write FName;
     
     [Column('email')]
-    property Email: string read FEmail write FEmail;
+    property Email: StringType read FEmail write FEmail;
     
     [Column('status')]
     property Status: TCustomerStatus read FStatus write FStatus;
     
     [Column('total_spent')]
-    property TotalSpent: Double read FTotalSpent write FTotalSpent;
+    property TotalSpent: FloatType read FTotalSpent write FTotalSpent;
   end;
 
 implementation

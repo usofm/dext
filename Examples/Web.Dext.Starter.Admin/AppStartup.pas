@@ -81,18 +81,19 @@ end;
 procedure TAppStartup.ConfigureDatabase(Options: TDbContextOptions);
 const
   // EASY SWITCH: Change this constant to switch database provider
-  DB_PROVIDER = 'SQLITE'; // Options: SQLITE, POSTGRES
+  DB_PROVIDER = 'POSTGRES'; // Options: SQLITE, POSTGRES
 begin
   if DB_PROVIDER = 'POSTGRES' then
   begin
     // PostgreSQL Configuration (Production Ready)
     Options.UseDriver('PG');
     Options.ConnectionString := 
-      'Server=localhost;' +
+      'Server=127.0.0.1;' +
       'Port=5432;' +
       'Database=dext_admin;' +
       'User_Name=postgres;' +
-      'Password=postgres;';
+      'Password=masterkey;'+
+      'CharacterSet=utf8';
     
     // Enable Pooling for high concurrency
     Options.WithPooling(True, 50);

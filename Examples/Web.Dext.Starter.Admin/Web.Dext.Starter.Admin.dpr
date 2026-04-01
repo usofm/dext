@@ -6,6 +6,9 @@ program Web.Dext.Starter.Admin;
 
 uses
   Dext.MM,
+  // FireDAC: link driver units so UseDriver('PG'/'SQLite') works without dropping TFDPhys*DriverLink on a form.
+  FireDAC.Phys.PG,
+  FireDAC.Phys.SQLite,
   System.SysUtils,
   Dext,
   Dext.Web,

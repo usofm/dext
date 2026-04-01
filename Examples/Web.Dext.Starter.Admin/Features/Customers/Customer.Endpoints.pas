@@ -38,7 +38,12 @@ begin
   FS := TFormatSettings.Create;
   FS.DecimalSeparator := '.';
   Result := Format(HTML_CUSTOMER_ROW,
-    [C.Id, C.Id, C.Name, C.Email, FormatFloat('0.00', C.TotalSpent, FS), C.Id, C.Id]);
+    [C.Id.AsInteger,
+     C.Id.AsInteger,
+     C.Name.AsString, C.Email.AsString,
+     FormatFloat('0.00', C.TotalSpent.AsDouble, FS),
+     C.Id.AsInteger,
+     C.Id.AsInteger]);
 end;
 
 function GenerateCustomerForm(C: TCustomer): string;
