@@ -921,6 +921,7 @@ begin
     end;
 
     Unwrapped := Meta.ValueField.GetValue(PData);
+    ADest := Unwrapped;
 
     // If unwrapped is an ILazy interface, extract its value
     if (Unwrapped.Kind = tkInterface) then

@@ -1,4 +1,4 @@
-﻿// ***************************************************************************
+// ***************************************************************************
 //
 //           Dext Framework
 //
@@ -30,12 +30,9 @@ unit Dext.Templating;
 
 interface
 
-{$MESSAGE HINT 'TODO: REMOVE System.Generics.Collections DEPENDENCY'}
-
 uses
   System.Classes,
   System.DateUtils,
-  System.Generics.Collections,
   System.Math,
   System.NetEncoding,
   System.Rtti,
@@ -166,33 +163,33 @@ type
   TConditionalNode = class(TTemplateNode)
   private
     FCondition: string;
-    FTrueNodes: TObjectList<TTemplateNode>;
-    FFalseNodes: TObjectList<TTemplateNode>;
+    FTrueNodes: IList<TTemplateNode>;
+    FFalseNodes: IList<TTemplateNode>;
   public
     constructor Create(AEngine: TDextTemplateEngine; const ACondition: string); reintroduce;
     constructor CreateAt(AEngine: TDextTemplateEngine; const APos: TSourcePos; const ACondition: string); reintroduce;
     destructor Destroy; override;
     function Render(const AContext: ITemplateContext): string; override;
-    property TrueNodes: TObjectList<TTemplateNode> read FTrueNodes;
-    property FalseNodes: TObjectList<TTemplateNode> read FFalseNodes;
+    property TrueNodes: IList<TTemplateNode> read FTrueNodes;
+    property FalseNodes: IList<TTemplateNode> read FFalseNodes;
   end;
 
   TLoopNode = class(TTemplateNode)
   private
     FItemName: string;
     FListExpr: string;
-    FNodes: TObjectList<TTemplateNode>;
-    FElseNodes: TObjectList<TTemplateNode>;
+    FNodes: IList<TTemplateNode>;
+    FElseNodes: IList<TTemplateNode>;
   public
     constructor Create(AEngine: TDextTemplateEngine; const AItemName, AListExpr: string); reintroduce;
     constructor CreateAt(AEngine: TDextTemplateEngine; const APos: TSourcePos; const AItemName, AListExpr: string); reintroduce;
     destructor Destroy; override;
     function Render(const AContext: ITemplateContext): string; override;
-    property Nodes: TObjectList<TTemplateNode> read FNodes;
-    property ElseNodes: TObjectList<TTemplateNode> read FElseNodes;
+    property Nodes: IList<TTemplateNode> read FNodes;
+    property ElseNodes: IList<TTemplateNode> read FElseNodes;
   end;
 
-  TTemplateNodeList = TObjectList<TTemplateNode>;
+  TTemplateNodeList = IList<TTemplateNode>;
 
   TFileSystemTemplateLoader = class(TInterfacedObject, ITemplateLoader)
   private
@@ -238,8 +235,8 @@ type
     public
       LayoutName: string;
       BodyText: string;
-      Sections: TObjectDictionary<string, TStringBuilder>;
-      Definitions: TObjectDictionary<string, TInlineTemplateDefinition>;
+      Sections: IDictionary<string, TStringBuilder>;
+      Definitions: IDictionary<string, TInlineTemplateDefinition>;
       constructor Create;
       destructor Destroy; override;
     end;
@@ -249,7 +246,7 @@ type
       TemplateName: string;
       BodyContent: string;
       Sections: IDictionary<string, string>;
-      Definitions: TObjectDictionary<string, TInlineTemplateDefinition>;
+      Definitions: IDictionary<string, TInlineTemplateDefinition>;
       constructor Create;
       destructor Destroy; override;
     end;
@@ -260,7 +257,7 @@ type
     FTemplateLoader: ITemplateLoader;
     FTemplateRoot: string;
     FCurrentState: TRenderState;
-    FTemplateAstCache: TObjectDictionary<string, TTemplateNodeList>;
+    FTemplateAstCache: IDictionary<string, TTemplateNodeList>;
 
     function GetTemplateLoader: ITemplateLoader;
     procedure SetTemplateLoader(const ALoader: ITemplateLoader);
@@ -358,7 +355,7 @@ type
   TSwitchCase = class
   public
     Expression: string;
-    Nodes: TObjectList<TTemplateNode>;
+    Nodes: IList<TTemplateNode>;
     constructor Create(const AExpression: string);
     destructor Destroy; override;
   end;
@@ -366,15 +363,15 @@ type
   TSwitchNode = class(TTemplateNode)
   private
     FExpression: string;
-    FCases: TObjectList<TSwitchCase>;
-    FDefaultNodes: TObjectList<TTemplateNode>;
+    FCases: IList<TSwitchCase>;
+    FDefaultNodes: IList<TTemplateNode>;
   public
     constructor Create(AEngine: TDextTemplateEngine; const AExpression: string); reintroduce;
     constructor CreateAt(AEngine: TDextTemplateEngine; const APos: TSourcePos; const AExpression: string); reintroduce;
     destructor Destroy; override;
     function Render(const AContext: ITemplateContext): string; override;
-    property Cases: TObjectList<TSwitchCase> read FCases;
-    property DefaultNodes: TObjectList<TTemplateNode> read FDefaultNodes;
+    property Cases: IList<TSwitchCase> read FCases;
+    property DefaultNodes: IList<TTemplateNode> read FDefaultNodes;
   end;
 
   TPartialNode = class(TTemplateNode)
@@ -612,22 +609,20 @@ constructor TConditionalNode.Create(AEngine: TDextTemplateEngine; const AConditi
 begin
   inherited Create(AEngine);
   FCondition := ACondition;
-  FTrueNodes := TTemplateNodeList.Create(True);
-  FFalseNodes := TTemplateNodeList.Create(True);
+  FTrueNodes := TCollections.CreateList<TTemplateNode>(True);
+  FFalseNodes := TCollections.CreateList<TTemplateNode>(True);
 end;
 
 constructor TConditionalNode.CreateAt(AEngine: TDextTemplateEngine; const APos: TSourcePos; const ACondition: string);
 begin
   inherited CreateAt(AEngine, APos);
   FCondition := ACondition;
-  FTrueNodes := TTemplateNodeList.Create(True);
-  FFalseNodes := TTemplateNodeList.Create(True);
+  FTrueNodes := TCollections.CreateList<TTemplateNode>(True);
+  FFalseNodes := TCollections.CreateList<TTemplateNode>(True);
 end;
 
 destructor TConditionalNode.Destroy;
 begin
-  FTrueNodes.Free;
-  FFalseNodes.Free;
   inherited;
 end;
 
@@ -651,8 +646,8 @@ begin
   inherited Create(AEngine);
   FItemName := AItemName;
   FListExpr := AListExpr;
-  FNodes := TTemplateNodeList.Create(True);
-  FElseNodes := TTemplateNodeList.Create(True);
+  FNodes := TCollections.CreateList<TTemplateNode>(True);
+  FElseNodes := TCollections.CreateList<TTemplateNode>(True);
 end;
 
 constructor TLoopNode.CreateAt(AEngine: TDextTemplateEngine; const APos: TSourcePos; const AItemName, AListExpr: string);
@@ -660,14 +655,12 @@ begin
   inherited CreateAt(AEngine, APos);
   FItemName := AItemName;
   FListExpr := AListExpr;
-  FNodes := TTemplateNodeList.Create(True);
-  FElseNodes := TTemplateNodeList.Create(True);
+  FNodes := TCollections.CreateList<TTemplateNode>(True);
+  FElseNodes := TCollections.CreateList<TTemplateNode>(True);
 end;
 
 destructor TLoopNode.Destroy;
 begin
-  FNodes.Free;
-  FElseNodes.Free;
   inherited;
 end;
 
@@ -859,12 +852,11 @@ constructor TSwitchCase.Create(const AExpression: string);
 begin
   inherited Create;
   Expression := AExpression;
-  Nodes := TObjectList<TTemplateNode>.Create(True);
+  Nodes := TCollections.CreateList<TTemplateNode>(True);
 end;
 
 destructor TSwitchCase.Destroy;
 begin
-  Nodes.Free;
   inherited;
 end;
 
@@ -874,22 +866,20 @@ constructor TSwitchNode.Create(AEngine: TDextTemplateEngine; const AExpression: 
 begin
   inherited Create(AEngine);
   FExpression := AExpression;
-  FCases := TObjectList<TSwitchCase>.Create(True);
-  FDefaultNodes := TObjectList<TTemplateNode>.Create(True);
+  FCases := TCollections.CreateList<TSwitchCase>(True);
+  FDefaultNodes := TCollections.CreateList<TTemplateNode>(True);
 end;
 
 constructor TSwitchNode.CreateAt(AEngine: TDextTemplateEngine; const APos: TSourcePos; const AExpression: string);
 begin
   inherited CreateAt(AEngine, APos);
   FExpression := AExpression;
-  FCases := TObjectList<TSwitchCase>.Create(True);
-  FDefaultNodes := TObjectList<TTemplateNode>.Create(True);
+  FCases := TCollections.CreateList<TSwitchCase>(True);
+  FDefaultNodes := TCollections.CreateList<TTemplateNode>(True);
 end;
 
 destructor TSwitchNode.Destroy;
 begin
-  FCases.Free;
-  FDefaultNodes.Free;
   inherited;
 end;
 
@@ -965,14 +955,12 @@ end;
 constructor TDextTemplateEngine.TTemplateDocument.Create;
 begin
   inherited Create;
-  Sections := TObjectDictionary<string, TStringBuilder>.Create([doOwnsValues]);
-  Definitions := TObjectDictionary<string, TInlineTemplateDefinition>.Create([doOwnsValues]);
+  Sections := TCollections.CreateDictionary<string, TStringBuilder>(True);
+  Definitions := TCollections.CreateDictionary<string, TInlineTemplateDefinition>(True);
 end;
 
 destructor TDextTemplateEngine.TTemplateDocument.Destroy;
 begin
-  Definitions.Free;
-  Sections.Free;
   inherited;
 end;
 
@@ -982,12 +970,11 @@ constructor TDextTemplateEngine.TRenderState.Create;
 begin
   inherited Create;
   Sections := TCollections.CreateDictionaryIgnoreCase<string, string>;
-  Definitions := TObjectDictionary<string, TInlineTemplateDefinition>.Create([doOwnsValues]);
+  Definitions := TCollections.CreateDictionary<string, TInlineTemplateDefinition>(True);
 end;
 
 destructor TDextTemplateEngine.TRenderState.Destroy;
 begin
-  Definitions.Free;
   Sections := nil;
   inherited;
 end;
@@ -1004,7 +991,7 @@ begin
   inherited Create;
   FFilters := TCollections.CreateDictionaryIgnoreCase<string, System.SysUtils.TFunc<string, string>>;
   FAdvancedFilters := TCollections.CreateDictionaryIgnoreCase<string, TTemplateFilterFunc>;
-  FTemplateAstCache := TObjectDictionary<string, TTemplateNodeList>.Create([doOwnsValues]);
+  FTemplateAstCache := TCollections.CreateDictionary<string, TTemplateNodeList>(True);
   FTemplateLoader := ALoader;
   FIsHtmlMode := False;
 
@@ -1250,7 +1237,6 @@ end;
 
 destructor TDextTemplateEngine.Destroy;
 begin
-  FTemplateAstCache.Free;
   FAdvancedFilters := nil;
   FFilters := nil;
   inherited;
@@ -2833,12 +2819,12 @@ begin
   LCurrentLine := 1;
   LCurrentCol := 1;
   LPos := 1;
-  Result := TTemplateNodeList.Create(True);
+  Result := TCollections.CreateList<TTemplateNode>(True);
   try
     ATrimNext := False;
     ParseBlock(Result, [], GetCurrentPos, ATrimNext);
   except
-    Result.Free;
+    Result := nil;
     raise;
   end;
 end;

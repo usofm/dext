@@ -35,6 +35,7 @@ object FormMasterDetailReal: TFormMasterDetailReal
     Font.Style = [fsBold]
     ParentFont = False
     TabOrder = 0
+    ExplicitWidth = 788
   end
   object PanelMaster: TPanel
     Left = 0
@@ -44,6 +45,7 @@ object FormMasterDetailReal: TFormMasterDetailReal
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 1
+    ExplicitWidth = 788
     object DBNavigatorMaster: TDBNavigator
       Left = 0
       Top = 0
@@ -52,6 +54,7 @@ object FormMasterDetailReal: TFormMasterDetailReal
       DataSource = MasterDataSource
       Align = alTop
       TabOrder = 0
+      ExplicitWidth = 788
     end
     object DBGridMaster: TDBGrid
       Left = 0
@@ -76,6 +79,8 @@ object FormMasterDetailReal: TFormMasterDetailReal
     Align = alClient
     BevelOuter = bvNone
     TabOrder = 2
+    ExplicitWidth = 788
+    ExplicitHeight = 216
     object DBNavigatorDetail: TDBNavigator
       Left = 0
       Top = 0
@@ -84,6 +89,7 @@ object FormMasterDetailReal: TFormMasterDetailReal
       DataSource = DetailDataSource
       Align = alTop
       TabOrder = 0
+      ExplicitWidth = 788
     end
     object DBGridDetail: TDBGrid
       Left = 0

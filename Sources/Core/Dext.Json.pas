@@ -1261,6 +1261,8 @@ var
   Handler: IPropertyHandler;
   Unwrapped: TValue;
   NestedRecord: IDextJsonObject;
+  LTypeKind: TTypeKind;
+  LTypeInfo: PTypeInfo;
 begin
   Result := TDextJson.Provider.CreateObject;
 
@@ -1313,12 +1315,19 @@ begin
     Handler := TReflection.GetHandler(Obj.ClassInfo, Prop.Name);
     PropValue := Handler.GetValue(Pointer(Obj));
 
+    LTypeKind := PropValue.Kind;
+    LTypeInfo := PropValue.TypeInfo;
+
     // Smart Properties Support: Unwrap Prop<T>
-    if (PropValue.Kind = tkRecord) and (PropValue.TypeInfo <> nil) and
-       TReflection.IsSmartProp(PropValue.TypeInfo) then
+    if (LTypeKind = tkRecord) and (LTypeInfo <> nil) and
+       TReflection.IsSmartProp(LTypeInfo) then
     begin
       if TReflection.TryUnwrapProp(PropValue, Unwrapped) then
+      begin
         PropValue := Unwrapped;
+        LTypeKind := PropValue.Kind;
+        LTypeInfo := PropValue.TypeInfo;
+      end;
     end;
 
     // Handle null/empty values
@@ -1330,15 +1339,15 @@ begin
     end;
 
     // Serialize based on property type
-    case PropValue.TypeInfo.Kind of
+    case LTypeKind of
       tkInteger, tkInt64:
         Result.SetInt64(PropName, PropValue.AsInt64);
 
       tkFloat:
         begin
-          if (PropValue.TypeInfo = TypeInfo(TDateTime)) or 
-             (PropValue.TypeInfo = TypeInfo(TDate)) or 
-             (PropValue.TypeInfo = TypeInfo(TTime)) then
+          if (LTypeInfo = TypeInfo(TDateTime)) or 
+             (LTypeInfo = TypeInfo(TDate)) or 
+             (LTypeInfo = TypeInfo(TTime)) then
             Result.SetString(PropName, FormatDateTime(FSettings.DateFormat, PropValue.AsExtended))
           else
             Result.SetDouble(PropName, PropValue.AsExtended);
@@ -1349,17 +1358,17 @@ begin
 
       tkEnumeration:
         begin
-          if PropValue.TypeInfo = TypeInfo(Boolean) then
+          if LTypeInfo = TypeInfo(Boolean) then
             Result.SetBoolean(PropName, PropValue.AsBoolean)
           else
-            Result.SetString(PropName, GetEnumName(PropValue.TypeInfo, PropValue.AsOrdinal));
+            Result.SetString(PropName, GetEnumName(LTypeInfo, PropValue.AsOrdinal));
         end;
 
       tkRecord:
         begin
-          if PropValue.TypeInfo = TypeInfo(TGUID) then
+          if LTypeInfo = TypeInfo(TGUID) then
             Result.SetString(PropName, GetGUIDString(PropValue))
-          else if PropValue.TypeInfo = TypeInfo(TUUID) then
+          else if LTypeInfo = TypeInfo(TUUID) then
             Result.SetString(PropName, GetUUIDString(PropValue))
           else
           begin
@@ -1370,9 +1379,9 @@ begin
 
       tkClass, tkInterface:
         begin
-          if IsListType(PropValue.TypeInfo) then
+          if IsListType(LTypeInfo) then
             Result.SetArray(PropName, SerializeList(PropValue))
-          else if PropValue.Kind = tkClass then
+          else if LTypeKind = tkClass then
           begin
             if PropValue.AsObject = nil then
               Result.SetNull(PropName)
@@ -1393,6 +1402,7 @@ function TDextSerializer.ShouldSkipField(AField: TRttiField; const AValue: TValu
 var
   Attribute: TCustomAttribute;
   FieldValue: TValue;
+  Unwrapped: TValue;
 begin
   for Attribute in AField.GetAttributes do
   begin
@@ -1410,6 +1420,14 @@ begin
 
   if FSettings.IgnoreDefaultValues then
   begin
+    // Support Smart Properties (Prop<T>)
+    if (FieldValue.Kind = tkRecord) and (FieldValue.TypeInfo <> nil) and
+       TReflection.IsSmartProp(FieldValue.TypeInfo) then
+    begin
+      if TReflection.TryUnwrapProp(FieldValue, Unwrapped) then
+        FieldValue := Unwrapped;
+    end;
+
     case FieldValue.Kind of
       tkInteger: if FieldValue.AsInteger = 0 then Exit(True);
       tkInt64: if FieldValue.AsInt64 = 0 then Exit(True);

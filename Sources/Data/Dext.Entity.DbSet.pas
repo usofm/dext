@@ -563,9 +563,10 @@ begin
     if ColName = '' then
       ColName := Handler.GetColumnName();
 
-    if ColName = '' then
-      if Handler.GetMember() is TRttiProperty then
-        ColName := FContext.NamingStrategy.GetColumnName(TRttiProperty(Handler.GetMember()));
+    // If ColName matches Property Name, it means it's the default name. 
+    // We should apply Naming Strategy (e.g. SnakeCase) if available.
+    if (ColName = Handler.GetName()) and (FContext.NamingStrategy <> nil) and (Handler.GetMember() is TRttiProperty) then
+      ColName := FContext.NamingStrategy.GetColumnName(TRttiProperty(Handler.GetMember()));
 
     if ((PropMap <> nil) and PropMap.IsPK) or Handler.GetIsPK() then
     begin

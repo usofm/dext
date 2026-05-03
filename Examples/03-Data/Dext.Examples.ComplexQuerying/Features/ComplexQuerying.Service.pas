@@ -77,13 +77,6 @@ end;
 function TOrderService.GetOrderById(Id: Int64): TOrder;
 begin
   Result := FDbContext.Orders.Find(Id);
-  if Result <> nil then
-  begin
-    WriteLn(Format('[Service] Fetched Order %d', [Result.Id]));
-    WriteLn(Format('[Service]   OrderNumber: %s', [string(Result.OrderNumber)]));
-    WriteLn(Format('[Service]   Status: %s', [string(Result.Status)]));
-    WriteLn(Format('[Service]   TotalAmount: %f', [Double(Result.TotalAmount)]));
-  end;
 end;
 
 function TOrderService.GetOrdersByStatus(const Status: string): IList<TOrder>;
