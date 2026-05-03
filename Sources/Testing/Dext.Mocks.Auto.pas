@@ -66,10 +66,12 @@ begin
 end;
 
 destructor TAutoMocker.Destroy;
+var
+  Interceptor: IInterceptor;
 begin
   if FInterceptors <> nil then
   begin
-    for var Interceptor in FInterceptors.Values do
+    for Interceptor in FInterceptors.Values do
       (Interceptor as TMockInterceptor).ClearInterceptors;
     FInterceptors := nil;
   end;
@@ -132,6 +134,7 @@ var
   ProxyObj: TInterfaceProxy;
   ProxyIntf: IInterface;
   I: Integer;
+  ObjInstance: TObject;
 begin
   RttiType := TReflection.Context.GetType(TypeInfo(T));
   if RttiType = nil then
@@ -168,7 +171,7 @@ begin
            FClassProxies.Add(ParamInfo, CProxy);
          end;
           // Fix: Use TValue.Make with correct TypeInfo to avoid RTTI typecast errors
-          var ObjInstance := TClassProxy(CProxy).Instance;
+          ObjInstance := TClassProxy(CProxy).Instance;
           TValue.Make(@ObjInstance, ParamInfo, Args[I]);
        end
        else

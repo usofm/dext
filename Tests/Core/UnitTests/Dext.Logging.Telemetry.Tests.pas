@@ -48,6 +48,7 @@ var
   EventName: string;
   EventPayload: TJSONObject;
   Observer: ITelemetryObserver;
+  Data: TJSONObject;
 begin
   EventName := '';
   EventPayload := nil;
@@ -65,7 +66,7 @@ begin
     
   TDiagnosticSource.Instance.Subscribe(Observer);
   try
-    var Data := TJSONObject.Create;
+    Data := TJSONObject.Create;
     Data.AddPair('test', 'value');
     
     TDiagnosticSource.Instance.Write('test.event', Data);

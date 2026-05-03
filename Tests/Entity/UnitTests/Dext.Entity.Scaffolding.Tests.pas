@@ -1,4 +1,4 @@
-unit Dext.Entity.Scaffolding.Tests;
+﻿unit Dext.Entity.Scaffolding.Tests;
 
 interface
 
@@ -117,13 +117,14 @@ var
   OutputDir: string;
   UserFile, RoleFile, UserRoleFile: string;
   Content: string;
+  LTemplatePath: string;
 begin
   Generator := TTemplatedEntityGenerator.Create;
   OutputDir := TPath.Combine(TPath.GetTempPath, 'dext_scaffold_test_out_' + TGuid.NewGuid.ToString.Replace('{', '').Replace('}', ''));
   TDirectory.CreateDirectory(OutputDir);
   try
     // Run generation
-    var LTemplatePath := TPath.GetFullPath(TPath.Combine(ExtractFilePath(ParamStr(0)), '..\..\Templates\Basic\entity.pas.template'));
+    LTemplatePath := TPath.GetFullPath(TPath.Combine(ExtractFilePath(ParamStr(0)), '..\..\Templates\Basic\entity.pas.template'));
     Generator.Generate(FSchema, LTemplatePath, OutputDir);
 
     UserFile := TPath.Combine(OutputDir, 'Users.pas');

@@ -6,7 +6,7 @@ uses
   System.SysUtils,
   System.Classes,
   System.Rtti,
-  System.Generics.Collections,
+//  System.Generics.Collections,
   Dext.Testing.Attributes,
   Dext.Assertions,
   Dext.Json,

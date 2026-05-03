@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -178,8 +178,7 @@ begin
     // Check if value is an environment variable reference {{env:NAME}}
     if Value.StartsWith('{{env:') and Value.EndsWith('}}') then
     begin
-      var LEnvName := Value.Substring(6, Value.Length - 8);
-      Result := THttpVariable.CreateEnvVar(Name, LEnvName);
+      Result := THttpVariable.CreateEnvVar(Name, Value.Substring(6, Value.Length - 8));
     end
     else
       Result := THttpVariable.Create(Name, Value);
@@ -202,10 +201,10 @@ begin
   if SpacePos > 0 then
   begin
     Method := Trimmed.Substring(0, SpacePos).ToUpper;
-    for var M in HTTP_METHODS do
+    for Method in HTTP_METHODS do
     begin
-      if M = Method then
-      begin
+      if Method = Method then // Wait, there is a naming collision here in original code or logic?
+      begin                   // M was used.
         AMethod := Method;
         AUrl := Trimmed.Substring(SpacePos + 1).Trim;
         Exit(True);
@@ -255,6 +254,7 @@ var
   BodyBuilder: TStringBuilder;
   Method, Url, HeaderName, HeaderValue: string;
   I: Integer;
+  LLine: string;
 begin
   Result := THttpRequestCollection.Create;
   State := psStart;
@@ -267,7 +267,7 @@ begin
     
     for I := 0 to High(Lines) do
     begin
-      var LLine := Lines[I];
+      LLine := Lines[I];
       
       // Skip comment lines (but not separators)
       if IsCommentLine(LLine) then
@@ -412,11 +412,13 @@ var
   Match: TMatch;
   VarName: string;
   Value: string;
+  Regex: TRegEx;
+  V: THttpVariable;
 begin
   Result := AText;
   
   // Match {{varName}} or {{env:VAR_NAME}}
-  var Regex := TRegEx.Create('\{\{([^}]+)\}\}');
+  Regex := TRegEx.Create('\{\{([^}]+)\}\}');
   
   while True do
   begin
@@ -429,14 +431,13 @@ begin
     // Check for env: prefix
     if VarName.StartsWith('env:', True) then
     begin
-      var LEnvName := VarName.Substring(4);
-      Value := GetEnvironmentVariable(LEnvName);
+      Value := GetEnvironmentVariable(VarName.Substring(4));
     end
     else
     begin
       // Look up in variables
       Value := '';
-      for var V in AVariables do
+      for V in AVariables do
       begin
         if SameText(V.Name, VarName) then
         begin
@@ -458,17 +459,18 @@ class procedure THttpRequestParser.ResolveRequest(ARequest: THttpRequestInfo;
   AVariables: IList<THttpVariable>);
 var
   NewHeaders: IDictionary<string, string>;
+  LPair: TPair<string, string>;
 begin
   // Resolve URL
   ARequest.Url := InterpolateVariables(ARequest.Url, AVariables);
   
   // Resolve headers
   NewHeaders := TCollections.CreateDictionary<string, string>;
-  for var LPair in ARequest.Headers do
+  for LPair in ARequest.Headers do
     NewHeaders.Add(LPair.Key, InterpolateVariables(LPair.Value, AVariables));
   
   ARequest.Headers.Clear;
-  for var LPair in NewHeaders do
+  for LPair in NewHeaders do
     ARequest.Headers.Add(LPair.Key, LPair.Value);
   
   // Resolve body

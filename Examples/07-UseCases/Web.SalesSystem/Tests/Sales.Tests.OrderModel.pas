@@ -79,6 +79,8 @@ begin
 end;
 
 procedure TOrderModelTests.Should_Add_Items_And_Update_Total;
+var
+  Item: TOrderItem;
 begin
   // Act
   FModel.AddItem(FProduct, 2);
@@ -87,7 +89,7 @@ begin
   Should.List<TOrderItem>(FOrder.Items).HaveCount(1);
   Should(FOrder.Total.Value).Be(200.00); // 2 * 100
   
-  var Item := FOrder.Items[0];
+  Item := FOrder.Items[0];
   Should(Item.Quantity.Value).Be(2);
   Should(Item.Total.Value).Be(200.00);
 end;

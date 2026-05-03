@@ -15,7 +15,6 @@ uses
   System.SysUtils,
   System.Character,
   System.TypInfo,
-  System.Generics.Collections,
   Dext.Logging,
   Dext.DI.Interfaces,
   Dext.Entity,
@@ -26,6 +25,7 @@ uses
   Dext.Web.Interfaces,
   Dext.Web.Routing,
   Dext.Web.Pipeline,
+  Dext.Collections.Dict,
   Dext.Entity.Mapping,
   Dext.Entity.Drivers.Interfaces,
   Dext.Entity.TypeConverters,
@@ -366,6 +366,9 @@ end;
 function TDataApiHandler.CheckAuthorization(const Context: IHttpContext; AIsWrite: Boolean): IResult;
 var
   RequiredRoles: string;
+  Roles: TArray<string>;
+  HasRole: Boolean;
+  Role: string;
 begin
   Result := nil;
   if not FOptions.RequireAuthentication then Exit;
@@ -376,9 +379,9 @@ begin
   RequiredRoles := IfThen(AIsWrite, FOptions.RolesForWrite, FOptions.RolesForRead);
   if RequiredRoles <> '' then
   begin
-    var Roles := RequiredRoles.Split([',']);
-    var HasRole := False;
-    for var Role in Roles do
+    Roles := RequiredRoles.Split([',']);
+    HasRole := False;
+    for Role in Roles do
       if Context.User.IsInRole(Role.Trim) then
       begin
         HasRole := True;
@@ -391,9 +394,12 @@ begin
 end;
 
 function TDataApiHandler.ValueToJson(const AValue: TValue): string;
+var
+  Settings: TJsonSettings;
+  Serializer: TDextSerializer;
 begin
-  var Settings := GetJsonSettings;
-  var Serializer := TDextSerializer.Create(Settings);
+  Settings := GetJsonSettings;
+  Serializer := TDextSerializer.Create(Settings);
   try
     Result := Serializer.Serialize(AValue);
   finally
@@ -411,8 +417,11 @@ end;
 procedure TDataApiHandler.ApplyQueryParameters(const Context: IHttpContext; const ASpec: ISpecification);
 var
   PropName, BinaryOp, ValStr: string;
+  Param: TPair<string, string>;
+  ActualName: string;
+  Expr: IExpression;
 begin
-  for var Param in Context.Request.Query.ToArray do
+  for Param in Context.Request.Query.ToArray do
   begin
     // Reservas de paginação
     if Param.Key = '_limit' then begin ASpec.Take(StrToIntDef(Param.Value, 50)); Continue; end;
@@ -429,11 +438,11 @@ begin
     else if PropName.EndsWith('_neq') then begin BinaryOp := '<>'; PropName := PropName.Substring(0, PropName.Length - 4); end
     else if PropName.EndsWith('_like') then begin BinaryOp := 'LIKE'; PropName := PropName.Substring(0, PropName.Length - 5); end;
 
-    var ActualName := ResolvePropertyName(PropName);
+    ActualName := ResolvePropertyName(PropName);
     if ActualName <> '' then
     begin
        ValStr := Param.Value;
-       var Expr := TStringExpressionParser.Parse(ActualName + ' ' + BinaryOp + ' ' + ValStr);
+       Expr := TStringExpressionParser.Parse(ActualName + ' ' + BinaryOp + ' ' + ValStr);
        if Expr <> nil then
          ASpec.Where(Expr);
     end;
@@ -453,8 +462,10 @@ begin
 end;
 
 procedure TDataApiHandler.RegisterRoutes(const ABuilder: IApplicationBuilder);
+var
+  CleanPath: string;
 begin
-  var CleanPath := FRoutePrefix.TrimRight(['/']);
+  CleanPath := FRoutePrefix.TrimRight(['/']);
   if amGetList in FOptions.AllowedMethods then
     ABuilder.MapGet(CleanPath, procedure(C: IHttpContext) begin HandleGetList(C).Execute(C); end);
     
@@ -462,10 +473,22 @@ begin
     ABuilder.MapGet(CleanPath + '/{id}', procedure(C: IHttpContext) begin HandleGet(C).Execute(C); end);
     
   if amPost in FOptions.AllowedMethods then
-    ABuilder.MapPost(CleanPath, procedure(C: IHttpContext) var R: IResult; begin HandlePost(C, R); R.Execute(C); end);
+    ABuilder.MapPost(CleanPath, procedure(C: IHttpContext)
+      var
+        R: IResult;
+      begin
+        HandlePost(C, R);
+        R.Execute(C);
+      end);
     
   if amPut in FOptions.AllowedMethods then
-    ABuilder.MapPut(CleanPath + '/{id}', procedure(C: IHttpContext) var R: IResult; begin HandlePut(C, R); R.Execute(C); end);
+    ABuilder.MapPut(CleanPath + '/{id}', procedure(C: IHttpContext)
+      var
+        R: IResult;
+      begin
+        HandlePut(C, R);
+        R.Execute(C);
+      end);
     
   if amDelete in FOptions.AllowedMethods then
     ABuilder.MapDelete(CleanPath + '/{id}', procedure(C: IHttpContext) begin HandleDelete(C).Execute(C); end);
@@ -474,12 +497,13 @@ end;
 class procedure TDataApiHandler.Map(const ABuilder: IApplicationBuilder; const AClass: TClass; const APath: string; ADbContext: TDbContext; AOptions: TDataApiOptions);
 var
   Path: string;
+  Handler: TDataApiHandler;
 begin
   Path := APath;
   if Path = '' then
     Path := TDataApiNaming.GetDefaultPath(AClass.ClassInfo);
     
-  var Handler := TDataApiHandler.Create(Path, AClass, AOptions, ADbContext);
+  Handler := TDataApiHandler.Create(Path, AClass, AOptions, ADbContext);
   Handler.RegisterRoutes(ABuilder);
   ABuilder.RegisterForDisposal(Handler);
 end;
@@ -490,10 +514,11 @@ var
   SetObj: IDbSet;
   List: IList<TObject>;
   Spec: ISpecification;
+  Auth: IResult;
 begin
   Log.Debug('DataApi: Listing {0}', [FEntityClass.ClassName]);
   try
-    var Auth := CheckAuthorization(Context, False);
+    Auth := CheckAuthorization(Context, False);
     if Auth <> nil then Exit(Auth);
 
     DbCtx := GetDbContext(Context);
@@ -520,10 +545,11 @@ var
   PKValue: Variant;
   Entity: TObject;
   Binder: IModelBinder;
+  Auth: IResult;
 begin
   Log.Debug('DataApi: Getting {0}', [FEntityClass.ClassName]);
   try
-    var Auth := CheckAuthorization(Context, False);
+    Auth := CheckAuthorization(Context, False);
     if Auth <> nil then Exit(Auth);
 
     if not Context.Request.RouteParams.TryGetValue('id', IdStr) then
@@ -554,10 +580,14 @@ var
   Stream: TStream;
   StringStream: TStringStream;
   JsonString: string;
+  Auth: IResult;
+  TelemetryPayload: TJSONObject;
+  DeserializedValue: TValue;
+  TelemetryComplete: TJSONObject;
 begin
   Log.Debug('DataApi: Creating {0}', [FEntityClass.ClassName]);
   try
-    var Auth := CheckAuthorization(Context, True);
+    Auth := CheckAuthorization(Context, True);
     if Auth <> nil then begin Result := Auth; Exit; end;
 
     DbCtx := GetDbContext(Context);
@@ -575,17 +605,17 @@ begin
       StringStream.Free;
     end;
 
-    var TelemetryPayload := TJSONObject.Create;
+    TelemetryPayload := TJSONObject.Create;
     TelemetryPayload.AddPair('Entity', FEntityClass.ClassName);
     TelemetryPayload.AddPair('Action', 'Deserialization');
     TDiagnosticSource.Instance.Write('DataApi.ModelBinding.Start', TelemetryPayload, 'API');
 
-    var DeserializedValue := TDextJson.Deserialize(FEntityClass.ClassInfo, JsonString, GetJsonSettings);
+    DeserializedValue := TDextJson.Deserialize(FEntityClass.ClassInfo, JsonString, GetJsonSettings);
     Entity := DeserializedValue.AsObject;
     if Entity = nil then
       raise Exception.Create('Could not deserialize request body.');
 
-    var TelemetryComplete := TJSONObject.Create;
+    TelemetryComplete := TJSONObject.Create;
     TelemetryComplete.AddPair('Entity', FEntityClass.ClassName);
     TelemetryComplete.AddPair('Action', 'Tracking');
     TDiagnosticSource.Instance.Write('DataApi.ModelBinding.Complete', TelemetryComplete, 'API');
@@ -611,10 +641,11 @@ var
   Stream: TStream;
   StringStream: TStringStream;
   JsonString: string;
+  Auth: IResult;
 begin
   Log.Debug('DataApi: Updating {0}', [FEntityClass.ClassName]);
   try
-    var Auth := CheckAuthorization(Context, True);
+    Auth := CheckAuthorization(Context, True);
     if Auth <> nil then begin Result := Auth; Exit; end;
 
     if not Context.Request.RouteParams.TryGetValue('id', IdStr) then
@@ -662,9 +693,10 @@ var
   PKValue: Variant;
   Existing: TObject;
   Binder: IModelBinder;
+  Auth: IResult;
 begin
   try
-    var Auth := CheckAuthorization(Context, True);
+    Auth := CheckAuthorization(Context, True);
     if Auth <> nil then Exit(Auth);
 
     if not Context.Request.RouteParams.TryGetValue('id', IdStr) then
@@ -722,6 +754,7 @@ var
   LType: TRttiType;
   LAttr: DataApiAttribute;
   LPath: string;
+  LAttribute: TCustomAttribute;
 begin
   for LType in TReflection.Context.GetTypes do
   begin
@@ -729,7 +762,7 @@ begin
        not LType.Name.EndsWith('Helper') then
     begin
       LAttr := nil;
-      for var LAttribute in LType.GetAttributes do
+      for LAttribute in LType.GetAttributes do
       begin
         if LAttribute.ClassName.Contains('DataApi') then
         begin

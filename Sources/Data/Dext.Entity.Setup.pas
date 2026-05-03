@@ -154,6 +154,9 @@ function TDbContextOptions.BuildConnection: IDbConnection;
 var
   FDConn: TFDConnection;
   DefName: string;
+  SL: TStringList;
+  Pair: TPair<string, string>;
+  Conn: TFireDACConnection;
 begin
   if FCustomConnection <> nil then
     Exit(FCustomConnection);
@@ -173,9 +176,9 @@ begin
     begin
       if FPooling then
       begin
-        var SL := TStringList.Create;
+        SL := TStringList.Create;
         try
-          for var Pair in FParams do
+          for Pair in FParams do
             SL.Values[Pair.Key] := Pair.Value;
           
           DefName := TDextFireDACManager.Instance.RegisterConnectionDef(FDriverName, TStrings(SL), FPoolMax);
@@ -187,7 +190,7 @@ begin
       else
       begin
         FDConn.DriverName := FDriverName;
-        for var Pair in FParams do
+        for Pair in FParams do
           FDConn.Params.Values[Pair.Key] := Pair.Value;
       end;
     end;
@@ -195,7 +198,7 @@ begin
     // Resource options (Applying configured optimizations)
     TDextFireDACManager.Instance.ApplyResourceOptions(FDConn, FOptimizations);
 
-    var Conn := TFireDACConnection.Create(FDConn, True);
+    Conn := TFireDACConnection.Create(FDConn, True);
     Conn.OnLog := FOnLog;
     Result := Conn;
   except
@@ -254,26 +257,31 @@ begin
 end;
 
 procedure TDbContextOptions.SetConnectionString(const AValue: string);
+var
+  SL: TStringList;
+  i: Integer;
+  Line, Key, Val: string;
+  PosEq: Integer;
 begin
   FConnectionString := AValue;
   
   // Basic parsing to populate Params for other uses (like Dialect detection)
   if AValue <> '' then
   begin
-    var SL := TStringList.Create;
+    SL := TStringList.Create;
     try
       SL.Delimiter := ';';
       SL.StrictDelimiter := True;
       SL.DelimitedText := AValue;
       
-      for var i := 0 to SL.Count - 1 do
+      for i := 0 to SL.Count - 1 do
       begin
-        var Line := SL[i];
-        var PosEq := Pos('=', Line);
+        Line := SL[i];
+        PosEq := Pos('=', Line);
         if PosEq > 0 then
         begin
-          var Key := Copy(Line, 1, PosEq - 1).Trim;
-          var Val := Copy(Line, PosEq + 1, MaxInt).Trim;
+          Key := Copy(Line, 1, PosEq - 1).Trim;
+          Val := Copy(Line, PosEq + 1, MaxInt).Trim;
           FParams.AddOrSetValue(Key, Val);
           
           if SameText(Key, 'DriverID') then

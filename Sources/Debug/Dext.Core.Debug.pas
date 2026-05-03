@@ -279,6 +279,7 @@ var
 
 var
   S: string;
+  L: TStringList;
 begin
   try
     if MapLoadAttempted then Exit;
@@ -368,7 +369,7 @@ begin
     except
       on E: Exception do
       begin
-        var L: TStringList := TStringList.Create;
+        L := TStringList.Create;
         try
           L.Add('Dext MAP Error: ' + E.ClassName + ' - ' + E.Message);
           L.SaveToFile('C:\dev\MapException.txt');

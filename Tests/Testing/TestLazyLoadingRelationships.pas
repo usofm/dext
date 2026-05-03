@@ -50,6 +50,7 @@ var
   Field: TRttiField;
   Student: TStudentLazyTest;
   Typ: TRttiType;
+  Prop: TRttiProperty;
 begin
   Student := TStudentLazyTest.Create;
   try
@@ -61,7 +62,7 @@ begin
       Should(Field).NotBeNil;
       Should(Field.FieldType.Name).Contain('Lazy<');
       
-      var Prop := Typ.GetProperty('Courses');
+      Prop := Typ.GetProperty('Courses');
       Should(Prop).NotBeNil;
       // Using non-generic HasAttribute to be extra safe with compiler stability
       Should(Prop.HasAttribute(ManyToManyAttribute)).BeTrue;

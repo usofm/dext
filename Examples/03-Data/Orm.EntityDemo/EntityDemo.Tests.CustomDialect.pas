@@ -36,6 +36,9 @@ procedure TCustomDialectTest.TestCustomDialectInjection;
 var
   Options: TDbContextOptions;
   Ctx: TDbContext;
+  DialectObj: TObject;
+  DialectIntf: ISQLDialect;
+  Quoted: string;
 begin
   // 1. Configure Context to use our Custom Dialect explicitly
   Options := TDbContextOptions.Create
@@ -46,14 +49,14 @@ begin
   
   try
     // 2. Verify the dialect is actually our custom class
-    var DialectObj := Ctx.Dialect as TObject;
+    DialectObj := Ctx.Dialect as TObject;
     AssertTrue(DialectObj <> nil, 'Dialect should not be nil');
     AssertTrue('TCustomSQLiteDialect' = DialectObj.ClassName, 'Should be our custom dialect class');
     
     // 3. Verify logic behavior (QuoteIdentifier)
     // Ctx.Dialect is a property returning interface, assign to local var to be safe
-    var DialectIntf := Ctx.Dialect;
-    var Quoted := DialectIntf.QuoteIdentifier('my_table');
+    DialectIntf := Ctx.Dialect;
+    Quoted := DialectIntf.QuoteIdentifier('my_table');
     AssertTrue('[MY_TABLE]' = Quoted, 'Custom dialect should force uppercase and brackets');
   finally
     Ctx.Free;

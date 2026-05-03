@@ -7,7 +7,7 @@ program Web.MinimalAPIExample;
   Dext Minimal API Example
   ========================
   This is the simplest way to create HTTP endpoints with Dext.
-  
+
   Demonstrates:
   - Direct route mapping (no Controllers needed)
   - Dependency Injection in handlers
@@ -51,10 +51,11 @@ var
 
 begin
   try
+    SetConsoleCharSet(65001);
     WriteLn('🚀 Dext Minimal API Example');
     WriteLn('============================');
     WriteLn;
-    
+
     Builder := TDextWebHost.CreateDefaultBuilder;
 
     // Register services for Dependency Injection
@@ -135,10 +136,10 @@ begin
 
     Host := Builder.Build;
     Host.Run;
-    
+
     ConsolePause;
     Host.Stop;
-    
+
   except
     on E: Exception do
       WriteLn('❌ Error: ', E.Message);

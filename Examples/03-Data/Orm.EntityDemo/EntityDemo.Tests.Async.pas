@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.Async;
+unit EntityDemo.Tests.Async;
 
 interface
 
@@ -39,6 +39,7 @@ end;
 procedure TAsyncTest.TestSimpleAsync;
 var
   Done: Boolean;
+  CheckCount: Integer;
 begin
   Log('Test 1: Simple Async Function');
   Done := False;
@@ -60,7 +61,7 @@ begin
 
   // Wait for the async task to complete
   // In a real GUI app we wouldn't block here, but for console test we must wait
-  var CheckCount := 0;
+  CheckCount := 0;
   while not Done and (CheckCount < 50) do // Wait max 5 sec
   begin
     CheckSynchronize(100); // Allow TThread.Queue to process
@@ -73,6 +74,7 @@ end;
 procedure TAsyncTest.TestChainedAsync;
 var
   FinalResult: Integer;
+  CheckCount: Integer;
 begin
   Log('Test 2: Chained Async (Then)');
   FinalResult := 0;
@@ -102,7 +104,7 @@ begin
     end)
   .Start;
 
-  var CheckCount := 0;
+  CheckCount := 0;
   while (FinalResult = 0) and (CheckCount < 50) do
   begin
     CheckSynchronize(100);
@@ -116,6 +118,7 @@ procedure TAsyncTest.TestExceptionHandling;
 var
   ErrorCaught: Boolean;
   ErrorMsg: string;
+  CheckCount: Integer;
 begin
   Log('Test 3: Exception Handling');
   ErrorCaught := False;
@@ -141,7 +144,7 @@ begin
   )
   .Start;
 
-  var CheckCount := 0;
+  CheckCount := 0;
   while not ErrorCaught and (CheckCount < 50) do
   begin
     CheckSynchronize(100);
@@ -155,6 +158,7 @@ end;
 procedure TAsyncTest.TestProcedureAsync;
 var
   SideEffect: Boolean;
+  CheckCount: Integer;
 begin
   Log('Test 4: Procedure Async (Void)');
   SideEffect := False;
@@ -171,7 +175,7 @@ begin
     end)
   .Start;
 
-  var CheckCount := 0;
+  CheckCount := 0;
   while not SideEffect and (CheckCount < 50) do
   begin
     CheckSynchronize(100);
@@ -186,6 +190,7 @@ var
   CTS: TCancellationTokenSource;
   Cancelled: Boolean;
   Completed: Boolean;
+  CheckCount: Integer;
 begin
   Log('Test 5: Cancellation Support');
   CTS := TCancellationTokenSource.Create;
@@ -221,7 +226,7 @@ begin
     .Start;
     
     // Wait for result
-    var CheckCount := 0;
+    CheckCount := 0;
     while (not Cancelled) and (not Completed) and (CheckCount < 50) do
     begin
       CheckSynchronize(100);

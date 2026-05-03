@@ -36,6 +36,7 @@ var
   VIRef: IInterface;  // MUST keep as interface reference!
   VI: TVirtualInterface;
   Calc: ICalculator;
+  R: Integer;
 begin
   WriteLn('Creating Handler...');
   Handler := TMyHandler.Create;
@@ -53,7 +54,7 @@ begin
     if Supports(VIRef, ICalculator, Calc) then
     begin
       WriteLn('Got ICalculator, calling Add...');
-      var R := Calc.Add(10, 20);
+      R := Calc.Add(10, 20);
       WriteLn('Add returned: ', R);
     end
     else

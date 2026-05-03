@@ -1,4 +1,4 @@
-﻿program Web.ControllerExample;
+program Web.ControllerExample;
 
 {$APPTYPE CONSOLE}
 
@@ -13,6 +13,10 @@ uses
   ControllerExample.Controller in 'ControllerExample.Controller.pas',
   ControllerExample.Services in 'ControllerExample.Services.pas';
 
+var
+  App: IWebApplication;
+  Builder: TAppBuilder;
+  AuthOptions: TJwtOptions;
 begin
   SetConsoleCharSet(65001); // Fix console encoding
   try
@@ -21,7 +25,7 @@ begin
     // Create appsettings.json if it doesn't exist
     EnsureAppSettingsExists;
     
-    var App: IWebApplication := TDextApplication.Create;
+    App := TDextApplication.Create;
 
     // Add Logging Middleware FIRST
     App.UseMiddleware(TRequestLoggingMiddleware);
@@ -48,7 +52,7 @@ begin
       .Build;
 
     // 5. Configure Middleware Pipeline
-    var Builder := App.Builder;
+    Builder := App.Builder;
 
     // CORS
     Builder.UseCors(CorsOptions.Origins(['http://localhost:5173']).AllowCredentials.Build);
@@ -60,7 +64,7 @@ begin
     App.UseMiddleware(THealthCheckMiddleware);
 
     // JWT Authentication
-    var AuthOptions := Builder.CreateJwtOptions('dext-secret-key-must-be-very-long-and-secure-at-least-32-chars');
+    AuthOptions := Builder.CreateJwtOptions('dext-secret-key-must-be-very-long-and-secure-at-least-32-chars');
     AuthOptions.Issuer := 'dext-issuer';
     AuthOptions.Audience := 'dext-audience';
     Builder.UseJwtAuthentication(AuthOptions);

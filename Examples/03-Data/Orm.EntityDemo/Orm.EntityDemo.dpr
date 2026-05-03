@@ -1,4 +1,4 @@
-﻿program Orm.EntityDemo;
+program Orm.EntityDemo;
 
 {$APPTYPE CONSOLE}
 
@@ -147,6 +147,9 @@ begin
   TBaseTest.PrintSummary;
 end;
 
+var
+  Provider: TDatabaseProvider;
+  Arg: string;
 begin
   SetConsoleCharSet(65001);
   try
@@ -154,10 +157,10 @@ begin
     WriteLn('=============================');
     WriteLn('');
 
-    var Provider := dpSQLiteMemory; // Default
+    Provider := dpSQLiteMemory; // Default
     if ParamCount > 0 then
     begin
-      var Arg := ParamStr(1).ToLower;
+      Arg := ParamStr(1).ToLower;
       if Arg = 'sqlite' then Provider := dpSQLite
       else if Arg = 'sqlitememory' then Provider := dpSQLiteMemory
       else if Arg = 'postgresql' then Provider := dpPostgreSQL

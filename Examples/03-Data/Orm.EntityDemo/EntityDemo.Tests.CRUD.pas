@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.CRUD;
+unit EntityDemo.Tests.CRUD;
 
 interface
 
@@ -21,6 +21,10 @@ procedure TCRUDTest.Run;
 var
   User: TUser;
   Address: TAddress;
+  FoundUser: TUser;
+  UpdatedUser: TUser;
+  IdToDelete: Integer;
+  DeletedUser: TUser;
 begin
   Log('🚀 Running CRUD Tests...');
   Log('========================');
@@ -56,7 +60,7 @@ begin
 
   // 2. Read (Find)
   Log('🔍 Testing Find...');
-  var FoundUser := FContext.Entities<TUser>.Find(User.Id);
+  FoundUser := FContext.Entities<TUser>.Find(User.Id);
 
   AssertTrue(FoundUser <> nil, 'User found.', 'User not found.');
 
@@ -76,7 +80,7 @@ begin
     FContext.SaveChanges;
 
     // Verify
-    var UpdatedUser := FContext.Entities<TUser>.Find(User.Id);
+    UpdatedUser := FContext.Entities<TUser>.Find(User.Id);
     AssertTrue(UpdatedUser.Age = 26, 'User Age updated to 26.', 'User Age update failed.');
   end;
 
@@ -84,11 +88,11 @@ begin
   Log('🗑️ Testing Delete...');
   if FoundUser <> nil then
   begin
-    var IdToDelete := User.Id; // Capture ID before object is freed
+    IdToDelete := User.Id; // Capture ID before object is freed
     FContext.Entities<TUser>.Remove(FoundUser);
     FContext.SaveChanges;
 
-    var DeletedUser := FContext.Entities<TUser>.Find(IdToDelete);
+    DeletedUser := FContext.Entities<TUser>.Find(IdToDelete);
     AssertTrue(DeletedUser = nil, 'User removed successfully.', 'User still exists after remove.');
   end;
 

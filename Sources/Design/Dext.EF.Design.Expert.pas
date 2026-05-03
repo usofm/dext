@@ -50,7 +50,7 @@ procedure TDextModuleNotifier.AfterSave;
 var
   Module: IOTAModule;
   Editor: IOTAEditor;
-  i, j: Integer;
+  i, j, k: Integer;
   FormEditor: IOTAFormEditor;
   Component: IOTAComponent;
   Comp: TComponent;
@@ -74,7 +74,7 @@ begin
         // Iterate components in the form using RootComponent
         if Assigned(FormEditor.GetRootComponent) then
         begin
-          for var k := 0 to FormEditor.GetRootComponent.GetComponentCount - 1 do
+          for k := 0 to FormEditor.GetRootComponent.GetComponentCount - 1 do
           begin
             Component := FormEditor.GetRootComponent.GetComponent(k);
             if Assigned(Component) then

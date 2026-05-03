@@ -14,6 +14,9 @@ uses
   DelphiAST.Writer;
 
 type
+  /// <summary>
+  ///   Contains information about a test method parsed from the AST.
+  /// </summary>
   TTestMethodInfo = class
   public
     Name: string;
@@ -21,6 +24,9 @@ type
     Attributes: TArray<string>;
   end;
 
+  /// <summary>
+  ///   Contains information about a test fixture class parsed from the AST.
+  /// </summary>
   TTestFixtureInfo = class
   public
     Name: string;
@@ -31,6 +37,9 @@ type
     destructor Destroy; override;
   end;
 
+  /// <summary>
+  ///   Contains information about a test project and its discovered fixtures.
+  /// </summary>
   TTestProjectInfo = class
   public
     ProjectFile: string;
@@ -39,6 +48,9 @@ type
     destructor Destroy; override;
   end;
 
+  /// <summary>
+  ///   Utility class for scanning Delphi project files and extracting DUnitX test metadata.
+  /// </summary>
   TTestScanner = class
   private
     class function ParseFile(const AFileName: string): TSyntaxNode;
@@ -192,12 +204,17 @@ var
   Fixture: TTestFixtureInfo;
   MethodInfo: TTestMethodInfo;
   LastAttributes: TSyntaxNode;
+  SearchRoot: TSyntaxNode;
   
   procedure ProcessClass(AClassNode: TSyntaxNode; const AClassName: string; ClassAttributes: TSyntaxNode);
   var
     IsFixture: Boolean;
     MChild: TSyntaxNode;
     LastMethodAttrs: TSyntaxNode;
+    ActualClassNode: TSyntaxNode;
+    Members: IList<TSyntaxNode>;
+    Child: TSyntaxNode;
+    VisChild: TSyntaxNode;
   begin
     IsFixture := HasAttribute(ClassAttributes, 'TestFixture');
     if not IsFixture then Exit;
@@ -207,21 +224,20 @@ var
     Fixture.UnitName := AUnitName;
     Fixture.LineNumber := AClassNode.Line;
     
-    var ActualClassNode := AClassNode.FindNode(ntType);
+    ActualClassNode := AClassNode.FindNode(ntType);
     if ActualClassNode = nil then Exit;
 
     LastMethodAttrs := nil;
     
-    var Members: IList<TSyntaxNode>;
     Members := TCollections.CreateList<TSyntaxNode>;
     try
       // Collect all members from all visibility sections
-      for var Child in ActualClassNode.ChildNodes do
+      for Child in ActualClassNode.ChildNodes do
       begin
         case Child.Typ of
           ntPrivate, ntProtected, ntPublic, ntPublished, ntStrictPrivate, ntStrictProtected:
           begin
-            for var VisChild in Child.ChildNodes do
+            for VisChild in Child.ChildNodes do
               Members.Add(VisChild);
           end;
         else
@@ -268,7 +284,6 @@ begin
   InterfaceNode := ARoot.FindNode(ntInterface);
   
   // If interface found, use it as parent for search. If not, use Root (e.g. for .dpr)
-  var SearchRoot: TSyntaxNode;
   if InterfaceNode <> nil then 
     SearchRoot := InterfaceNode
   else

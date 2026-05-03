@@ -167,6 +167,8 @@ var
   Mime: string;
   Node: IDextJsonNode;
   Obj: IDextJsonObject;
+  I: Integer;
+  LineItem: string;
 begin
   Result := 0;
 
@@ -191,7 +193,7 @@ begin
     if (Node <> nil) and (Node.GetNodeType = jntObject) then
     begin
       Obj := Node as IDextJsonObject;
-      for var I := 0 to Obj.GetCount - 1 do
+      for I := 0 to Obj.GetCount - 1 do
       begin
         Ext := Obj.GetName(I);
         Mime := Obj.GetString(Ext);
@@ -206,7 +208,7 @@ begin
   // .md=text/markdown
   // csv=text/csv
   Lines := Content.Split([sLineBreak]);
-  for var LineItem in Lines do
+  for LineItem in Lines do
   begin
     Line := LineItem.Trim;
     if (Line = '') or Line.StartsWith('#') or Line.StartsWith('//') then
@@ -345,18 +347,22 @@ end;
 
 class function TApplicationBuilderStaticFilesExtensions.UseStaticFiles(
   const ABuilder: IApplicationBuilder): IApplicationBuilder;
+var
+  Middleware: TStaticFileMiddleware;
 begin
-  // âœ… Instantiate Singleton Middleware
-  var Middleware := TStaticFileMiddleware.Create(TStaticFileOptions.Create);
+  // ✅ Instantiate Singleton Middleware
+  Middleware := TStaticFileMiddleware.Create(TStaticFileOptions.Create);
   Result := ABuilder.UseMiddleware(Middleware);
 end;
 
 class function TApplicationBuilderStaticFilesExtensions.UseStaticFiles(
   const ABuilder: IApplicationBuilder;
   const AOptions: TStaticFileOptions): IApplicationBuilder;
+var
+  Middleware: TStaticFileMiddleware;
 begin
-  // âœ… Instantiate Singleton Middleware
-  var Middleware := TStaticFileMiddleware.Create(AOptions);
+  // ✅ Instantiate Singleton Middleware
+  Middleware := TStaticFileMiddleware.Create(AOptions);
   Result := ABuilder.UseMiddleware(Middleware);
 end;
 
@@ -365,15 +371,14 @@ class function TApplicationBuilderStaticFilesExtensions.UseStaticFiles(
   const ARootPath: string): IApplicationBuilder;
 var
   Options: TStaticFileOptions;
+  Middleware: TStaticFileMiddleware;
 begin
   Options := TStaticFileOptions.Create;
   Options.RootPath := ARootPath;
   
-  // âœ… Instantiate Singleton Middleware
-  var Middleware := TStaticFileMiddleware.Create(Options);
+  // ✅ Instantiate Singleton Middleware
+  Middleware := TStaticFileMiddleware.Create(Options);
   Result := ABuilder.UseMiddleware(Middleware);
 end;
 
 end.
-
-

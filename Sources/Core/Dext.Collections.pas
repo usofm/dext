@@ -505,6 +505,7 @@ function TList<T>.IndexOf(const Value: T): Integer;
 var
   I, LCount: Integer;
   P: PByte;
+  Comparer: IEqualityComparer<T>;
 begin
   LCount := FCore.Count;
   if LCount = 0 then Exit(-1);
@@ -586,7 +587,7 @@ begin
   else
     begin
       // For Records and other complex types, use the Dext-native equality comparer
-      var Comparer := TEqualityComparer<T>.Default;
+      Comparer := TEqualityComparer<T>.Default;
       for I := 0 to LCount - 1 do
       begin
         if Comparer.Equals(P_T(P)^, Value) then Exit(I);

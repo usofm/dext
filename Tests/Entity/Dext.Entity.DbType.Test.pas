@@ -1,4 +1,4 @@
-﻿unit Dext.Entity.DbType.Test;
+unit Dext.Entity.DbType.Test;
 
 interface
 
@@ -7,6 +7,8 @@ uses
   System.Rtti,
   Data.DB,
   System.TypInfo,
+  System.Generics.Collections,
+  Dext.Collections.Dict,
   Dext.Entity.Attributes,
   Dext.Entity.Mapping,
   Dext.Entity.Dialects,
@@ -53,8 +55,12 @@ var
   Dialect: ISQLDialect;
   ParamType: TFieldType;
   Found: Boolean;
+  Pair: Dext.Collections.Dict.TPair<string, TValue>;
+  Typ: TFieldType;
+  DateParamName, DecimalParamName: string;
+  HasDate, HasBcd: Boolean;
 begin
-  Log('🏷️  Testing [DbType] Attribute Propagation');
+  Log('🏺  Testing [DbType] Attribute Propagation');
   Log('=========================================');
 
   Dialect := TSQLiteDialect.Create;
@@ -76,7 +82,7 @@ begin
       // Order in class: DateOnly, DecimalVal (Id is AutoInc, usually skipped in basic insert if not specified,
       // but GenerateInsert uses skipped AutoInc logic).
 
-      for var Pair in Generator.Params do
+      for Pair in Generator.Params do
       begin
         Found := Generator.ParamTypes.TryGetValue(Pair.Key, ParamType);
         if Found then
@@ -89,17 +95,17 @@ begin
       // DateOnly should have ftDate
       // DecimalVal should have ftFMTBcd
 
-      var DateParamName := '';
-      var DecimalParamName := '';
+      DateParamName := '';
+      DecimalParamName := '';
 
       // Simple discovery for this test (knowing p1, p2 order)
       // Actually, order depends on RTTI. p1 is usually DateOnly, p2 is DecimalVal.
       // Better: check if ftDate and ftFMTBcd are present at all in ParamTypes.
 
-      var HasDate := False;
-      var HasBcd := False;
+      HasDate := False;
+      HasBcd := False;
 
-      for var Typ in Generator.ParamTypes.Values do
+      for Typ in Generator.ParamTypes.Values do
       begin
         if Typ = ftDate then HasDate := True;
         if Typ = ftFMTBcd then HasBcd := True;
@@ -114,7 +120,7 @@ begin
 
       HasDate := False;
       HasBcd := False;
-      for var Typ in Generator.ParamTypes.Values do
+      for Typ in Generator.ParamTypes.Values do
       begin
         if Typ = ftDate then HasDate := True;
         if Typ = ftFMTBcd then HasBcd := True;

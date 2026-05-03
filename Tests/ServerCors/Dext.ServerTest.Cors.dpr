@@ -54,8 +54,10 @@ begin
   Result := DateTimeToStr(Now);
 end;
 
+var
+  Host: IWebHost;
 begin
-  SetConsoleOutputCP(CP_UTF8);
+  SetConsoleCharSet(65001);
   try
     TestDextJson;
     TestDextJsonRecords;
@@ -96,7 +98,7 @@ begin
     TestConciseIntegration;
     Writeln('=== Starting Dext Web Server with CORS ===');
 
-    var Host := TDextWebHost.CreateDefaultBuilder
+    Host := TDextWebHost.CreateDefaultBuilder
       .ConfigureServices(procedure(Services: IServiceCollection)
       begin
         // Registrar serviços usando a API fluente
@@ -105,6 +107,9 @@ begin
           .AddSingleton<ILogger, TConsoleLogger>;
       end)
       .Configure(procedure(App: IApplicationBuilder)
+      var
+        ExceptionOptions: TExceptionHandlerOptions;
+        LoggingOptions: THttpLoggingOptions;
       begin
         // ✅ CORREÇÃO: Usar TApplicationBuilderCorsExtensions.UseCors
         TApplicationBuilderCorsExtensions.UseCors(App,  // ← CORRETO!
@@ -118,10 +123,10 @@ begin
           end);
 
         // Configurar pipeline (agora App já tem CORS configurado)
-        var ExceptionOptions := TExceptionHandlerOptions.Development;
+        ExceptionOptions := TExceptionHandlerOptions.Development;
         App.UseMiddleware(TExceptionHandlerMiddleware, TValue.From(ExceptionOptions));
         
-        var LoggingOptions := THttpLoggingOptions.Default;
+        LoggingOptions := THttpLoggingOptions.Default;
         App.UseMiddleware(THttpLoggingMiddleware, TValue.From(LoggingOptions));
 
         App.Map('/',

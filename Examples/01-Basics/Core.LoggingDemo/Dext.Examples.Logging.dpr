@@ -7,12 +7,18 @@ uses
   System.Threading,
   System.Diagnostics,
   System.Classes,
+  Dext.Utils,
   Dext.Logging,
   Dext.Logging.Global,
   Dext.Logging.Async,
   Dext.Logging.Sinks;
 
 procedure RunExample;
+var
+  SW: TStopwatch;
+  Tasks: TArray<ITask>;
+  i: Integer;
+  Scope, Nested: IScope;
 begin
   Writeln('Initializing Dext Logger...');
   
@@ -24,19 +30,21 @@ begin
   
   // 1. Stress Test - Multi-threaded logging
   Writeln('Starting Stress Test (4 Threads, 100k messages)...');
-  var SW := TStopwatch.StartNew;
+  SW := TStopwatch.StartNew;
   
-  var Tasks: TArray<ITask>;
   SetLength(Tasks, 4);
   
-  for var i := 0 to 3 do
+  for i := 0 to 3 do
   begin
     Tasks[i] := TTask.Run(procedure
+      var
+        TID: TThreadID;
+        k: Integer;
       begin
-        var TID := TThread.CurrentThread.ThreadID;
+        TID := TThread.CurrentThread.ThreadID;
         Log.Info('Thread %d started', [TID]);
         
-        for var k := 1 to 25000 do
+        for k := 1 to 25000 do
         begin
           // Mix of log levels
           if k mod 1000 = 0 then
@@ -57,12 +65,12 @@ begin
   
   // 2. Scope usage
   Log.Info('Testing Scopes...', []);
-  var Scope := Log.Logger.BeginScope('Transaction {Id}', ['TX-001']);
+  Scope := Log.Logger.BeginScope('Transaction {Id}', ['TX-001']);
   try
     Log.Info('Inside Transaction Scope', []);
     
     // Nested
-    var Nested := Log.Logger.BeginScope('Operation {Op}', ['UpdateUser']);
+    Nested := Log.Logger.BeginScope('Operation {Op}', ['UpdateUser']);
     try
       Log.Warn('Cannot find user cache, fetching from DB...', []);
     finally
@@ -81,6 +89,7 @@ end;
 
 begin
   try
+    SetConsoleCharSet(65001);
     RunExample;
   except
     on E: Exception do

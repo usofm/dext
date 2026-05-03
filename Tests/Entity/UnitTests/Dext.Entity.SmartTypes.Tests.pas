@@ -1,4 +1,4 @@
-unit Dext.Entity.SmartTypes.Tests;
+﻿unit Dext.Entity.SmartTypes.Tests;
 
 interface
 
@@ -54,6 +54,7 @@ procedure TSmartTypesMatrixTests.CheckType<T>(const Value: T; const
   ExpectedStr: string; TestConversionBack: Boolean = True);
 var
   P: Prop<T>;
+  expect, actual: Variant;
 begin
   P := Value;
   Should(P.AsString).Be(ExpectedStr);
@@ -61,8 +62,8 @@ begin
 
   if not TestConversionBack then Exit;
 
-  var expect := TValue.From<T>(T(P)).AsVariant;
-  var actual := TValue.From<T>(Value).AsVariant;
+  expect := TValue.From<T>(T(P)).AsVariant;
+  actual := TValue.From<T>(Value).AsVariant;
   // Test conversion back to T using Variant as bridge for generics
   Should(expect).Be(actual);
 end;
@@ -70,6 +71,7 @@ end;
 procedure TSmartTypesMatrixTests.Test_All_Fundament_Types_Consistency;
 var
   G: TGuid;
+  D: TDateTime;
 begin
   // String
   CheckType<string>('Dext', 'Dext');
@@ -88,7 +90,7 @@ begin
   CheckType<Boolean>(False, 'False');
   
   // DateTime
-  var D := EncodeDateTime(2025, 12, 19, 14, 30, 0, 0);
+  D := EncodeDateTime(2025, 12, 19, 14, 30, 0, 0);
   CheckType<TDateTime>(D, DateTimeToStr(D));
   
   // Currency

@@ -79,6 +79,9 @@ uses
 {$R *.dfm}
 
 procedure TFormMain.FormCreate(Sender: TObject);
+var
+  i: Integer;
+  LProduct: TProduct;
 begin
   FDataSet := TEntityDataSet.Create(Self);
   DataSource.DataSet := FDataSet;
@@ -86,9 +89,9 @@ begin
 
   FProducts := TCollections.CreateList<TProduct>(True);
 
-  for var i := 0 to 99 do
+  for i := 0 to 99 do
   begin
-    var LProduct := TProduct.Create(
+    LProduct := TProduct.Create(
       100 + i,
       'Product ' + IntToStr(i + 1),
       100.0 * (i + 1)

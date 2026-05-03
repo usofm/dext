@@ -29,13 +29,14 @@ var
   Config: IConfigurationRoot;
   Dict: IDictionary<string, string>;
   Providers: IList<IConfigurationProvider>;
+  Source: IConfigurationSource;
 begin
   Dict := TCollections.CreateDictionary<string, string>;
   Dict.Add('App:Database:FireDAC:Connection:Params:DriverID', 'SQLite');
   Dict.Add('A:B:C:D:E:F:G', 'DeepValue');
   
   Providers := TCollections.CreateList<IConfigurationProvider>;
-  var Source: IConfigurationSource := TMemoryConfigurationSource.Create(Dict.ToArray);
+  Source := TMemoryConfigurationSource.Create(Dict.ToArray);
   Providers.Add(Source.Build(nil));
 
   Config := TConfigurationRoot.Create(Providers, False, 0);
@@ -54,12 +55,13 @@ var
   Config: IConfigurationRoot;
   Dict: IDictionary<string, string>;
   Providers: IList<IConfigurationProvider>;
+  Source: IConfigurationSource;
 begin
   Dict := TCollections.CreateDictionary<string, string>;
   Dict.Add('Key1', 'OldValue');
   
   Providers := TCollections.CreateList<IConfigurationProvider>;
-  var Source: IConfigurationSource := TMemoryConfigurationSource.Create(Dict.ToArray);
+  Source := TMemoryConfigurationSource.Create(Dict.ToArray);
   Providers.Add(Source.Build(nil));
 
   Config := TConfigurationRoot.Create(Providers, False, 0);

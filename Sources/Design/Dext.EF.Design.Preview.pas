@@ -130,6 +130,11 @@ var
   DP: IEntityDataProvider;
   MD: TEntityClassMetadata;
   SQL: string;
+  I, J: Integer;
+  Fld: TField;
+  Member: TEntityMemberMetadata;
+  TypeStr: string;
+  Col: TColumn;
 begin
   if not Assigned(ADataSet.DataProvider) then
     raise Exception.Create('Provider is missing.');
@@ -156,19 +161,19 @@ begin
   FQuery.SQL.Text := SQL;
   FQuery.Open;
   
-  for var I := 0 to FQuery.Fields.Count - 1 do
+  for I := 0 to FQuery.Fields.Count - 1 do
   begin
-    var Fld := FQuery.Fields[I];
+    Fld := FQuery.Fields[I];
     if (Fld.DataType = ftMemo) or (Fld.DataType = ftWideMemo) then
       Fld.OnGetText := MemoFieldGetText;
 
     // H.3: Visualização de Tipos no Preview
-    for var J := 0 to MD.Members.Count - 1 do
+    for J := 0 to MD.Members.Count - 1 do
     begin
-      var Member := MD.Members[J];
+      Member := MD.Members[J];
       if SameText(Member.Name, Fld.FieldName) or SameText(Member.Name, Fld.Origin) then
       begin
-        var TypeStr := Member.MemberType;
+        TypeStr := Member.MemberType;
         if Member.MaxLength > 0 then
           TypeStr := TypeStr + '(' + Member.MaxLength.ToString + ')';
         if Member.Precision > 0 then
@@ -181,9 +186,9 @@ begin
   end;
 
   // Auto-ajuste básico de larguras de colunas
-  for var I := 0 to FGrid.Columns.Count - 1 do
+  for I := 0 to FGrid.Columns.Count - 1 do
   begin
-    var Col := FGrid.Columns[I];
+    Col := FGrid.Columns[I];
     if Col.Field.DataType in [ftString, ftWideString, ftWideMemo, ftMemo] then
       Col.Width := 250
     else if Col.Field.DataType in [ftInteger, ftLargeint, ftFloat, ftCurrency] then

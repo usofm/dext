@@ -379,7 +379,7 @@ var
   RAWHandlers: TArray<THandlerEntry>;
   GlobalLen: Integer;
   I: Integer;
-  Method: TRttiMethod;
+  Method, LMethod: TRttiMethod;
 begin
   // Hot-path: read lock — multiple threads can read concurrently post-warm-up.
   FSnapshotLock.BeginRead;
@@ -408,7 +408,7 @@ begin
         // in virtual method tables, so we use RTTI to find it by name.
         // We use the same persistent FRttiCtx to ensure objects stay valid.
         Method := nil;
-        for var LMethod in TReflection.Context.GetType(RAWHandlers[I].HandlerClass).GetMethods do
+        for LMethod in TReflection.Context.GetType(RAWHandlers[I].HandlerClass).GetMethods do
         begin
           if (LMethod.Name = 'Handle') and (Length(LMethod.GetParameters) = 1) then
           begin
@@ -455,6 +455,17 @@ var
   Pipeline: TEventNextDelegate;
   I, J: Integer;
   Errors: IList<string>;
+  BehaviorObj: TObject;
+  HandlerObj: TObject;
+  Method: TRttiMethod;
+  LocalEvent: TValue;
+  LTargetType: PTypeInfo;
+  LData: Pointer;
+  LocalHandlerObj: TObject;
+  LocalMethod: TRttiMethod;
+  LocalEventVal: TValue;
+  Params: TArray<TRttiParameter>;
+  TargetType: PTypeInfo;
 begin
   Result.EventTypeName   := ASnapshot.EventTypeName;
   Result.HandlersInvoked := 0;
@@ -463,7 +474,7 @@ begin
   SetLength(Behaviors, Length(ASnapshot.BehaviorFactories));
   for I := 0 to High(ASnapshot.BehaviorFactories) do
   begin
-    var BehaviorObj: TObject := ASnapshot.BehaviorFactories[I](AScopedProvider);
+    BehaviorObj := ASnapshot.BehaviorFactories[I](AScopedProvider);
     if not Supports(BehaviorObj, IEventBehavior, Behaviors[I]) then
       raise EEventBusException.CreateFmt(
         'Behavior "%s" does not implement IEventBehavior', [BehaviorObj.ClassName]);
@@ -474,16 +485,16 @@ begin
     Inc(Result.HandlersInvoked);
     try
       // Resolve handler instance from DI
-      var HandlerObj: TObject := ASnapshot.Handlers[I].Factory(AScopedProvider);
-      var Method: TRttiMethod := ASnapshot.Handlers[I].Method;
+      HandlerObj := ASnapshot.Handlers[I].Factory(AScopedProvider);
+      Method := ASnapshot.Handlers[I].Method;
  
       // Parameter validation & re-boxing (canonical vs synthetic TypeInfo)
       // Safety: pointer mismatch but name match = same record type from different units.
-      var LocalEvent: TValue := AEvent;
-      var Params := Method.GetParameters;
+      LocalEvent := AEvent;
+      Params := Method.GetParameters;
       if (Length(Params) = 1) and (Params[0].ParamType <> nil) then
       begin
-        var TargetType := Params[0].ParamType.Handle;
+        TargetType := Params[0].ParamType.Handle;
         if (LocalEvent.TypeInfo <> TargetType) then
         begin
           if string(LocalEvent.TypeInfo.Name) <> Params[0].ParamType.Name then
@@ -494,8 +505,8 @@ begin
 
           // Re-box into the target TypeInfo to satisfy RTTI Invoke strictness.
           // Directly using the target TypeInfo from the method parameter to ensure absolute compatibility.
-          var LTargetType: PTypeInfo := Method.GetParameters[0].ParamType.Handle;
-          var LData := AEvent.GetReferenceToRawData;
+          LTargetType := Method.GetParameters[0].ParamType.Handle;
+          LData := AEvent.GetReferenceToRawData;
           TValue.Make(LData, LTargetType, LocalEvent);
         end;
       end;
@@ -508,9 +519,9 @@ begin
       else
       begin
         // Pipeline path: build behavior chain inside-out.
-        var LocalHandlerObj: TObject := HandlerObj;
-        var LocalMethod: TRttiMethod := Method;
-        var LocalEventVal: TValue     := LocalEvent;
+        LocalHandlerObj := HandlerObj;
+        LocalMethod := Method;
+        LocalEventVal := LocalEvent;
         Pipeline :=
           procedure
           begin
@@ -611,8 +622,10 @@ begin
 end;
 
 procedure TEventBus.PublishBackground<T>(const AEvent: T);
+var
+  V: TValue;
 begin
-  var V: TValue := TValue.From<T>(AEvent);
+  V := TValue.From<T>(AEvent);
   BusDispatchBackground(TypeInfo(T), V);
 end;
 

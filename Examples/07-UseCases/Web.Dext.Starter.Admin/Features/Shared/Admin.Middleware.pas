@@ -25,6 +25,7 @@ implementation
 procedure TAdminAuthMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
 var
   Path: string;
+  FullPath: string;
 begin
   Path := AContext.Request.Path;
   
@@ -66,7 +67,7 @@ begin
           (Path.StartsWith('/settings', True)) or 
           (Path.StartsWith('/dashboard', True)) then
        begin
-         var FullPath := GetFilePath('wwwroot\index.html');
+         FullPath := GetFilePath('wwwroot\index.html');
          if TFile.Exists(FullPath) then
            Results.Html(TFile.ReadAllText(FullPath)).Execute(AContext)
          else

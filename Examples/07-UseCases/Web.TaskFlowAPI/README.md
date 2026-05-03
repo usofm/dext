@@ -30,9 +30,10 @@ This example showcases how Dext can inject both the Request Body and Services in
 // IUserService comes from DI
 App.Builder.MapPost<TUser, IUserService, IResult>('/api/users',
   function(User: TUser; UserService: IUserService): IResult
+  var
+    Created: TUser;
   begin
-    // Use the service directly
-    var Created := UserService.CreateUser(User);
+    Created := UserService.CreateUser(User);
     Result := Results.Created('/api/users/1', Created);
   end);
 ```

@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.FluentAPI;
+unit EntityDemo.Tests.FluentAPI;
 
 interface
 
@@ -16,6 +16,7 @@ implementation
 
 uses
   System.SysUtils,
+  Dext.Collections,
   Dext.Specifications.Fluent,
   Dext.Specifications.Interfaces,
   Dext.Specifications.Types,
@@ -25,6 +26,23 @@ uses
 { TFluentAPITest }
 
 procedure TFluentAPITest.Run;
+var
+  U1, U2, U3: TUser;
+  AdultSpec: ISpecification<TUser>;
+  Adults: IList<TUser>;
+  InlineAdults: IList<TUser>;
+  John: TUser;
+  AdultCount: Integer;
+  HasMinors: Boolean;
+  ComplexResult: IList<TUser>;
+  FluentAdults: IList<TUser>;
+  FluentComplex: IList<TUser>;
+  OrderedAsc: IList<TUser>;
+  OrderedDesc: IList<TUser>;
+  UWithAddr: TUser;
+  Addr: TAddress;
+  UsersWithAddr: IList<TUser>;
+  LoadedUser: TUser;
 begin
   Log('🔍 Running Fluent API Tests...');
   Log('==============================');
@@ -37,19 +55,19 @@ begin
   FContext.EnsureCreated;
 
   // Insert test data
-  var U1 := TUser.Create;
+  U1 := TUser.Create;
   U1.Name := 'John Doe';
   U1.Age := 25;
   U1.Email := 'john@example.com';
   FContext.Entities<TUser>.Add(U1);
 
-  var U2 := TUser.Create;
+  U2 := TUser.Create;
   U2.Name := 'Jane Smith';
   U2.Age := 30;
   U2.Email := 'jane@example.com';
   FContext.Entities<TUser>.Add(U2);
 
-  var U3 := TUser.Create;
+  U3 := TUser.Create;
   U3.Name := 'Bob Johnson';
   U3.Age := 17;
   U3.Email := 'bob@example.com';
@@ -63,8 +81,8 @@ begin
   Log('📊 Test: Using Specification with Fluent API');
   Log('---------------------------------------------');
   // Use interface variable to manage lifecycle via ARC (TSpecification inherits from TInterfacedObject)
-  var AdultSpec: ISpecification<TUser> := TAdultUsersSpec.Create;
-  var Adults := FContext.Entities<TUser>.ToList(AdultSpec);
+  AdultSpec := TAdultUsersSpec.Create;
+  Adults := FContext.Entities<TUser>.ToList(AdultSpec);
   LogSuccess(Format('✓ Found %d adult user(s) using: TUserType.Age >= 18', [Adults.Count]));
   AssertTrue(Adults.Count = 2, 'Adult users spec', 'Expected 2 adult users');
   // AdultSpec will be cleaned up automatically when it goes out of scope (ARC)
@@ -73,30 +91,30 @@ begin
   Log('🚀 Test: Inline Queries (without Specification)');
   Log('------------------------------------------------');
   // Inline query - muito mais simples!
-  var InlineAdults := FContext.Entities<TUser>.ToList(TUserType.Age >= 18);
+  InlineAdults := FContext.Entities<TUser>.ToList(TUserType.Age >= 18);
   LogSuccess(Format('✓ Inline query: Found %d adult(s)', [InlineAdults.Count]));
   AssertTrue(InlineAdults.Count = 2, 'Inline adults', 'Expected 2 adults');
   
   // FirstOrDefault inline
-  var John := FContext.Entities<TUser>.FirstOrDefault(TUserType.Name.StartsWith('John'));
+  John := FContext.Entities<TUser>.FirstOrDefault(TUserType.Name.StartsWith('John'));
   if John <> nil then
     LogSuccess(Format('✓ FirstOrDefault: Found user "%s"', [John.Name]))
   else
     LogError('FirstOrDefault failed');
   
   // Count inline
-  var AdultCount := FContext.Entities<TUser>.Count(TUserType.Age >= 18);
+  AdultCount := FContext.Entities<TUser>.Count(TUserType.Age >= 18);
   LogSuccess(Format('✓ Count: %d adult user(s)', [AdultCount]));
   
   // Any inline
-  var HasMinors := FContext.Entities<TUser>.Any(TUserType.Age < 18);
+  HasMinors := FContext.Entities<TUser>.Any(TUserType.Age < 18);
   if HasMinors then
     LogSuccess('✓ Any: Found minor users')
   else
     LogError('Any: No minor users found');
   
   // Complex inline query
-  var ComplexResult := FContext.Entities<TUser>.ToList(
+  ComplexResult := FContext.Entities<TUser>.ToList(
     (TUserType.Age >= 18) and TUserType.Name.Contains('o')
   );
   LogSuccess(Format('✓ Complex inline: Found %d user(s) with Age >= 18 AND Name contains "o"', [ComplexResult.Count]));
@@ -106,14 +124,14 @@ begin
   Log('--------------------------------------');
   
   // Managed Specification with automatic cleanup
-  var FluentAdults := FContext.Entities<TUser>.ToList(
+  FluentAdults := FContext.Entities<TUser>.ToList(
     Specification.Where<TUser>(TUserType.Age >= 18)
   );
   LogSuccess(Format('✓ Fluent Spec: Found %d adult(s)', [FluentAdults.Count]));
   AssertTrue(FluentAdults.Count = 2, 'Fluent spec adults', 'Expected 2 adults');
   
   // Complex fluent with chaining
-  var FluentComplex := FContext.Entities<TUser>.ToList(
+  FluentComplex := FContext.Entities<TUser>.ToList(
     Specification.Where<TUser>((TUserType.Age >= 18) and TUserType.Name.Contains('o'))
       .Take(10)
       .Skip(0)
@@ -125,7 +143,7 @@ begin
   Log('------------------------');
   
   // OrderBy with Asc
-  var OrderedAsc := FContext.Entities<TUser>.ToList(
+  OrderedAsc := FContext.Entities<TUser>.ToList(
     Specification.Where<TUser>(TUserType.Age >= 18)
       .OrderBy(TUserType.Name.Asc)
   );
@@ -134,7 +152,7 @@ begin
     LogSuccess(Format('  First: %s', [OrderedAsc[0].Name]));
   
   // OrderBy with Desc
-  var OrderedDesc := FContext.Entities<TUser>.ToList(
+  OrderedDesc := FContext.Entities<TUser>.ToList(
     Specification.Where<TUser>(TUserType.Age >= 18)
       .OrderBy(TUserType.Age.Desc)
   );
@@ -147,12 +165,12 @@ begin
   Log('--------------------------------');
   
   // Create user with address
-  var UWithAddr := TUser.Create;
+  UWithAddr := TUser.Create;
   UWithAddr.Name := 'User With Address';
   UWithAddr.Age := 40;
   UWithAddr.Email := 'addr@example.com';
   
-  var Addr := TAddress.Create;
+  Addr := TAddress.Create;
   Addr.Street := 'Main St';
   Addr.City := 'New York';
 
@@ -170,7 +188,7 @@ begin
   LogSuccess(Format('Inserted user with address ID: %d', [UWithAddr.AddressId.GetValueOrDefault]));
 
   // Fetch with Include
-  var UsersWithAddr := FContext.Entities<TUser>.ToList(
+  UsersWithAddr := FContext.Entities<TUser>.ToList(
     Specification.Where<TUser>(TUserType.Id = UWithAddr.Id)
       .Include('Address')
   );
@@ -178,7 +196,7 @@ begin
   AssertTrue(UsersWithAddr.Count = 1, 'Include count', 'Expected 1 user');
   if UsersWithAddr.Count > 0 then
   begin
-    var LoadedUser := UsersWithAddr[0];
+    LoadedUser := UsersWithAddr[0];
     if LoadedUser.Address <> nil then
       LogSuccess(Format('✓ Include: Address loaded: %s, %s', [LoadedUser.Address.Street, LoadedUser.Address.City]))
     else

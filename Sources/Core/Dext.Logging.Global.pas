@@ -86,6 +86,9 @@ begin
 end;
 
 class procedure Log.Initialize;
+var
+  PortStr: string;
+  Port: Integer;
 begin
   if FFactory <> nil then Exit; // Already initialized
 
@@ -101,10 +104,10 @@ begin
   
   // Sidecar Sink (Fire and Forget)
   // Auto-discovery via Environment Variable (set by Sidecar or execution context)
-  var PortStr := GetEnvironmentVariable('DEXT_SIDECAR_PORT');
+  PortStr := GetEnvironmentVariable('DEXT_SIDECAR_PORT');
   if PortStr <> '' then
   begin
-    var Port := StrToIntDef(PortStr, 3030);
+    Port := StrToIntDef(PortStr, 3030);
     FFactory.AddSink(TSidecarSink.Create('http://localhost:' + Port.ToString));
   end;
   

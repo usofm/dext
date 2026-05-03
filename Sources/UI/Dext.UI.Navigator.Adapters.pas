@@ -177,11 +177,11 @@ end;
 
 procedure TBaseNavigatorAdapter.RemoveView(View: TObject);
 var
-  RouteToRemove: string;
+  RouteToRemove, Key: string;
 begin
   // Find and remove from dictionary
   RouteToRemove := '';
-  for var Key in FViews.Keys do
+  for Key in FViews.Keys do
   begin
     if FViews[Key] = View then
     begin
@@ -237,6 +237,10 @@ var
   WinControl: TWinControl;
   Frame: TFrame;
 {$ENDIF}
+{$IFDEF FMX}
+var
+  FMXFrame: TFrame;
+{$ENDIF}
 begin
   {$IFDEF VCL}
   if View is TFrame then
@@ -257,7 +261,7 @@ begin
   {$IFDEF FMX}
   if View is TFrame then
   begin
-    var FMXFrame := View as TFrame;
+    FMXFrame := View as TFrame;
     if FContainer is TControl then
     begin
       FMXFrame.Parent := FContainer as TFmxObject;

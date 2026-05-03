@@ -106,9 +106,10 @@ var
   Doc: TYamlDocument;
   Mapping, Nested: TYamlMapping;
   Node: TYamlNode;
+  Yaml: string;
 begin
   WriteLn('Testing Nested Mapping...');
-  var Yaml := 
+  Yaml := 
     'parent:' + sLineBreak +
     '  child: value';
     
@@ -142,9 +143,10 @@ var
   Mapping: TYamlMapping;
   Seq: TYamlSequence;
   Node: TYamlNode;
+  Yaml: string;
 begin
   WriteLn('Testing Nested Sequence in Mapping...');
-  var Yaml := 
+  Yaml := 
     'list:' + sLineBreak +
     '  - one' + sLineBreak +
     '  - two';

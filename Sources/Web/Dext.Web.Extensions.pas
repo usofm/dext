@@ -155,17 +155,21 @@ end;
 { TWebRouteHelpers }
 
 class procedure TWebRouteHelpers.HasApiVersion(Builder: IApplicationBuilder; const Version: string);
+var
+  OriginalRoutes: TArray<TEndpointMetadata>;
+  LastRoute: TEndpointMetadata;
+  NewVersions: TArray<string>;
 begin
   // Builders typically have state of "Last Added Route".
   // Dext.Web.Interfaces defines UpdateLastRouteMetadata.
-  var OriginalRoutes := Builder.GetRoutes;
+  OriginalRoutes := Builder.GetRoutes;
   if Length(OriginalRoutes) > 0 then
   begin
-    var LastRoute := OriginalRoutes[High(OriginalRoutes)];
+    LastRoute := OriginalRoutes[High(OriginalRoutes)];
     
     // Add version to array
     // LastRoute is TEndpointMetadata (Record)
-    var NewVersions := LastRoute.ApiVersions;
+    NewVersions := LastRoute.ApiVersions;
     SetLength(NewVersions, Length(NewVersions) + 1);
     NewVersions[High(NewVersions)] := Version;
     

@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.Relationships;
+unit EntityDemo.Tests.Relationships;
 
 interface
 
@@ -22,6 +22,13 @@ implementation
 procedure TRelationshipTest.Run;
 var
   Dialect: ISQLDialect;
+  Address: TAddress;
+  User: TUser;
+  UserId: Integer;
+  AddressId: Integer;
+  AddrToDelete: TAddress;
+  SQL: string;
+  Count: Integer;
 begin
   Dialect := TDbConfig.CreateDialect;
   
@@ -31,11 +38,11 @@ begin
   // 1. Cascade Delete
   Log('🧨 Testing Cascade Delete...');
   
-  var Address := TAddress.Create;
+  Address := TAddress.Create;
   Address.Street := '999 Cascade Blvd';
   Address.City := 'Destruction City';
   
-  var User := TUser.Create;
+  User := TUser.Create;
   User.Name := 'Cascade Victim';
   User.Age := 99;
   User.Email := 'victim@dext.com';
@@ -47,8 +54,8 @@ begin
   
   FContext.Entities<TUser>.Add(User);
   FContext.SaveChanges;
-  var UserId := User.Id;
-  var AddressId := Address.Id;
+  UserId := User.Id;
+  AddressId := Address.Id;
   
   AssertTrue(UserId > 0, 'User inserted.', 'User insert failed.');
   
@@ -56,7 +63,7 @@ begin
   // Note: Dext ORM doesn't handle cascade delete in memory automatically yet, 
   // but the DB Foreign Key is set to CASCADE.
   
-  var AddrToDelete := FContext.Entities<TAddress>.Find(AddressId);
+  AddrToDelete := FContext.Entities<TAddress>.Find(AddressId);
   if AddrToDelete <> nil then
   begin
     FContext.Entities<TAddress>.Remove(AddrToDelete);
@@ -64,9 +71,9 @@ begin
     LogSuccess('Address removed.');
     
     // Verify User is gone from DB (use proper quoting for each database)
-    var SQL := Format('SELECT COUNT(*) FROM %s WHERE %s = %d', 
+    SQL := Format('SELECT COUNT(*) FROM %s WHERE %s = %d', 
       [Dialect.QuoteIdentifier('users'), Dialect.QuoteIdentifier('Id'), UserId]);
-    var Count: Integer := FConn.ExecSQLScalar(SQL);
+    Count := FConn.ExecSQLScalar(SQL);
     AssertTrue(Count = 0, 'Cascade Delete Verified: User is gone from DB.', 'Cascade Delete Failed: User still exists in DB.');
   end;
   

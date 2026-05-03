@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -137,12 +137,18 @@ function StringRawHash(Key: Pointer; KeySize: Integer): Cardinal;
 /// <summary>Equality function for string keys</summary>
 function StringRawEqual(A, B: Pointer; KeySize: Integer): Boolean;
 
+/// <summary>Case-insensitive hash function optimized for string keys</summary>
 function StringRawHashIgnoreCase(Key: Pointer; KeySize: Integer): Cardinal;
+/// <summary>Case-insensitive equality function for string keys</summary>
 function StringRawEqualIgnoreCase(A, B: Pointer; KeySize: Integer): Boolean;
 
+/// <summary>Fast hash function for 4-byte keys</summary>
 function FastHash4(Key: Pointer; KeySize: Integer): Cardinal;
+/// <summary>Fast hash function for 8-byte keys</summary>
 function FastHash8(Key: Pointer; KeySize: Integer): Cardinal;
+/// <summary>Fast equality function for 4-byte keys</summary>
 function FastEqual4(A, B: Pointer; KeySize: Integer): Boolean;
+/// <summary>Fast equality function for 8-byte keys</summary>
 function FastEqual8(A, B: Pointer; KeySize: Integer): Boolean;
 
 implementation
@@ -234,8 +240,10 @@ begin
 end;
 
 function FastHash8(Key: Pointer; KeySize: Integer): Cardinal;
+var
+  V: UInt64;
 begin
-  var V := PUInt64(Key)^;
+  V := PUInt64(Key)^;
   Result := Cardinal(V) xor Cardinal(V shr 32);
 end;
 

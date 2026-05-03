@@ -47,6 +47,9 @@ var
   AllocCountStart: Int64;
   AllocDelta: Int64;
   Exp: IExpression;
+  SpecStartAlloc: Int64;
+  SpecAllocDelta: Int64;
+  Spec: TSpecification<TTestEntity>;
 begin
   Writeln('--- ORM Specification Benchmark ---');
   Writeln('Iterations: ', ITERATIONS);
@@ -74,11 +77,11 @@ begin
   Writeln('--------------------------------');
 
   // Benchmark for Specification
-  var SpecStartAlloc := GetAllocatedBytes;
+  SpecStartAlloc := GetAllocatedBytes;
   SW := TStopwatch.StartNew;
   for I := 1 to ITERATIONS do
   begin
-    var Spec := TSpecification<TTestEntity>.Create;
+    Spec := TSpecification<TTestEntity>.Create;
     try
       Spec.Where((Prop('Age') > 18));
       Spec.Include('Orders');
@@ -92,7 +95,7 @@ begin
   end;
   SW.Stop;
   
-  var SpecAllocDelta := GetAllocatedBytes - SpecStartAlloc;
+  SpecAllocDelta := GetAllocatedBytes - SpecStartAlloc;
 
   Writeln('2. Specification Building (Where, Include, Select, Paging)');
   Writeln(Format('   Time: %.2f ms', [SW.Elapsed.TotalMilliseconds]));

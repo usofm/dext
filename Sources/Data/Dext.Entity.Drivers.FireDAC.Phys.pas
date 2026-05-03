@@ -379,6 +379,8 @@ end;
 procedure TFireDACPhysCommand.SetParamValueWithType(Param: TFDParam; const AValue: TValue; ADataType: TFieldType);
 var
   V: TValue;
+  Bytes: TBytes;
+  RawStr: RawByteString;
 begin
   V := AValue;
   TReflection.TryUnwrapProp(V, V);
@@ -430,8 +432,7 @@ begin
     begin
       if V.TypeInfo = TypeInfo(TBytes) then
       begin
-        var Bytes := V.AsType<TBytes>;
-        var RawStr: RawByteString;
+        Bytes := V.AsType<TBytes>;
         SetLength(RawStr, Length(Bytes));
         if Length(Bytes) > 0 then
           Move(Bytes[0], RawStr[1], Length(Bytes));
@@ -469,9 +470,10 @@ begin
 end;
 
 procedure TFireDACPhysCommand.ClearParams;
+var
+  I: Integer;
 begin
   // Clearing values, not removing params (structure depends on SQL)
-  var I: Integer;
   for I := 0 to FCommand.Params.Count - 1 do
     FCommand.Params[I].Clear;
 end;
@@ -521,19 +523,23 @@ begin
 end;
 
 function TFireDACPhysCommand.ExecuteScalar: TValue;
+var
+  DatS: TFDDatSManager;
+  Table: TFDDatSTable;
+  Val: Variant;
 begin
   if Assigned(FOnLog) then FOnLog(FCommand.CommandText);
   // Execute and fetch 1 row
-  var DatS := TFDDatSManager.Create;
+  DatS := TFDDatSManager.Create;
   try
-    var Table := DatS.Tables.Add;
+    Table := DatS.Tables.Add;
     FCommand.Define(Table);
     FCommand.Open;
     FCommand.Fetch(Table, False); // Fetch next batch (AAll = False)
     
     if Table.Rows.Count > 0 then
     begin
-       var Val := Table.Rows[0].GetData(0);
+       Val := Table.Rows[0].GetData(0);
        Result := TValue.FromVariant(Val);
     end
     else
@@ -549,12 +555,15 @@ begin
 end;
 
 procedure TFireDACPhysCommand.SetParamArray(const AName: string; const AValues: TArray<TValue>);
+var
+  I: integer;
+  Param: TFDParam;
 begin
   // Similar to standard driver
-  var Param := FCommand.Params.FindParam(AName);
+  Param := FCommand.Params.FindParam(AName);
   if Param <> nil then
   begin
-    for var I := 0 to High(AValues) do
+    for I := 0 to High(AValues) do
     begin
        // Param.AsIntegers[I] := ...
        // ... logic same as standard driver
@@ -661,6 +670,10 @@ procedure TFireDACPhysCommand.SetParamValue(Param: TFDParam; const AValue: TValu
 var
   Converter: ITypeConverter;
   ConvertedValue: TValue;
+  Bytes: TBytes;
+  RawStr: RawByteString;
+  Helper: TNullableHelper;
+  InnerVal: TValue;
 begin
   if AValue.IsEmpty then
   begin
@@ -713,8 +726,7 @@ begin
       begin
         if ConvertedValue.TypeInfo = TypeInfo(TBytes) then
         begin
-           var Bytes := ConvertedValue.AsType<TBytes>;
-           var RawStr: RawByteString;
+           Bytes := ConvertedValue.AsType<TBytes>;
            SetLength(RawStr, Length(Bytes));
            if Length(Bytes) > 0 then
              Move(Bytes[0], RawStr[1], Length(Bytes));
@@ -767,8 +779,7 @@ begin
       begin
         if AValue.TypeInfo = TypeInfo(TBytes) then
         begin
-           var Bytes := AValue.AsType<TBytes>;
-           var RawStr: RawByteString;
+           Bytes := AValue.AsType<TBytes>;
            SetLength(RawStr, Length(Bytes));
            if Length(Bytes) > 0 then
              Move(Bytes[0], RawStr[1], Length(Bytes));
@@ -794,10 +805,10 @@ begin
       begin
         if IsNullable(AValue.TypeInfo) then
         begin
-           var Helper := TNullableHelper.Create(AValue.TypeInfo);
+           Helper := TNullableHelper.Create(AValue.TypeInfo);
            if Helper.HasValue(AValue.GetReferenceToRawData) then
            begin
-             var InnerVal := Helper.GetValue(AValue.GetReferenceToRawData);
+             InnerVal := Helper.GetValue(AValue.GetReferenceToRawData);
              SetParamValue(Param, InnerVal);
            end
            else

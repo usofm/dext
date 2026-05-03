@@ -1,4 +1,4 @@
-unit Dext.Entity.Migrations.Tests;
+﻿unit Dext.Entity.Migrations.Tests;
 
 interface
 
@@ -31,6 +31,7 @@ var
   Differ: TModelDiffer;
   Ops: IList<TMigrationOperation>;
   Found: Boolean;
+  Op: TMigrationOperation;
 begin
   OldModel := TSnapshotModel.Create;
   OldTable := TSnapshotTable.Create;
@@ -48,7 +49,7 @@ begin
     Ops := Differ.Diff(NewModel, OldModel);
     
     Found := False;
-    for var Op in Ops do
+    for Op in Ops do
       if Op is TRenameTableOperation then
       begin
         Should(TRenameTableOperation(Op).OldName).Be('OldUsers');
@@ -72,6 +73,7 @@ var
   Differ: TModelDiffer;
   Ops: IList<TMigrationOperation>;
   Found: Boolean;
+  Op: TMigrationOperation;
 begin
   OldModel := TSnapshotModel.Create;
   Table := TSnapshotTable.Create;
@@ -95,7 +97,7 @@ begin
     Ops := Differ.Diff(NewModel, OldModel);
     
     Found := False;
-    for var Op in Ops do
+    for Op in Ops do
       if Op is TRenameColumnOperation then
       begin
         Should(TRenameColumnOperation(Op).TableName).Be('Users');

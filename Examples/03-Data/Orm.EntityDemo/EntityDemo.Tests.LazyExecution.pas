@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.LazyExecution;
+unit EntityDemo.Tests.LazyExecution;
 
 interface
 
@@ -29,6 +29,12 @@ var
   User: TUser;
   Count: Integer;
   Name: string;
+  AllQuery: TFluentQuery<TUser>;
+  EagerList: IList<TUser>;
+  LazyEnum: TFluentQuery<TUser>;
+  FilteredQuery: TFluentQuery<TUser>;
+  PagedQuery: TFluentQuery<TUser>;
+  NamesQuery: TFluentQuery<string>;
 begin
   Log('🔄 Running Lazy Execution Tests...');
   Log('===================================');
@@ -94,7 +100,7 @@ begin
   // Test 4: Query all records (lazy)
   Log('📊 Test 4: Query All Records (Lazy)');
   Log('------------------------------------');
-  var AllQuery := FContext.Entities<TUser>.QueryAll();
+  AllQuery := FContext.Entities<TUser>.QueryAll();
   LogSuccess('✓ Query() created for all records');
   
   Count := 0;
@@ -112,11 +118,11 @@ begin
   Log('  Query(): Defers execution until enumerated (IEnumerable<T>)');
   Log('');
   
-  var EagerList := FContext.Entities<TUser>.ToList(TUserType.Age >= 18);
+  EagerList := FContext.Entities<TUser>.ToList(TUserType.Age >= 18);
   LogSuccess(Format('✓ ToList() executed immediately: %d results', [EagerList.Count]));
   // EagerList.Free; // REMOVED: Managed by ARC (IList<T>)
   
-  var LazyEnum := FContext.Entities<TUser>.Query(TUserType.Age >= 18);
+  LazyEnum := FContext.Entities<TUser>.Query(TUserType.Age >= 18);
   LogSuccess('✓ Query() created (deferred execution)');
   Log(Format('  → Execution happens when we enumerate it (Query object: %p)', [Pointer(@LazyEnum)]));
   Log('');
@@ -124,7 +130,6 @@ begin
   // Test 6: Projections (Select)
   Log('🎯 Test 6: Projections (Select)');
   Log('------------------------------');
-  var NamesQuery: TFluentQuery<string>;
   NamesQuery := FContext.Entities<TUser>
     .Query(TUserType.Age >= 18)
     .Select<string>(function(U: TUser): string
@@ -152,7 +157,7 @@ begin
   // Test 7: Where (Filtering)
   Log('🔍 Test 7: Where (Filtering)');
   Log('---------------------------');
-  var FilteredQuery := FContext
+  FilteredQuery := FContext
     .Entities<TUser>
     .QueryAll()
     .Where(function(U: TUser): Boolean
@@ -168,14 +173,14 @@ begin
   end;
   AssertTrue(Count = 2, 'Found 2 users > 20', 'Expected 2 users');
   Log('');
-
+  
   // Test 8: Skip & Take (Pagination)
   Log('📄 Test 8: Skip & Take (Pagination)');
   Log('----------------------------------');
   // Order is not guaranteed without OrderBy, but for this test we assume insertion order or DB order
   // Alice(25), Bob(30), Charlie(17)
   
-  var PagedQuery := FContext.Entities<TUser>
+  PagedQuery := FContext.Entities<TUser>
     .QueryAll()
     .Skip(1)
     .Take(1);

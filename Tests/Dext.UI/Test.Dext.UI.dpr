@@ -11,6 +11,8 @@ uses
   System.SysUtils,
   Dext.UI.Navigator.Tests in 'Dext.UI.Navigator.Tests.pas';
 
+var
+  TestResult: Boolean;
 begin
   SetConsoleCharSet();
   try
@@ -19,7 +21,7 @@ begin
     WriteLn('=====================================');
     WriteLn;
 
-    var TestResult := TTest.Configure
+    TestResult := TTest.Configure
       .Verbose
       .RegisterFixtures([
         TNavParamsTests,

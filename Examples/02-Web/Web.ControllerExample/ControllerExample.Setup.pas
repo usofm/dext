@@ -1,4 +1,4 @@
-unit ControllerExample.Setup;
+﻿unit ControllerExample.Setup;
 
 interface
 
@@ -30,9 +30,11 @@ uses
   Dext.OpenAPI.Extensions;
 
 procedure EnsureAppSettingsExists;
+var
+  JsonContent: string;
 begin
   // Always overwrite to ensure correct configuration for this example
-  var JsonContent := 
+  JsonContent :=
     '{' + sLineBreak +
     '  "AppSettings": {' + sLineBreak +
     '    "Message": "Hello from Dext Configuration!",' + sLineBreak +
@@ -50,15 +52,15 @@ end;
 procedure RegisterVersionedRoutes(Builder: IApplicationBuilder);
 begin
   // V1
-  Builder.MapGet('/api/versioned', 
+  Builder.MapGet('/api/versioned',
     procedure(Ctx: IHttpContext)
     begin
       Ctx.Response.Json('{"version": "1.0", "message": "This is API v1"}');
     end);
   TWebRouteHelpers.HasApiVersion(Builder, '1.0');
-    
+
   // V2
-  Builder.MapGet('/api/versioned', 
+  Builder.MapGet('/api/versioned',
     procedure(Ctx: IHttpContext)
     begin
       Ctx.Response.Json('{"version": "2.0", "message": "This is API v2 - Newer and Better!"}');
@@ -66,7 +68,7 @@ begin
   TWebRouteHelpers.HasApiVersion(Builder, '2.0');
 
   // Fluent API Anonymous Test
-  Builder.MapGet('/api/fluent/anonymous', 
+  Builder.MapGet('/api/fluent/anonymous',
     procedure(Ctx: IHttpContext)
     begin
       Ctx.Response.Json('{"message": "Fluent API anonymous worked!"}');

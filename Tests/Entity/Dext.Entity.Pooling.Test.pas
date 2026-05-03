@@ -1,4 +1,4 @@
-unit Dext.Entity.Pooling.Test;
+﻿unit Dext.Entity.Pooling.Test;
 
 interface
 
@@ -65,6 +65,7 @@ var
   DbConnection: IDbConnection;
   Dialect: ISQLDialect;
   i: Integer;
+  FirstRun, SecondRun: Int64;
 begin
   // Create FireDAC connection
   FDConn := TFDConnection.Create(nil);
@@ -81,7 +82,7 @@ begin
   Assert.IsNotNull(Context);
   Context.Free;
   
-  var FirstRun := SW.ElapsedMilliseconds;
+  FirstRun := SW.ElapsedMilliseconds;
 
   SW.Reset;
   SW.Start;
@@ -91,7 +92,7 @@ begin
     Context := TPoolTestContext.Create(DbConnection, Dialect);
     Context.Free;
   end;
-  var SecondRun := SW.ElapsedMilliseconds;
+  SecondRun := SW.ElapsedMilliseconds;
   
   System.Writeln(Format('1st Create: %d ms | 1000 Creates: %d ms', [FirstRun, SecondRun]));
   

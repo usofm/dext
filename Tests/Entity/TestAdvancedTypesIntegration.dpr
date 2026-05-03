@@ -1,4 +1,4 @@
-﻿program TestAdvancedTypesIntegration;
+program TestAdvancedTypesIntegration;
 
 {$APPTYPE CONSOLE}
 {$TYPEINFO ON}
@@ -92,6 +92,7 @@ var
   TestDateTime: TDateTime;
   TestData: TBytes;
   i: Integer;
+  OrigDescription: string;
 begin
   WriteLn('► Testing Advanced Types Integration...');
   
@@ -123,7 +124,7 @@ begin
     end;
   end;
   
-  var OrigDescription := Entity.Description;
+  OrigDescription := Entity.Description;
   
   WriteLn('  Step 2: Clear and Reload');
   Db.Clear;
@@ -168,7 +169,9 @@ var
   Connection: IDbConnection;
   FDConn: TFDConnection;
   Dialect: ISQLDialect;
+  C: IInterface;
 begin
+  SetConsoleCharSet(65001);
   try
     FDConn := TFDConnection.Create(nil);
     FDConn.DriverName := 'PG';
@@ -184,7 +187,7 @@ begin
     Db := TAdvancedDbContext.Create(Connection, Dialect);
     try
       // Clear previous
-      var C: IInterface := Connection.CreateCommand('DROP TABLE IF EXISTS test_advanced_entities');
+      C := Connection.CreateCommand('DROP TABLE IF EXISTS test_advanced_entities');
       (C as IDbCommand).ExecuteNonQuery;
       
       if Db.AdvancedEntities <> nil then;

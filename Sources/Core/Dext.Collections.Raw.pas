@@ -30,9 +30,13 @@ uses
 type
   /// <summary>Callback for raw elements comparison</summary>
   TRawCompareFunc = reference to function(A, B: Pointer): Integer;
+  /// <summary>Callback for comparing raw elements with an explicit size</summary>
   TRawEqualFunc = function(A, B: Pointer; Size: Integer): Boolean;
+  /// <summary>Callback for determining equality between raw elements</summary>
   TRawEqualityFunc = reference to function(A, B: Pointer): Boolean;
+  /// <summary>Types of notifications triggered by raw collections</summary>
   TRawCollectionNotification = (rcnAdded, rcnRemoved, rcnExtracted);
+  /// <summary>Event type for raw collection notifications</summary>
   TRawNotifyEvent = procedure(Item: Pointer; Action: TRawCollectionNotification) of object;
 
   TRawIntArray = array[0..MaxInt div 4 - 1] of Integer;
@@ -52,6 +56,10 @@ type
   TRawDblArray = array[0..MaxInt div 8 - 1] of Double;
   PRawDblArray = ^TRawDblArray;
 
+  /// <summary>
+  ///   High-performance backend for non-generic lists.
+  ///   Manages untyped raw memory.
+  /// </summary>
   TRawList = class
   private
     FData: PByte;
@@ -385,13 +393,30 @@ procedure TRawList.InternalSortHybrid(L, R: Integer; AKind: TTypeKind);
 var 
   I, J: Integer;
   IsUnsigned: Boolean;
+  TData: PTypeData;
+  PByteArray: PRawByteArray;
+  PWordArray: PRawWordArray;
+  PUIntArray: PRawUIntArray;
+  PIntArray: PRawIntArray;
+  PUInt64Array: PRawUInt64Array;
+  PInt64Array: PRawInt64Array;
+  PDblArray: PRawDblArray;
+  PStrArray: PRawStrArray;
+  VB: Byte;
+  VW: Word;
+  VU: Cardinal;
+  VI: Integer;
+  V64U: UInt64;
+  V64: Int64;
+  VD: Double;
+  VS: string;
 begin
   if R - L < 1 then Exit;
   
   IsUnsigned := False;
   if Assigned(FTypeInfo) then
   begin
-    var TData := GetTypeData(FTypeInfo);
+    TData := GetTypeData(FTypeInfo);
     if FTypeInfo.Kind = tkInt64 then
       IsUnsigned := TData.MinInt64Value >= 0
     else
@@ -403,32 +428,32 @@ begin
       tkInteger, tkChar, tkWChar, tkEnumeration, tkSet: begin
         case FElementSize of
           1: begin
-            var PByteArray := PRawByteArray(FData);
+            PByteArray := PRawByteArray(FData);
             for I := L + 1 to R do begin
-              var VB := PByteArray^[I]; J := I;
+              VB := PByteArray^[I]; J := I;
               while (J > L) and (PByteArray^[J-1] > VB) do begin PByteArray^[J] := PByteArray^[J-1]; Dec(J); end;
               PByteArray^[J] := VB;
             end;
           end;
           2: begin
-            var PWordArray := PRawWordArray(FData);
+            PWordArray := PRawWordArray(FData);
             for I := L + 1 to R do begin
-              var VW := PWordArray^[I]; J := I;
+              VW := PWordArray^[I]; J := I;
               while (J > L) and (PWordArray^[J-1] > VW) do begin PWordArray^[J] := PWordArray^[J-1]; Dec(J); end;
               PWordArray^[J] := VW;
             end;
           end;
           4: if IsUnsigned then begin
-            var PUIntArray := PRawUIntArray(FData);
+            PUIntArray := PRawUIntArray(FData);
             for I := L + 1 to R do begin
-              var VU := PUIntArray^[I]; J := I;
+              VU := PUIntArray^[I]; J := I;
               while (J > L) and (PUIntArray^[J-1] > VU) do begin PUIntArray^[J] := PUIntArray^[J-1]; Dec(J); end;
               PUIntArray^[J] := VU;
             end;
           end else begin
-            var PIntArray := PRawIntArray(FData);
+            PIntArray := PRawIntArray(FData);
             for I := L + 1 to R do begin
-              var VI := PIntArray^[I]; J := I;
+              VI := PIntArray^[I]; J := I;
               while (J > L) and (PIntArray^[J-1] > VI) do begin PIntArray^[J] := PIntArray^[J-1]; Dec(J); end;
               PIntArray^[J] := VI;
             end;
@@ -437,33 +462,33 @@ begin
       end;
       tkInt64: begin
         if IsUnsigned then begin
-          var PUInt64Array := PRawUInt64Array(FData);
+          PUInt64Array := PRawUInt64Array(FData);
           for I := L + 1 to R do begin
-            var V64U := PUInt64Array^[I]; J := I;
+            V64U := PUInt64Array^[I]; J := I;
             while (J > L) and (PUInt64Array^[J-1] > V64U) do begin PUInt64Array^[J] := PUInt64Array^[J-1]; Dec(J); end;
             PUInt64Array^[J] := V64U;
           end;
         end else begin
-          var PInt64Array := PRawInt64Array(FData);
+          PInt64Array := PRawInt64Array(FData);
           for I := L + 1 to R do begin
-            var V64 := PInt64Array^[I]; J := I;
+            V64 := PInt64Array^[I]; J := I;
             while (J > L) and (PInt64Array^[J-1] > V64) do begin PInt64Array^[J] := PInt64Array^[J-1]; Dec(J); end;
             PInt64Array^[J] := V64;
           end;
         end;
       end;
       tkFloat: begin
-        var PDblArray := PRawDblArray(FData);
+        PDblArray := PRawDblArray(FData);
         for I := L + 1 to R do begin
-          var VD := PDblArray^[I]; J := I;
+          VD := PDblArray^[I]; J := I;
           while (J > L) and (PDblArray^[J-1] > VD) do begin PDblArray^[J] := PDblArray^[J-1]; Dec(J); end;
           PDblArray^[J] := VD;
         end;
       end;
       tkUString: begin
-        var PStrArray := PRawStrArray(FData);
+        PStrArray := PRawStrArray(FData);
         for I := L + 1 to R do begin
-          var VS := PStrArray^[I]; J := I;
+          VS := PStrArray^[I]; J := I;
           while (J > L) and (PStrArray^[J-1] > VS) do begin PStrArray^[J] := PStrArray^[J-1]; Dec(J); end;
           PStrArray^[J] := VS;
         end;
@@ -619,6 +644,7 @@ var
   TempBuf: array[0..255] of Byte;
   NeedsFree: Boolean;
   Size: Integer;
+  Mid: Integer;
 begin
   if R - L < 1 then Exit;
   Size := FElementSize;
@@ -651,7 +677,7 @@ begin
 
   // QuickSort with Median-of-Three
   I := L; J := R;
-  var Mid := (L + R) div 2;
+  Mid := (L + R) div 2;
   if CompareFunc(FData + (L * Size), FData + (Mid * Size)) > 0 then ExchangeRaw(L, Mid);
   if CompareFunc(FData + (L * Size), FData + (R * Size)) > 0 then ExchangeRaw(L, R);
   if CompareFunc(FData + (Mid * Size), FData + (R * Size)) > 0 then ExchangeRaw(Mid, R);

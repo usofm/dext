@@ -25,9 +25,14 @@
 {  Dext.Testing.DI - Mock-aware Dependency Injection for testing.           }
 {                                                                           }
 {  Usage:                                                                   }
-{    var Provider := TTestServiceProvider.Create;                           }
-{    Provider.AddMock<IRepository>(MyMock);                                 }
-{    var Service := Provider.GetService<TService>;                          }
+{    var                                                                   }
+{      Provider: TTestServiceProvider;                                     }
+{      Service: TService;                                                  }
+{    begin                                                                 }
+{      Provider := TTestServiceProvider.Create;                            }
+{      Provider.AddMock<IRepository>(MyMock);                              }
+{      Service := Provider.GetService<TService>;                           }
+{    end;                                                                  }
 {                                                                           }
 {***************************************************************************}
 unit Dext.Testing.DI;

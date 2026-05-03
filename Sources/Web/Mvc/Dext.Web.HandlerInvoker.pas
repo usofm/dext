@@ -176,6 +176,13 @@ begin
 end;
 
 function THandlerInvoker.ResolveArgument<T>: T;
+var
+  Bound: Boolean;
+  Svc: TValue;
+  IsEntity: Boolean;
+  CtxRtti: TRttiContext;
+  Typ: TRttiType;
+  Attr: TCustomAttribute;
 begin
   Result := Default(T);
   // 1. Verify if IHttpContext
@@ -193,17 +200,16 @@ begin
   else if PTypeInfo(TypeInfo(T)).Kind = tkRecord then
   begin
     // Use hybrid binding that supports mixed sources based on field attributes
-    var BoundValue := FModelBinder.BindRecordHybrid(TypeInfo(T), FContext);
-    Result := BoundValue.AsType<T>;
+    Result := FModelBinder.BindRecordHybrid(TypeInfo(T), FContext).AsType<T>;
   end
   // 4. Classes -> Try DI first, then Body/Query
   else if PTypeInfo(TypeInfo(T)).Kind = tkClass then
   begin
-    var Bound := False;
+    Bound := False;
     
     // For Classes, try DI first
     try
-      var Svc := FModelBinder.BindServices(TypeInfo(T), FContext);
+      Svc := FModelBinder.BindServices(TypeInfo(T), FContext);
       if (not Svc.IsEmpty) and (Svc.AsObject <> nil) then
       begin
          Result := Svc.AsType<T>;
@@ -225,13 +231,13 @@ begin
        // Entities ([Table]) are NOT tracked because the DbContext assumes ownership.
        if TValue.From<T>(Result).AsObject <> nil then
        begin
-         var IsEntity := False;
-         var CtxRtti := TReflection.Context;
+         IsEntity := False;
+         CtxRtti := TReflection.Context;
          try
-           var Typ := CtxRtti.GetType(TypeInfo(T));
+           Typ := CtxRtti.GetType(TypeInfo(T));
            if Typ <> nil then
            begin
-             for var Attr in Typ.GetAttributes do
+             for Attr in Typ.GetAttributes do
              begin
                IsEntity := Attr.ClassName = 'TableAttribute';
                if IsEntity then Break;

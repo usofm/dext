@@ -179,8 +179,10 @@ begin
 end;
 
 function TTableBuilder.Column(const AName, AType: string): IColumnBuilder;
+var
+  Def: TColumnDefinition;
 begin
-  var Def := TColumnDefinition.Create(AName, AType);
+  Def := TColumnDefinition.Create(AName, AType);
   FOp.Columns.Add(Def);
   Result := TColumnBuilder.Create(Def);
 end;
@@ -211,10 +213,12 @@ begin
 end;
 
 function TTableBuilder.PrimaryKey(const AColumns: array of string): TTableBuilder;
+var
+  Arr: TArray<string>;
+  i: Integer;
 begin
-  var Arr: TArray<string>;
   SetLength(Arr, Length(AColumns));
-  for var i := 0 to High(AColumns) do
+  for i := 0 to High(AColumns) do
     Arr[i] := AColumns[i];
   FOp.PrimaryKey := Arr;
   Result := Self;
@@ -234,8 +238,10 @@ end;
 
 function TSchemaBuilder.AddColumn(const ATable, AName, AType: string;
   ALength: Integer; AIsNullable: Boolean): TSchemaBuilder;
+var
+  Col: TColumnDefinition;
 begin
-  var Col := TColumnDefinition.Create(AName, AType);
+  Col := TColumnDefinition.Create(AName, AType);
   Col.Length := ALength;
   Col.IsNullable := AIsNullable;
   FOperations.Add(TAddColumnOperation.Create(ATable, Col));
@@ -250,18 +256,22 @@ begin
 end;
 
 function TSchemaBuilder.AlterColumn(const ATable, AName, AType: string): TSchemaBuilder;
+var
+  Col: TColumnDefinition;
 begin
-  var Col := TColumnDefinition.Create(AName, AType);
+  Col := TColumnDefinition.Create(AName, AType);
   FOperations.Add(TAlterColumnOperation.Create(ATable, Col));
   Result := Self;
 end;
 
 function TSchemaBuilder.CreateIndex(const ATable, AName: string;
   const AColumns: array of string; AUnique: Boolean): TSchemaBuilder;
+var
+  Arr: TArray<string>;
+  i: Integer;
 begin
-  var Arr: TArray<string>;
   SetLength(Arr, Length(AColumns));
-  for var i := 0 to High(AColumns) do
+  for i := 0 to High(AColumns) do
     Arr[i] := AColumns[i];
     
   FOperations.Add(TCreateIndexOperation.Create(ATable, AName, Arr, AUnique));
@@ -270,9 +280,12 @@ end;
 
 function TSchemaBuilder.CreateTable(const AName: string;
   const ABuildProc: TProc<TTableBuilder>): TSchemaBuilder;
+var
+  Op: TCreateTableOperation;
+  Builder: TTableBuilder;
 begin
-  var Op := TCreateTableOperation.Create(AName);
-  var Builder := TTableBuilder.Create(Op);
+  Op := TCreateTableOperation.Create(AName);
+  Builder := TTableBuilder.Create(Op);
   try
     ABuildProc(Builder);
   finally

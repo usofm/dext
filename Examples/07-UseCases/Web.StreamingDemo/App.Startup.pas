@@ -30,8 +30,10 @@ begin
 end;
 
 procedure TStartup.Configure(const App: IWebApplication);
+var
+  WebApp: TAppBuilder;
 begin
-  var WebApp := App.GetBuilder;
+  WebApp := App.GetBuilder;
 
   // Middleware
   WebApp.UseExceptionHandler;

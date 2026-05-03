@@ -1,4 +1,4 @@
-﻿unit DextStore.Controllers;
+unit DextStore.Controllers;
 
 interface
 
@@ -100,11 +100,13 @@ end;
 
 procedure TAuthController.Login(Ctx: IHttpContext; const Request:
   TLoginRequest; const ClaimsBuilder: IClaimsBuilder);
+var
+  Token: string;
 begin
   // Hardcoded user for demo
   if (Request.Username = 'user') and (Request.Password = 'password') then
   begin
-    var Token := FTokenHandler.GenerateToken(
+    Token := FTokenHandler.GenerateToken(
       ClaimsBuilder
         .WithNameIdentifier(Request.Username)
         .WithRole('customer')
@@ -125,14 +127,18 @@ begin
 end;
 
 procedure TProductsController.GetAll(Ctx: IHttpContext);
+var
+  Products: TArray<TProduct>;
 begin
-  var Products := FService.GetAll;
+  Products := FService.GetAll;
   Ctx.Response.Json(TDextJson.Serialize(Products));
 end;
 
 procedure TProductsController.GetById(Ctx: IHttpContext; Id: Integer);
+var
+  Product: TProduct;
 begin
-  var Product := FService.GetById(Id);
+  Product := FService.GetById(Id);
   if Product <> nil then
     Ctx.Response.Json(TDextJson.Serialize(Product))
   else
@@ -140,8 +146,10 @@ begin
 end;
 
 procedure TProductsController.CreateProduct(Ctx: IHttpContext; const Request: TCreateProductRequest);
+var
+  Product: TProduct;
 begin
-  var Product := FService.CreateProduct(Request);
+  Product := FService.CreateProduct(Request);
   Ctx.Response.Status(201).Json(TDextJson.Serialize(Product));
 end;
 
@@ -153,12 +161,16 @@ begin
 end;
 
 procedure TCartController.GetCart(Ctx: IHttpContext);
+var
+  UserId: string;
+  Items: TArray<TCartItem>;
+  Total: Currency;
+  Response: TCartResponse;
 begin
-  var UserId := Ctx.User.Identity.Name;
-  var Items := FService.GetCart(UserId);
-  var Total := FService.CalculateTotal(UserId);
+  UserId := Ctx.User.Identity.Name;
+  Items := FService.GetCart(UserId);
+  Total := FService.CalculateTotal(UserId);
   
-  var Response: TCartResponse;
   Response.Items := Items;
   Response.TotalAmount := Total;
   Response.UserId := UserId;
@@ -167,9 +179,11 @@ begin
 end;
 
 procedure TCartController.AddItem(Ctx: IHttpContext; const Request: TAddToCartRequest);
+var
+  UserId: string;
 begin
   try
-    var UserId := Ctx.User.Identity.Name;
+    UserId := Ctx.User.Identity.Name;
     FService.AddItem(UserId, Request.ProductId, Request.Quantity);
     Ctx.Response.Json('{"message": "Item added to cart"}');
   except
@@ -179,8 +193,10 @@ begin
 end;
 
 procedure TCartController.ClearCart(Ctx: IHttpContext);
+var
+  UserId: string;
 begin
-  var UserId := Ctx.User.Identity.Name;
+  UserId := Ctx.User.Identity.Name;
   FService.ClearCart(UserId);
   Ctx.Response.Status(204);
 end;
@@ -193,12 +209,15 @@ begin
 end;
 
 procedure TOrdersController.Checkout(Ctx: IHttpContext);
+var
+  UserId: string;
+  Order: TOrder;
+  Response: TOrderResponse;
 begin
   try
-    var UserId := Ctx.User.Identity.Name;
-    var Order := FService.Checkout(UserId);
+    UserId := Ctx.User.Identity.Name;
+    Order := FService.Checkout(UserId);
     
-    var Response: TOrderResponse;
     Response.OrderId := Order.Id;
     Response.Total := Order.TotalAmount;
     Response.Status := Order.Status;
@@ -212,9 +231,12 @@ begin
 end;
 
 procedure TOrdersController.GetMyOrders(Ctx: IHttpContext);
+var
+  UserId: string;
+  Orders: TArray<TOrder>;
 begin
-  var UserId := Ctx.User.Identity.Name;
-  var Orders := FService.GetUserOrders(UserId);
+  UserId := Ctx.User.Identity.Name;
+  Orders := FService.GetUserOrders(UserId);
   Ctx.Response.Json(TDextJson.Serialize(Orders));
 end;
 

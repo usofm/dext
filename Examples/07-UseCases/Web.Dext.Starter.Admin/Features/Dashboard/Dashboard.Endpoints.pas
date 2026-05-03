@@ -49,11 +49,12 @@ begin
     var
       Stats: TDashboardStats;
       FS: TFormatSettings;
+      Html: string;
     begin
       Stats := Service.GetStats;
       FS := TFormatSettings.Create('pt-BR'); // For R$ format
       
-      var Html := Format(HTML_DASHBOARD_STATS, [Stats.TotalCustomers, FloatToStrF(Stats.TotalSales, ffCurrency, 15, 2, FS)]);
+      Html := Format(HTML_DASHBOARD_STATS, [Stats.TotalCustomers, FloatToStrF(Stats.TotalSales, ffCurrency, 15, 2, FS)]);
       Result := Results.Html(Html);
     end);
 

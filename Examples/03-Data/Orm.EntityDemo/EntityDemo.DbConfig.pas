@@ -1,4 +1,4 @@
-﻿unit EntityDemo.DbConfig;
+unit EntityDemo.DbConfig;
 
 interface
 
@@ -485,6 +485,7 @@ class procedure TDbConfig.EnsureDatabaseExists;
 var
   FDConn: TFDConnection;
   SQL: string;
+  Query: Variant;
 begin
   case FCurrentProvider of
     dpMySQL:
@@ -537,7 +538,7 @@ begin
         
         // PostgreSQL doesn't have CREATE DATABASE IF NOT EXISTS, so we check and create
         SQL := Format('SELECT 1 FROM pg_database WHERE datname = ''%s''', [FPostgreSQLDatabase]);
-        var Query := FDConn.ExecSQLScalar(SQL);
+        Query := FDConn.ExecSQLScalar(SQL);
         if VarIsNull(Query) then
         begin
           SQL := Format('CREATE DATABASE %s', [FPostgreSQLDatabase]);

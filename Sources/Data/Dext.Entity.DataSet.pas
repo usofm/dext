@@ -14,17 +14,17 @@ uses
   System.Math,
   System.DateUtils,
   Data.DB,
-  Dext.Core.DateUtils,
   Dext.Collections,
-  Dext.Collections.Vector,
   Dext.Collections.Dict,
-  Dext.Core.Span,
-  Dext.Entity.Mapping,
-  Dext.Entity.Context,
-  Dext.Core.Reflection,
+  Dext.Collections.Vector,
   Dext.Core.Activator,
-  Dext.Json.Utf8,
-  Dext.Entity.DataProvider;
+  Dext.Core.DateUtils,
+  Dext.Core.Reflection,
+  Dext.Core.Span,
+  Dext.Entity.Context,
+  Dext.Entity.DataProvider,
+  Dext.Entity.Mapping,
+  Dext.Json.Utf8;
 
 type
   PBytes = ^TBytes;
@@ -46,10 +46,16 @@ type
     DirtyMask: UInt64;
   end;
 
+  /// <summary>
+  ///   Event triggered when a field is being prepared or configured in the dataset.
+  /// </summary>
   TPrepareFieldEvent = procedure(Sender: TObject; AField: TField) of object;
 
   TEntityMasterDataLink = class;
 
+  /// <summary>
+  ///   Exception raised during Entity DataSet operations.
+  /// </summary>
   EEntityDataSetException = class(Exception);
 
   /// <summary>
@@ -63,161 +69,160 @@ type
   {$ENDIF}
   TEntityDataSet = class(TDataSet)
   private
-    FEntityMap: TEntityMap;
-    FEntityClass: TClass;
+    FCalcAreaSize: Integer;
+    FCalcOffsets: TDictionary<string, Integer>;
+    FCurrentRec: Integer;
+    FDataProvider: TEntityDataProvider;
     FDbContext: TDbContext;
-    FItems: IObjectList;
-    FOwnsItems: Boolean;
-    FOwnsEntityMap: Boolean;
-    FVirtualIndex: TVector<Integer>;
-    FRecordSize: Integer;
+    FDetailDataSets: TDictionary<string, TDataSet>;
+    FEntityClass: TClass;
+    FEntityClassName: string;
+    FEntityMap: TEntityMap;
     FHeaderSize: Integer;
-    FMasterLink: TEntityMasterDataLink;
-    FMasterFields: string;
-    FMasterDataSet: TDataSet;
-    FReadOnly: Boolean;
     FIncludeShadowProperties: Boolean;
     FIndexFieldNames: string;
-    FCurrentRec: Integer;
-    FIsCursorOpen: Boolean;
     FInsertObj: TObject;
     FInsertObjRef: TObject;
+    FInternalCalcStorage: TArray<TBytes>;
     FIsAppending: Boolean;
     FIsApplyingFilter: Boolean;
-    FPositionBeforeAction: Integer;
-    FCalcOffsets: TDictionary<string, Integer>;
-    FDetailDataSets: TDictionary<string, TDataSet>;
-    FCalcAreaSize: Integer;
-    FInternalCalcStorage: TArray<TBytes>;
-    FPropertyCache: TDictionary<string, TRttiProperty>;
-    FDataProvider: TEntityDataProvider;
-    FPreviewData: TArray<TDictionary<string, Variant>>;
+    FIsCursorOpen: Boolean;
     FIsDesignTimePreview: Boolean;
+    FItems: IObjectList;
+    FMasterDataSet: TDataSet;
+    FMasterFields: string;
+    FMasterLink: TEntityMasterDataLink;
+    FOwnsEntityMap: Boolean;
+    FOwnsItems: Boolean;
+    FPositionBeforeAction: Integer;
+    FPreviewData: TArray<TDictionary<string, Variant>>;
+    FPropertyCache: TDictionary<string, TRttiProperty>;
+    FReadOnly: Boolean;
+    FRecordSize: Integer;
     FTableName: string;
-    FEntityClassName: string;
+    FVirtualIndex: TVector<Integer>;
     FOnPrepareField: TPrepareFieldEvent;
 
-    procedure ClearResolvedEntityMetadata;
-    procedure EnsureEntityMapResolved;
+    function CompareObjectsInternal(A, B: TObject; const APropNames: TArray<string>; RttiType: TRttiType): Integer;
+    function CreateNewEntity: TObject;
+    function GetMasterSource: TDataSource;
     function GetProperty(const APropName: string): TRttiProperty;
-    procedure ResolveEntityClassFromProvider;
-    procedure SetItems(const Value: IObjectList);
-    procedure SetDataProvider(const Value: TEntityDataProvider);
+    function IsActiveStored: Boolean;
+    function ReadFieldValue(Field: TField; ABuffer: TRecBuf; out Value: Variant): Boolean; overload;
+    function ReadFieldValue(Field: TField; out Value: Variant): Boolean; overload;
     function StringToFieldType(const ATypeName: string): TFieldType;
-    procedure SetEntityClassName(const Value: string);
-    procedure SetIndexFieldNames(const Value: string);
-    procedure ApplyFilterAndSort; overload;
+
+    procedure ApplyAttributesToField(AField: TField; AContainer: TRttiObject);
     procedure ApplyFilterAndSort(AFiltered: Boolean); overload;
     procedure ApplyFilterAndSort(AFiltered: Boolean; ATrackObj: TObject); overload;
-    procedure SyncMasterDetail;
-    function GetMasterSource: TDataSource;
-    procedure SetMasterSource(Value: TDataSource);
-    procedure SetMasterFields(const Value: string);
-    function CompareObjectsInternal(A, B: TObject; const APropNames: TArray<string>; RttiType: TRttiType): Integer;
-    procedure ApplyAttributesToField(AField: TField; AContainer: TRttiObject);
+    procedure ApplyFilterAndSort; overload;
     procedure ApplyMapMetadataToFields;
+    procedure ClearResolvedEntityMetadata;
+    procedure EnsureEntityMapResolved;
+    procedure ResolveEntityClassFromProvider;
+    procedure SetDataProvider(const Value: TEntityDataProvider);
+    procedure SetEntityClassName(const Value: string);
+    procedure SetIndexFieldNames(const Value: string);
+    procedure SetItems(const Value: IObjectList);
+    procedure SetMasterFields(const Value: string);
     procedure SetMasterInheritance(AEntity: TObject);
-    function IsActiveStored: Boolean;
-    function ReadFieldValue(Field: TField; out Value: Variant): Boolean; overload;
-    function ReadFieldValue(Field: TField; ABuffer: TRecBuf; out Value: Variant): Boolean; overload;
-    function CreateNewEntity: TObject;
+    procedure SetMasterSource(Value: TDataSource);
+    procedure SyncMasterDetail;
   protected
+    function IsCursorOpen: Boolean; override;
+
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     procedure InternalHandleException; override;
-    function IsCursorOpen: Boolean; override;
-    
+
     // Filtering Overrides
     procedure SetFiltered(Value: Boolean); override;
     procedure SetFilterText(const Value: string); override;
     procedure SetFilterOptions(Value: TFilterOptions); override;
 
     // Mandatory TDataSet overrides
-    procedure InternalOpen; override;
+    function CreateNestedDataSet(DataSetField: TDataSetField): TDataSet; override;
     procedure InternalClose; override;
     procedure InternalInitFieldDefs; override;
+    procedure InternalOpen; override;
     procedure Loaded; override;
     procedure SetActive(Value: Boolean); override;
     procedure SyncDetailData(const AFieldName: string; ADetailDataSet: TDataSet);
-    function CreateNestedDataSet(DataSetField: TDataSetField): TDataSet; override;
 
     // Buffer Alocations
     function AllocRecordBuffer: TRecordBuffer; override;
+    procedure CalculateFields(Buffer: TRecBuf); override;
     procedure FreeRecordBuffer(var Buffer: TRecordBuffer); override;
     procedure InternalInitRecord(Buffer: TRecBuf); override;
-    procedure CalculateFields(Buffer: TRecBuf); override;
-    
+
     // Bookmark and Navigation
-    procedure GetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
-    procedure SetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
     function GetBookmarkFlag(Buffer: TRecBuf): TBookmarkFlag; override;
-    procedure SetBookmarkFlag(Buffer: TRecBuf; Value: TBookmarkFlag); override;
-    procedure InternalSetToRecord(Buffer: TRecBuf); override;
+    procedure GetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
     procedure InternalGotoBookmark(Bookmark: TBookmark); override;
-    
+    procedure InternalSetToRecord(Buffer: TRecBuf); override;
+    procedure SetBookmarkData(Buffer: TRecBuf; Data: TBookmark); override;
+    procedure SetBookmarkFlag(Buffer: TRecBuf; Value: TBookmarkFlag); override;
+
     function GetRecordSize: Word; override;
     function GetRecordCount: Integer; override;
     function GetRecNo: Integer; override;
     function GetRecord(Buffer: TRecBuf; GetMode: TGetMode; DoCheck: Boolean): TGetResult; override;
     procedure SetRecNo(Value: Integer); override;
 
-    procedure InternalAddRecord(Buffer: TRecBuf; Append: Boolean); override;
-    procedure InternalDelete; override;
-    procedure InternalPost; override;
-    procedure InternalCancel; override;
-    procedure InternalEdit; override;
-    procedure InternalInsert; override;
-    procedure InternalFirst; override;
-    procedure InternalLast; override;
-    procedure DoBeforeScroll; override;
     procedure DoAfterScroll; override;
-    procedure DoBeforeInsert; override;
     procedure DoBeforeDelete; override;
+    procedure DoBeforeInsert; override;
+    procedure DoBeforeScroll; override;
+    procedure InternalAddRecord(Buffer: TRecBuf; Append: Boolean); override;
+    procedure InternalCancel; override;
+    procedure InternalDelete; override;
+    procedure InternalEdit; override;
+    procedure InternalFirst; override;
+    procedure InternalInsert; override;
+    procedure InternalLast; override;
+    procedure InternalPost; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
-    function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; overload; override;
-    function GetFieldData(Field: TField; Buffer: Pointer): Boolean; overload; override;
-    procedure SetFieldData(Field: TField; Buffer: TValueBuffer); overload; override;
-    procedure SetFieldData(Field: TField; Buffer: Pointer); overload; override;
-    
-    function Locate(const KeyFields: string; const KeyValues: Variant; Options: TLocateOptions = []): Boolean; override;
-    function BookmarkValid(Bookmark: TBookmark): Boolean; override;
-    
-    procedure Load(const AItems: IObjectList; AClass: TClass; AOwns: Boolean = False); overload;
-    procedure Load(const AItems: TArray<TObject>; AClass: TClass); overload;
-    procedure Load<T: class>(const AItems: IList<T>; AOwns: Boolean = False); overload;
-    procedure Load<T: class>(const AItems: IList<T>; AClass: TClass; AOwns: Boolean = False); overload;
-    procedure Load<T: class>(const AItems: TArray<T>); overload;
-
-    procedure LoadFromJson(const AJson: string; AClass: TClass); overload;
-    procedure LoadFromJson<T: class>(const AJson: string); overload;
     function AsJsonArray: string;
     function AsJsonObject: string;
-    
+    function BookmarkValid(Bookmark: TBookmark): Boolean; override;
+    function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;
+    function GetCurrentObject: TObject;
+    function GetFieldData(Field: TField; Buffer: Pointer): Boolean; overload; override;
+    function GetFieldData(Field: TField; var Buffer: TValueBuffer): Boolean; overload; override;
+    function Locate(const KeyFields: string; const KeyValues: Variant; Options: TLocateOptions = []): Boolean; override;
+
+    procedure BuildFieldDefs;
+    procedure GenerateFields(AWipeAll: Boolean = False; ARemoveOrphans: Boolean = True; AUpdateExisting: Boolean = True); virtual;
+    procedure Load(const AItems: IObjectList; AClass: TClass; AOwns: Boolean = False); overload;
+    procedure Load(const AItems: TArray<TObject>; AClass: TClass); overload;
+    procedure Load<T: class>(const AItems: IList<T>; AClass: TClass; AOwns: Boolean = False); overload;
+    procedure Load<T: class>(const AItems: IList<T>; AOwns: Boolean = False); overload;
+    procedure Load<T: class>(const AItems: TArray<T>); overload;
+    procedure LoadFromJson(const AJson: string; AClass: TClass); overload;
+    procedure LoadFromJson<T: class>(const AJson: string); overload;
     procedure LoadFromUtf8Json(const ASpan: TByteSpan; AClass: TClass); overload;
     procedure LoadFromUtf8Json<T: class>(const ASpan: TByteSpan); overload;
     procedure Refresh;
-    procedure BuildFieldDefs;
-    procedure GenerateFields(AWipeAll: Boolean = False; ARemoveOrphans: Boolean = True; AUpdateExisting: Boolean = True); virtual;
-    function CreateBlobStream(Field: TField; Mode: TBlobStreamMode): TStream; override;
-    function GetCurrentObject: TObject;
-    property Items: IObjectList read FItems write SetItems;
+    procedure SetFieldData(Field: TField; Buffer: Pointer); overload; override;
+    procedure SetFieldData(Field: TField; Buffer: TValueBuffer); overload; override;
+
     property DbContext: TDbContext read FDbContext write FDbContext;
+    property Items: IObjectList read FItems write SetItems;
   published
-    property TableName: string read FTableName write FTableName;
-    property OnPrepareField: TPrepareFieldEvent read FOnPrepareField write FOnPrepareField;
+    property Active stored IsActiveStored;
     property DataProvider: TEntityDataProvider read FDataProvider write SetDataProvider;
     property EntityClassName: string read FEntityClassName write SetEntityClassName;
-    property Active stored IsActiveStored;
     property Filter;
     property Filtered;
     property FilterOptions;
     property IncludeShadowProperties: Boolean read FIncludeShadowProperties write FIncludeShadowProperties default False;
     property IndexFieldNames: string read FIndexFieldNames write SetIndexFieldNames;
-    property MasterSource: TDataSource read GetMasterSource write SetMasterSource;
     property MasterFields: string read FMasterFields write SetMasterFields;
+    property MasterSource: TDataSource read GetMasterSource write SetMasterSource;
     property ReadOnly: Boolean read FReadOnly write FReadOnly default False;
+    property TableName: string read FTableName write FTableName;
 
     property AfterCancel;
     property AfterClose;
@@ -244,6 +249,7 @@ type
     property OnFilterRecord;
     property OnNewRecord;
     property OnPostError;
+    property OnPrepareField: TPrepareFieldEvent read FOnPrepareField write FOnPrepareField;
   end;
 
   /// <summary>
@@ -265,21 +271,21 @@ uses
   System.StrUtils,
   System.AnsiStrings,
   FireDAC.Comp.Client,
+  Dext.Core.ValueConverters,
+  Dext.DI.Attributes,
+  Dext.Entity,
+  Dext.Entity.Attributes,
+  Dext.Entity.Core,
+  Dext.Json,
   Dext.Specifications.Evaluator,
   Dext.Specifications.Interfaces,
-  Dext.Specifications.Parser,
-  Dext.Core.ValueConverters,
-  Dext.Entity,
-  Dext.Entity.Core,
-  Dext.Entity.Attributes,
-  Dext.DI.Attributes,
-  Dext.Json;
+  Dext.Specifications.Parser;
 
 type
   TEntityBlobStream = class(TMemoryStream)
   private
-    FField: TField;
     FDataSet: TEntityDataSet;
+    FField: TField;
     FMode: TBlobStreamMode;
     FModified: Boolean;
     FObj: TObject;
@@ -331,14 +337,16 @@ begin
 end;
 
 function TEntityDataSet.GetProperty(const APropName: string): TRttiProperty;
+var
+  EntityType: TRttiType;
 begin
   Result := nil;
   if (FEntityClass = nil) then Exit;
   if not FPropertyCache.TryGetValue(APropName, Result) then
   begin
-    var LType := TReflection.Context.GetType(FEntityClass);
-    if LType <> nil then
-      Result := LType.GetProperty(APropName);
+    EntityType := TReflection.Context.GetType(FEntityClass);
+    if EntityType <> nil then
+      Result := EntityType.GetProperty(APropName);
     FPropertyCache.Add(APropName, Result);
   end;
 end;
@@ -427,6 +435,10 @@ end;
 
 procedure TEntityDataSet.EnsureEntityMapResolved;
 var
+  DP: IEntityDataProvider;
+  i: Integer;
+  MD: TEntityClassMetadata;
+  Member: TEntityMemberMetadata;
   PropMap: TPropertyMap;
 begin
   if FEntityMap <> nil then
@@ -446,10 +458,9 @@ begin
   // DESIGN-TIME RECOVERY: If RTTI is missing (FEntityClass = nil), try to build EntityMap from DataProvider (Parser)
   if (FEntityMap = nil) and (csDesigning in ComponentState) and Assigned(FDataProvider) then
   begin
-    var DP: IEntityDataProvider;
     if FDataProvider.GetInterface(IEntityDataProvider, DP) then
     begin
-      var MD := DP.GetEntityMetadata(FEntityClassName);
+      MD := DP.GetEntityMetadata(FEntityClassName);
       if MD <> nil then
       begin
         FEntityMap := TEntityMap.Create(nil);
@@ -458,9 +469,9 @@ begin
         if MD <> nil then
           FTableName := MD.TableName;
 
-        for var i := 0 to MD.Members.Count - 1 do
+        for i := 0 to MD.Members.Count - 1 do
         begin
-          var Member := MD.Members[i];
+          Member := MD.Members[i];
           PropMap := TPropertyMap.Create(Member.Name);
           PropMap.ColumnName := Member.Name;
           PropMap.DataType := StringToFieldType(Member.MemberType);
@@ -508,6 +519,8 @@ begin
 end;
 
 destructor TEntityDataSet.Destroy;
+var
+  Dict: TDictionary<string, Variant>;
 begin
   Close; // Garante que InternalClose rode enquanto as estruturas estao vivas
   FreeAndNil(FPropertyCache);
@@ -515,7 +528,7 @@ begin
   FreeAndNil(FDetailDataSets);
   FreeAndNil(FInsertObj);
 
-  for var Dict in FPreviewData do
+  for Dict in FPreviewData do
     Dict.Free;
   SetLength(FPreviewData, 0);
     
@@ -569,9 +582,9 @@ end;
 
 constructor TEntityBlobStream.Create(Field: TField; DataSet: TEntityDataSet; Mode: TBlobStreamMode);
 var
-  Val: TValue;
   B: TBytes;
   S: string;
+  Val: TValue;
 begin
   inherited Create;
   FField := Field;
@@ -660,18 +673,18 @@ end;
 
 procedure TEntityDataSet.Load(const AItems: TArray<TObject>; AClass: TClass);
 var
-  LList: IList<TObject>;
+  List: IList<TObject>;
 begin
-  LList := TCollections.CreateList<TObject>(False);
-  LList.AddRange(AItems);
-  Load(LList as IObjectList, AClass, True); // Owns the wrapper list but not the objects
+  List := TCollections.CreateList<TObject>(False);
+  List.AddRange(AItems);
+  Load(List as IObjectList, AClass, True); // Owns the wrapper list but not the objects
 end;
 
 function TEntityDataSet.AsJsonArray: string;
 var
+  I: Integer;
   Stream: TStringStream;
   Writer: TUtf8JsonWriter;
-  I: Integer;
 begin
   if (FItems = nil) or (FVirtualIndex.Count = 0) then
     Exit('[]');
@@ -693,8 +706,10 @@ begin
 end;
 
 function TEntityDataSet.AsJsonObject: string;
+var
+  Obj: TObject;
 begin
-  var Obj := GetCurrentObject;
+  Obj := GetCurrentObject;
   if Obj = nil then
     Exit('{}');
   Result := TDextJson.Serialize(Obj);
@@ -703,14 +718,14 @@ end;
 procedure TEntityDataSet.Load<T>(const AItems: TArray<T>);
 var
   i: Integer;
+  ItemClass: TClass;
   ObjArray: TArray<TObject>;
-  LClass: TClass;
 begin
-  LClass := TClass(Pointer(GetTypeData(TypeInfo(T))^.ClassType));
+  ItemClass := TClass(Pointer(GetTypeData(TypeInfo(T))^.ClassType));
   SetLength(ObjArray, Length(AItems));
   for i := 0 to High(AItems) do
     ObjArray[i] := TObject(AItems[i]);
-  Load(ObjArray, LClass);
+  Load(ObjArray, ItemClass);
 end;
 
 procedure TEntityDataSet.Load<T>(const AItems: IList<T>; AOwns: Boolean);
@@ -750,6 +765,7 @@ end;
 procedure TEntityDataSet.LoadFromUtf8Json(const ASpan: TByteSpan; AClass: TClass);
 var
   CurrentObj: TObject;
+  DateValue: TDateTime;
   PropMap: TPropertyMap;
   PropName: string;
   PValue: Pointer;
@@ -822,9 +838,8 @@ begin
                       PBoolean(PValue)^ := Reader.GetBoolean;
                     ftDateTime, ftDate, ftTime:
                     begin
-                      var LDate: TDateTime;
-                      if TryParseISODateTime(Reader.GetString, LDate) then
-                        PDateTime(PValue)^ := LDate;
+                      if TryParseISODateTime(Reader.GetString, DateValue) then
+                        PDateTime(PValue)^ := DateValue;
                     end;
                   end;
                 end
@@ -839,21 +854,18 @@ begin
                       begin
                         if RttiProp.PropertyType.Handle = TypeInfo(TDateTime) then
                         begin
-                          var LDate: TDateTime;
-                          if TryParseISODateTime(Reader.GetString, LDate) then
-                            RttiProp.SetValue(CurrentObj, LDate);
+                          if TryParseISODateTime(Reader.GetString, DateValue) then
+                            RttiProp.SetValue(CurrentObj, DateValue);
                         end
                         else if RttiProp.PropertyType.Handle = TypeInfo(TDate) then
                         begin
-                          var LDate: TDateTime;
-                          if TryParseISODateTime(Reader.GetString, LDate) then
-                            RttiProp.SetValue(CurrentObj, Trunc(LDate));
+                          if TryParseISODateTime(Reader.GetString, DateValue) then
+                            RttiProp.SetValue(CurrentObj, Trunc(DateValue));
                         end
                         else if RttiProp.PropertyType.Handle = TypeInfo(TTime) then
                         begin
-                          var LDate: TDateTime;
-                          if TryParseISODateTime(Reader.GetString, LDate) then
-                            RttiProp.SetValue(CurrentObj, Frac(LDate));
+                          if TryParseISODateTime(Reader.GetString, DateValue) then
+                            RttiProp.SetValue(CurrentObj, Frac(DateValue));
                         end
                         else
                           RttiProp.SetValue(CurrentObj, Reader.GetString);
@@ -948,13 +960,14 @@ end;
 
 procedure TEntityDataSet.ApplyFilterAndSort(AFiltered: Boolean; ATrackObj: TObject);
 var
+  CurrentObj: TObject;
   EntityType: TRttiType;
   Expr: IExpression;
   i: Integer;
+  ItemsCount: Integer;
   Names: TArray<string>;
+  NewPhysicalIdx: Integer;
   Passing: Boolean;
-  LCount: Integer;
-  CurrentObj: TObject;
 begin
   if FIsApplyingFilter then Exit;
   FIsApplyingFilter := True;
@@ -974,11 +987,11 @@ begin
       CurrentObj := FItems[FVirtualIndex[FCurrentRec]];
 
     if Assigned(FItems) and (FItems.Count > 0) then 
-      LCount := FItems.Count
+      ItemsCount := FItems.Count
     else if FIsDesignTimePreview then 
-      LCount := Length(FPreviewData)
+      ItemsCount := Length(FPreviewData)
     else 
-      LCount := 0;
+      ItemsCount := 0;
 
     try
       Expr := nil;
@@ -988,14 +1001,14 @@ begin
       if csDesigning in ComponentState then
       begin
         FVirtualIndex.Clear;
-        for i := 0 to LCount - 1 do
+        for i := 0 to ItemsCount - 1 do
           FVirtualIndex.Add(i);
         Exit;
       end
       else raise;
     end;
 
-    for i := 0 to LCount - 1 do
+    for i := 0 to ItemsCount - 1 do
     begin
       Passing := True;
       if AFiltered then
@@ -1025,17 +1038,17 @@ begin
       Names := FIndexFieldNames.Split([';']);
       // Use centralized RTTI context
       EntityType := TReflection.Context.GetType(FEntityClass);
-        FVirtualIndex.Sort(Dext.Collections.Comparers.TComparer<Integer>.Construct(
-          function(const A, B: Integer): Integer
-          begin
-            Result := CompareObjectsInternal(FItems[A], FItems[B], Names, EntityType);
-          end));
+      FVirtualIndex.Sort(Dext.Collections.Comparers.TComparer<Integer>.Construct(
+        function(const A, B: Integer): Integer
+        begin
+          Result := CompareObjectsInternal(FItems[A], FItems[B], Names, EntityType);
+        end));
     end;
 
     // Restaurar a posição do cursor na visão virtual
     if CurrentObj <> nil then
     begin
-      var NewPhysicalIdx := FItems.IndexOf(CurrentObj);
+      NewPhysicalIdx := FItems.IndexOf(CurrentObj);
       if (NewPhysicalIdx >= 0) then
         FCurrentRec := FVirtualIndex.IndexOf(NewPhysicalIdx)
       else
@@ -1052,13 +1065,17 @@ end;
 function TEntityDataSet.Locate(const KeyFields: string; const KeyValues: Variant; Options: TLocateOptions): Boolean;
 var
   FieldNames: TArray<string>;
-  LFields: TArray<TField>;
-  Match: Boolean;
-  I, J: Integer;
   FieldVal: Variant;
+  I, J: Integer;
+  LFields: TArray<TField>;
+  LValBuf: TValueBuffer;
+  Match: Boolean;
+  Offset: Integer;
+  P: PByte;
+  PropMap: TPropertyMap;
+  PValue: Pointer;
   SaveRec: Integer;
   TempBuf: TRecordBuffer;
-  PropMap: TPropertyMap;
 
   function CompareValues(const V1, V2: Variant): Boolean;
   begin
@@ -1094,7 +1111,6 @@ begin
       begin
         FieldVal := Unassigned;
         
-        // 1. Tentar Fast Path se for um campo físico com offset
         if FEntityMap.Properties.TryGetValue(LFields[J].FieldName, PropMap) and (PropMap.FieldValueOffset > 0) then
         begin
           // Check for Null flag first
@@ -1102,7 +1118,7 @@ begin
             FieldVal := Null
           else
           begin
-            var PValue := Pointer(PByte(FItems[FVirtualIndex[I]]) + PropMap.FieldValueOffset);
+            PValue := Pointer(PByte(FItems[FVirtualIndex[I]]) + PropMap.FieldValueOffset);
             case PropMap.DataType of
               ftInteger, ftSmallint, ftAutoInc: FieldVal := PInteger(PValue)^;
               ftLargeint: FieldVal := PInt64(PValue)^;
@@ -1125,10 +1141,9 @@ begin
             CalculateFields(TRecBuf(TempBuf));
             
             // Extrair valor do buffer de calculados
-            var Offset: Integer;
             if FCalcOffsets.TryGetValue(LFields[J].FieldName, Offset) then
             begin
-              var P := PByte(TempBuf);
+              P := PByte(TempBuf);
               Inc(P, Offset - 1);
               if P^ = 0 then // Null Flag
                 FieldVal := Null
@@ -1136,7 +1151,6 @@ begin
               begin
                 Inc(P);
                 // Usamos um buffer de valor genérico para extrair
-                var LValBuf: TValueBuffer;
                 SetLength(LValBuf, LFields[J].DataSize);
                 Move(P^, LValBuf[0], LFields[J].DataSize);
                 FieldVal := TValueBufferToValue(LValBuf, LFields[J].DataType).AsVariant;
@@ -1172,7 +1186,6 @@ begin
       FCurrentRec := SaveRec;
   end;
 end;
-
 
 function TEntityDataSet.CompareObjectsInternal(A, B: TObject; const APropNames: TArray<string>; RttiType: TRttiType): Integer;
 var
@@ -1356,6 +1369,8 @@ begin
 end;
 
 procedure TEntityDataSet.SetEntityClassName(const Value: string);
+var
+  Dict: TDictionary<string, Variant>;
 begin
   if FEntityClassName <> Value then
   begin
@@ -1375,7 +1390,7 @@ begin
       FEntityClass := nil;
 
       // Clear preview data from previous entity
-      for var Dict in FPreviewData do
+      for Dict in FPreviewData do
         Dict.Free;
       SetLength(FPreviewData, 0);
       FIsDesignTimePreview := False;
@@ -1436,6 +1451,13 @@ begin
 end;
 
 procedure TEntityDataSet.SyncMasterDetail;
+var
+  FilterStr: string;
+  i: Integer;
+  MasterField: TField;
+  MasterFieldsList, DetailFieldsList: TArray<string>;
+  Val: Variant;
+  ValStr, S: string;
 begin
   if not (Active or FIsCursorOpen or FIsDesignTimePreview) or (FMasterLink = nil) or (FMasterLink.DataSource = nil) or
      (FMasterLink.DataSource.DataSet = nil) or (FMasterFields = '') or (FIndexFieldNames = '') then
@@ -1457,21 +1479,20 @@ begin
     Exit;
   end;
 
-  var MasterFieldsList := FMasterFields.Split([';']);
-  var DetailFieldsList := FIndexFieldNames.Split([';']);
-  var FilterStr := '';
+  MasterFieldsList := FMasterFields.Split([';']);
+  DetailFieldsList := FIndexFieldNames.Split([';']);
+  FilterStr := '';
   
-  for var i := 0 to High(MasterFieldsList) do
+  for i := 0 to High(MasterFieldsList) do
   begin
     if i > High(DetailFieldsList) then Break;
     
-    var MasterField := FMasterLink.DataSource.DataSet.FindField(MasterFieldsList[i].Trim);
+    MasterField := FMasterLink.DataSource.DataSet.FindField(MasterFieldsList[i].Trim);
     if MasterField = nil then Continue;
     
     if FilterStr <> '' then FilterStr := FilterStr + ' AND ';
     
-    var Val := MasterField.Value;
-    var ValStr: string;
+    Val := MasterField.Value;
     
     if VarIsNull(Val) then
       ValStr := 'NULL'
@@ -1484,7 +1505,7 @@ begin
     end
     else if (VarType(Val) = varString) or (VarType(Val) = varUString) or (VarType(Val) = varOleStr) then
     begin
-      var S := VarToStr(Val);
+      S := VarToStr(Val);
       S := S.Replace('''', '''''');
       ValStr := '''' + S + '''';
     end
@@ -1510,8 +1531,6 @@ begin
   end;
 end;
 
-
-
 { TEntityDataSet }
 
 procedure TEntityDataSet.SetActive(Value: Boolean);
@@ -1533,10 +1552,15 @@ end;
 procedure TEntityDataSet.InternalOpen;
 var
   CalcSize: Integer;
-  i: Integer;
+  i, J: Integer;
   ItemCount: Integer;
   Offset: Integer;
   LDef: TFieldDef;
+  DP: IEntityDataProvider;
+  Sql: string;
+  Dict: TDictionary<string, Variant>;
+  Query: TFDQuery;
+  Row: TDictionary<string, Variant>;
 begin
   FIsCursorOpen := True;
   FIsDesignTimePreview := False;
@@ -1552,7 +1576,6 @@ begin
      ((FItems = nil) or (FItems.Count = 0)) and
      Assigned(FDataProvider) then
   begin
-    var DP: IEntityDataProvider;
     if FDataProvider.GetInterface(IEntityDataProvider, DP) then
     begin
       // Limpar se for ownership
@@ -1567,13 +1590,13 @@ begin
       // This enables preview even without the entity class compiled
       if (FItems = nil) or (FItems.Count = 0) then
       begin
-        var Sql := DP.BuildPreviewSql(FEntityClassName, 50);
+        Sql := DP.BuildPreviewSql(FEntityClassName, 50);
         if (Sql <> '') and (FDataProvider.DatabaseConnection <> nil) then
         begin
-          for var Dict in FPreviewData do
+          for Dict in FPreviewData do
             Dict.Free;
           SetLength(FPreviewData, 0);
-          var Query := TFDQuery.Create(nil);
+          Query := TFDQuery.Create(nil);
           try
             Query.Connection := FDataProvider.DatabaseConnection;
             Query.SQL.Text := Sql;
@@ -1581,8 +1604,8 @@ begin
               Query.Open;
               while not Query.Eof do
               begin
-                var Row := TDictionary<string, Variant>.Create(True, False, 0);
-                for var J := 0 to Query.Fields.Count - 1 do
+                Row := TDictionary<string, Variant>.Create(True, False, 0);
+                for J := 0 to Query.Fields.Count - 1 do
                 begin
                   if Query.Fields[J].IsNull then
                     Row.AddOrSetValue(Query.Fields[J].FieldName, Null)
@@ -1664,6 +1687,9 @@ end;
 
 
 procedure TEntityDataSet.InternalClose;
+var
+  Dict: TDictionary<string, Variant>;
+  Pair: TPair<string, TDataSet>;
 begin
   if Assigned(FInsertObj) then
   begin
@@ -1675,13 +1701,13 @@ begin
 
   // Clear design-time preview data
   FIsDesignTimePreview := False;
-  for var Dict in FPreviewData do
+  for Dict in FPreviewData do
     Dict.Free;
   SetLength(FPreviewData, 0);
   
   if (FDetailDataSets <> nil) then
   begin
-    for var Pair in FDetailDataSets do
+    for Pair in FDetailDataSets do
       Pair.Value.Close;
     FDetailDataSets.Clear;
   end;
@@ -1729,11 +1755,11 @@ end;
 
 procedure TEntityDataSet.InternalPost;
 var
+  Header: PEntityRecordHeader;
   NewIdx: Integer;
+  PhysicalIdx: Integer;
   TargetIdx: Integer;
   TargetPos: Integer;
-  Header: PEntityRecordHeader;
-  PhysicalIdx: Integer;
 begin
   if State = dsInsert then
   begin
@@ -1863,20 +1889,20 @@ end;
 
 procedure TEntityDataSet.InternalInsert;
 var
-  LNewObj: TObject;
-  LContext: TRttiContext;
-  LType: TRttiType;
-  LProp: TRttiProperty;
-  LVal: TValue;
-  LTargetType: PTypeInfo;
-  LAttr: TCustomAttribute;
-  LNewList: TValue;
-  LMasterDataSet: TDataSet;
-  MasterFieldsList: TArray<string>;
-  DetailFieldsList: TArray<string>;
-  i: Integer;
-  MasterField: TField;
+  Attr: TCustomAttribute;
+  Context: TRttiContext;
   DetailField: TField;
+  DetailFieldsList: TArray<string>;
+  EntityType: TRttiType;
+  i: Integer;
+  MasterDS: TDataSet;
+  MasterField: TField;
+  MasterFieldsList: TArray<string>;
+  NewList: TValue;
+  NewObj: TObject;
+  Prop: TRttiProperty;
+  TargetType: PTypeInfo;
+  Value: TValue;
 begin
   inherited InternalInsert;
   if FInsertObj <> nil then
@@ -1885,47 +1911,47 @@ begin
     FInsertObj := nil;
   end;
   
-  LNewObj := CreateNewEntity;
-  if LNewObj = nil then
+  NewObj := CreateNewEntity;
+  if NewObj = nil then
     raise Exception.Create('Auto-append needs a parameterless constructor for ' + FEntityClass.ClassName);
 
   try
     // 1. Tenta herdar o ID do mestre se houver MasterLink
     if FMasterDataSet <> nil then
-      SetMasterInheritance(LNewObj);
+      SetMasterInheritance(NewObj);
 
     // 2. Garantir que listas internas estejam inicializadas para não quebrar o Nested DataSet
-    LContext := TReflection.Context;
-    LType := LContext.GetType(FEntityClass);
-    if LType <> nil then
+    Context := TReflection.Context;
+    EntityType := Context.GetType(FEntityClass);
+    if EntityType <> nil then
     begin
-      for LProp in LType.GetProperties do
+      for Prop in EntityType.GetProperties do
       begin
-        if TActivator.IsListType(LProp.PropertyType.Handle) then
+        if TActivator.IsListType(Prop.PropertyType.Handle) then
         begin
-          LVal := LProp.GetValue(LNewObj);
-          if LVal.IsEmpty or (LVal.Kind = tkUnknown) then
+          Value := Prop.GetValue(NewObj);
+          if Value.IsEmpty or (Value.Kind = tkUnknown) then
           begin
-            LTargetType := LProp.PropertyType.Handle;
-            for LAttr in LProp.GetAttributes do
-              if LAttr is InjectAttribute then
+            TargetType := Prop.PropertyType.Handle;
+            for Attr in Prop.GetAttributes do
+              if Attr is InjectAttribute then
               begin
-                if InjectAttribute(LAttr).TargetTypeInfo <> nil then
-                  LTargetType := PTypeInfo(InjectAttribute(LAttr).TargetTypeInfo);
+                if InjectAttribute(Attr).TargetTypeInfo <> nil then
+                  TargetType := PTypeInfo(InjectAttribute(Attr).TargetTypeInfo);
                 Break;
               end;
             
             try
-              LNewList := TActivator.CreateInstance(nil, LTargetType);
-              if not LNewList.IsEmpty then
-                LProp.SetValue(LNewObj, LNewList);
+              NewList := TActivator.CreateInstance(nil, TargetType);
+              if not NewList.IsEmpty then
+                Prop.SetValue(NewObj, NewList);
             except
               on E: Exception do
               begin
                 raise EEntityDataSetException.Create(E.Message + sLineBreak +
                   'Tip: Register the implementation for this interface using TActivator.RegisterDefault ' +
                   'or in your Application Service DataProvider (DI Container) for property ' +
-                  FEntityClass.ClassName + '.' + LProp.Name);
+                  FEntityClass.ClassName + '.' + Prop.Name);
               end;
             end;
           end;
@@ -1934,11 +1960,11 @@ begin
     end;
     
     // Sucesso
-    FInsertObj := LNewObj;
+    FInsertObj := NewObj;
   except
     on E: Exception do
     begin
-      LNewObj.Free;
+      NewObj.Free;
       raise;
     end;
   end;
@@ -1950,13 +1976,13 @@ begin
     PEntityRecordHeader(Pointer(ActiveBuffer)).BookmarkFlag := bfInserted;
 
     // NOVO: No mestre-detalhe (CLÁSSICO ou ANINHADO), herdar valores do mestre agora mesmo
-    LMasterDataSet := nil;
+    MasterDS := nil;
     if (FMasterLink <> nil) and (FMasterLink.DataSource <> nil) then
-      LMasterDataSet := FMasterLink.DataSource.DataSet
+      MasterDS := FMasterLink.DataSource.DataSet
     else if FMasterDataSet <> nil then
-      LMasterDataSet := FMasterDataSet;
+      MasterDS := FMasterDataSet;
 
-    if (LMasterDataSet <> nil) and (LMasterDataSet.Active) and 
+    if (MasterDS <> nil) and (MasterDS.Active) and
        (FMasterFields <> '') and (FIndexFieldNames <> '') then
     begin
       MasterFieldsList := FMasterFields.Split([';']);
@@ -1964,7 +1990,7 @@ begin
       for i := 0 to High(MasterFieldsList) do
       begin
         if i > High(DetailFieldsList) then Break;
-        MasterField := LMasterDataSet.FindField(MasterFieldsList[i].Trim);
+        MasterField := MasterDS.FindField(MasterFieldsList[i].Trim);
         DetailField := FindField(DetailFieldsList[i].Trim);
         if (MasterField <> nil) and (DetailField <> nil) then
           DetailField.Value := MasterField.Value;
@@ -1991,20 +2017,27 @@ end;
 
 procedure TEntityDataSet.GenerateFields(AWipeAll: Boolean = False; ARemoveOrphans: Boolean = True; AUpdateExisting: Boolean = True);
 var
-  DP: IEntityDataProvider;
-  MD: TObject;
   ClassMD: TEntityClassMetadata;
-  Member: TEntityMemberMetadata;
-  LField: TField;
-  LType: TFieldType;
+  DP: IEntityDataProvider;
+  i, k: Integer;
+  CurrentField: TField;
+  Existing: TComponent;
+  Field: TField;
+  Idx: Integer;
+  IsNewField: Boolean;
   LT: string;
+  TargetName: string;
+  EntityType: TFieldType;
+  MD: TObject;
+  Member: TEntityMemberMetadata;
   ProcessedFields: TStringList;
-  LIsNewField: Boolean;
-  LIdx: Integer;
 begin
-  if not Assigned(FDataProvider) then Exit;
-  if not FDataProvider.GetInterface(IEntityDataProvider, DP) then Exit;
-  if FEntityClassName = '' then Exit;
+  if not Assigned(FDataProvider) then
+    Exit;
+  if not FDataProvider.GetInterface(IEntityDataProvider, DP) then
+    Exit;
+  if FEntityClassName = '' then
+    Exit;
 
   // DESIGN-TIME: Force the provider to scan the source code and refresh its cache
   if (csDesigning in ComponentState) then
@@ -2013,142 +2046,145 @@ begin
   end;
 
   MD := DP.GetEntityMetadata(FEntityClassName);
-  if MD = nil then Exit;
+  if MD = nil then
+    Exit;
   ClassMD := TEntityClassMetadata(MD);
-  
-    ProcessedFields := TStringList.Create;
+
+  ProcessedFields := TStringList.Create;
+  try
+    ProcessedFields.CaseSensitive := False;
+    ProcessedFields.Sorted := True;
+    ProcessedFields.Duplicates := dupIgnore;
+
+    DisableControls;
     try
-      ProcessedFields.CaseSensitive := False;
-      ProcessedFields.Sorted := True;
-      ProcessedFields.Duplicates := dupIgnore;
+      if Active then
+        Close;
 
-      DisableControls;
-      try
-        if Active then Close;
-
-        if AWipeAll then
+      if AWipeAll then
+      begin
+        while FieldCount > 0 do
         begin
-          while FieldCount > 0 do
-          begin
-            LField := Fields[0];
-            LField.DataSet := nil;
-            LField.Free;
-          end;
+          Field := Fields[0];
+          Field.DataSet := nil;
+          Field.Free;
+        end;
+      end;
+
+      for i := 0 to ClassMD.Members.Count - 1 do
+      begin
+        Member := ClassMD.Members[i];
+        LT := Member.MemberType;
+        EntityType := StringToFieldType(LT);
+        if Member.IsCurrency then
+          EntityType := ftCurrency;
+
+        if EntityType = ftUnknown then
+          Continue;
+
+        ProcessedFields.Add(Member.Name);
+        Field := FindField(Member.Name);
+
+          // If a field exists but has the wrong type class, it cannot be reused!
+        if (Field <> nil) and (Field.ClassType <> DefaultFieldClasses[EntityType]) then
+        begin
+          Field.Free;
+          Field := nil;
         end;
 
-        for var i := 0 to ClassMD.Members.Count - 1 do
+        IsNewField := False;
+        if Field = nil then
         begin
-          Member := ClassMD.Members[i];
-          LT := Member.MemberType;
-          LType := StringToFieldType(LT);
-          if Member.IsCurrency then LType := ftCurrency;
+          IsNewField := True;
+          Field := DefaultFieldClasses[EntityType].Create(Owner);
+          Field.FieldName := Member.Name;
+          Field.DataSet := Self;
 
-          if LType = ftUnknown then Continue;
-
-          ProcessedFields.Add(Member.Name);
-          LField := FindField(Member.Name);
-          
-          // If a field exists but has the wrong type class, it cannot be reused!
-          if (LField <> nil) and (LField.ClassType <> DefaultFieldClasses[LType]) then
+          if Self.Name <> '' then
           begin
-            LField.Free;
-            LField := nil;
-          end;
-
-          LIsNewField := False;
-          if LField = nil then
-          begin
-            LIsNewField := True;
-            LField := DefaultFieldClasses[LType].Create(Owner);
-            LField.FieldName := Member.Name;
-            LField.DataSet := Self;
-
-            if Self.Name <> '' then
+            TargetName := Self.Name + Member.Name;
+            if Owner <> nil then
             begin
-              var LTargetName := Self.Name + Member.Name;
-              if Owner <> nil then
-              begin
-                var LExisting := Owner.FindComponent(LTargetName);
-                if (LExisting <> nil) and (LExisting <> LField) then
-                  LExisting.Name := ''; // Prevent component name collision 
-              end;
-              try
-                LField.Name := LTargetName;
-              except
-                on E: Exception do LField.Name := '';
-              end;
+              Existing := Owner.FindComponent(TargetName);
+              if (Existing <> nil) and (Existing <> Field) then
+                Existing.Name := ''; // Prevent component name collision
+            end;
+            try
+              Field.Name := TargetName;
+            except
+              on E: Exception do
+                Field.Name := '';
             end;
           end;
+        end;
 
           // Apply metadata updates
-          if LIsNewField or AUpdateExisting then
-          begin
-            LField.Index := i;
-            
-            if Member.DisplayLabel <> '' then
-               LField.DisplayLabel := Member.DisplayLabel
-            else if LIsNewField then
-               LField.DisplayLabel := Member.Name;
-            
-            if Member.DisplayWidth > 0 then
-               LField.DisplayWidth := Member.DisplayWidth;
-
-            LField.Visible := Member.Visible;
-            LField.ReadOnly := Member.IsReadOnly;
-            LField.Required := Member.IsRequired and (not Member.IsAutoInc);
-            
-            if (LField is TNumericField) then
-            begin
-              if (Member.DisplayFormat <> '') then
-                TNumericField(LField).DisplayFormat := Member.DisplayFormat;
-                
-              if Member.Alignment = taLeftJustify then
-                LField.Alignment := taRightJustify
-              else
-                LField.Alignment := Member.Alignment;
-            end
-            else if (LField is TDateTimeField) and (Member.DisplayFormat <> '') then
-              TDateTimeField(LField).DisplayFormat := Member.DisplayFormat
-            else
-              LField.Alignment := Member.Alignment;
-
-            if Member.EditMask <> '' then
-               LField.EditMask := Member.EditMask;
-          end;
-        end;
-
-        // ORPHAN REMOVAL: Remove fields that are no longer in the entity
-        if ARemoveOrphans then
+        if IsNewField or AUpdateExisting then
         begin
-          var k := 0;
-          LIdx := 0;
-          while k < FieldCount do
+          Field.Index := i;
+
+          if Member.DisplayLabel <> '' then
+            Field.DisplayLabel := Member.DisplayLabel
+          else if IsNewField then
+            Field.DisplayLabel := Member.Name;
+
+          if Member.DisplayWidth > 0 then
+            Field.DisplayWidth := Member.DisplayWidth;
+
+          Field.Visible := Member.Visible;
+          Field.ReadOnly := Member.IsReadOnly;
+          Field.Required := Member.IsRequired and (not Member.IsAutoInc);
+
+          if (Field is TNumericField) then
           begin
-             var LCurrentField := Fields[k];
-             if (LCurrentField.Owner = Owner) and (not ProcessedFields.Find(LCurrentField.FieldName, LIdx)) then
-             begin
-               LCurrentField.DataSet := nil;
-               LCurrentField.Free;
-             end
-             else
-               Inc(k);
-          end;
+            if (Member.DisplayFormat <> '') then
+              TNumericField(Field).DisplayFormat := Member.DisplayFormat;
+
+            if Member.Alignment = taLeftJustify then
+              Field.Alignment := taRightJustify
+            else
+              Field.Alignment := Member.Alignment;
+          end
+          else if (Field is TDateTimeField) and (Member.DisplayFormat <> '') then
+            TDateTimeField(Field).DisplayFormat := Member.DisplayFormat
+          else
+            Field.Alignment := Member.Alignment;
+
+          if Member.EditMask <> '' then
+            Field.EditMask := Member.EditMask;
         end;
-      finally
-        EnableControls;
+      end;
+
+      // ORPHAN REMOVAL: Remove fields that are no longer in the entity
+      if ARemoveOrphans then
+      begin
+        k := 0;
+        while k < FieldCount do
+        begin
+          CurrentField := Fields[k];
+          if (CurrentField.Owner = Owner) and (not ProcessedFields.Find(CurrentField.FieldName, Idx)) then
+          begin
+            CurrentField.DataSet := nil;
+            CurrentField.Free;
+          end
+          else
+            Inc(k);
+        end;
       end;
     finally
-      ProcessedFields.Free;
+      EnableControls;
     end;
+  finally
+    ProcessedFields.Free;
+  end;
 end;
 
 procedure TEntityDataSet.InternalInitFieldDefs;
 
   function MapTypeToFieldType(ATypeInfo: PTypeInfo; ADepth: Integer = 0): TFieldType;
   var
-    TypeName: string;
     InnerInfo: PTypeInfo;
-    LTypeName: string;
+    TypeName: string;
   begin
     if (ATypeInfo = nil) or (ADepth > 10) then Exit(ftUnknown);
     
@@ -2194,8 +2230,8 @@ procedure TEntityDataSet.InternalInitFieldDefs;
           Exit(MapTypeToFieldType(InnerInfo, ADepth + 1))
         else
         begin
-          LTypeName := string(ATypeInfo^.Name);
-          if (LTypeName.StartsWith('IList<') or LTypeName.StartsWith('IEnumerable<')) then
+          TypeName := string(ATypeInfo^.Name);
+          if (TypeName.StartsWith('IList<') or TypeName.StartsWith('IEnumerable<')) then
             Exit(ftDataSet);
             
           Exit(ftUnknown);
@@ -2396,9 +2432,15 @@ end;
 
 procedure TEntityDataSet.SyncDetailData(const AFieldName: string; ADetailDataSet: TDataSet);
 var
-  LObj: TObject;
-  LVal: TValue;
-  LList: IObjectList;
+  Attr: TCustomAttribute;
+  Intf: IInterface;
+  ItemClass: TClass;
+  List: IObjectList;
+  NewListVal: TValue;
+  Obj: TObject;
+  Prop: TRttiProperty;
+  TargetType: PTypeInfo;
+  Val: TValue;
 begin
   if not (ADetailDataSet is TEntityDataSet) then Exit;
 
@@ -2406,32 +2448,32 @@ begin
   if (csDesigning in ComponentState) and (FEntityClass = nil) then Exit;
 
   // Now populate it with data from the current record
-  LList := nil;
-  LObj := GetCurrentObject;
-  if LObj <> nil then
+  List := nil;
+  Obj := GetCurrentObject;
+    if Obj <> nil then
   begin
-    LVal := TReflection.GetValue(LObj, AFieldName);
-    if LVal.IsEmpty or (LVal.Kind = tkUnknown) then
+    Val := TReflection.GetValue(Obj, AFieldName);
+    if Val.IsEmpty or (Val.Kind = tkUnknown) then
     begin
        // Se a lista no mestre está nula (mestre novo), vamos instanciá-la agora!
-       var LProp := GetProperty(AFieldName);
-       if (LProp <> nil) and TActivator.IsListType(LProp.PropertyType.Handle) then
+       Prop := GetProperty(AFieldName);
+       if (Prop <> nil) and TActivator.IsListType(Prop.PropertyType.Handle) then
        begin
          try
-           var LTargetType := LProp.PropertyType.Handle;
-           for var LAttr in LProp.GetAttributes do
-             if LAttr is InjectAttribute then
+           TargetType := Prop.PropertyType.Handle;
+           for Attr in Prop.GetAttributes do
+             if Attr is InjectAttribute then
              begin
-               if InjectAttribute(LAttr).TargetTypeInfo <> nil then
-                 LTargetType := PTypeInfo(InjectAttribute(LAttr).TargetTypeInfo);
+               if InjectAttribute(Attr).TargetTypeInfo <> nil then
+                 TargetType := PTypeInfo(InjectAttribute(Attr).TargetTypeInfo);
                Break;
              end;
 
-           var LNewListVal := TActivator.CreateInstance(nil, LTargetType);
-           if not LNewListVal.IsEmpty then
+           NewListVal := TActivator.CreateInstance(nil, TargetType);
+           if not NewListVal.IsEmpty then
            begin
-             LProp.SetValue(LObj, LNewListVal);
-             LVal := LNewListVal;
+             Prop.SetValue(Obj, NewListVal);
+             Val := NewListVal;
            end;
          except
            on E: Exception do
@@ -2442,30 +2484,30 @@ begin
        end;
     end;
 
-    if not LVal.IsEmpty then
+    if not Val.IsEmpty then
     begin
-      if LVal.IsType<IObjectList> then
-        LList := LVal.AsType<IObjectList>
-      else if LVal.Kind = tkInterface then
+      if Val.IsType<IObjectList> then
+        List := Val.AsType<IObjectList>
+      else if Val.Kind = tkInterface then
       begin
         // Try to cast to IObjectList (compatible with TList<T>)
-        var LIntf := LVal.AsInterface;
-        if LIntf <> nil then
-           LIntf.QueryInterface(IObjectList, LList);
+        Intf := Val.AsInterface;
+        if Intf <> nil then
+           Intf.QueryInterface(IObjectList, List);
       end;
     end;
   end;
 
   // Sempre carrega a lista (mesmo que nil ou vazia, mas agora instanciada se mestre presente)
-  var LItemClass := TEntityDataSet(ADetailDataSet).FEntityClass;
-  if LItemClass = nil then
+  ItemClass := TEntityDataSet(ADetailDataSet).FEntityClass;
+  if ItemClass = nil then
   begin
-    var LProp := GetProperty(AFieldName);
-    if LProp <> nil then
-      LItemClass := TReflection.GetCollectionItemType(LProp.PropertyType.Handle);
+    Prop := GetProperty(AFieldName);
+    if Prop <> nil then
+      ItemClass := TReflection.GetCollectionItemType(Prop.PropertyType.Handle);
   end;
 
-  TEntityDataSet(ADetailDataSet).Load(LList, LItemClass, False);
+  TEntityDataSet(ADetailDataSet).Load(List, ItemClass, False);
 end;
 
 function TEntityDataSet.CreateNestedDataSet(DataSetField: TDataSetField): TDataSet;
@@ -2519,8 +2561,8 @@ end;
 
 procedure TEntityDataSet.ApplyMapMetadataToFields;
 var
-  PropMap: TPropertyMap;
   Field: TField;
+  PropMap: TPropertyMap;
 begin
   if FEntityMap = nil then Exit;
   if Fields.Count = 0 then Exit;
@@ -2783,14 +2825,20 @@ function TEntityDataSet.ReadFieldValue(Field: TField; ABuffer: TRecBuf; out Valu
 var
   BlobData: TArray<Byte>;
   CurrentObj: TObject;
+  Entry: IEntityEntry;
+  FieldVal, LUnwrappedField: TValue;
   Header: PEntityRecordHeader;
+  LP: PByte;
+  Prop: TRttiProperty;
   PropMap: TPropertyMap;
   PValue: Pointer;
-  LP: PByte;
-  LVal: TValue;
-  LRttiType: TRttiType;
+  Row: TDictionary<string, Variant>;
+  RowIdx: Integer;
   RttiField: TRttiField;
-  LFieldVal, LUnwrappedField: TValue;
+  RttiType: TRttiType;
+  TempValue: TValue;
+  Unwrapped: TValue;
+  Val: TValue;
 begin
   Result := False;
   Value := Unassigned;
@@ -2801,7 +2849,7 @@ begin
   // DESIGN-TIME PREVIEW: Read from dictionary instead of object memory
   if FIsDesignTimePreview and (csDesigning in ComponentState) then
   begin
-    var RowIdx := -1;
+    RowIdx := -1;
     if (Header <> nil) and (Header.BookmarkIndex >= 0) and
        (Header.BookmarkIndex < Length(FPreviewData)) then
       RowIdx := Header.BookmarkIndex
@@ -2810,7 +2858,7 @@ begin
 
     if RowIdx >= 0 then
     begin
-      var Row := FPreviewData[RowIdx];
+      Row := FPreviewData[RowIdx];
       if Row.TryGetValue(Field.FieldName, Value) then
         Result := not VarIsNull(Value)
       else
@@ -2844,7 +2892,7 @@ begin
   // 3. Shadow Property support
   if PropMap.IsShadow and (FDbContext <> nil) then
   begin
-    var Entry := FDbContext.Entry(CurrentObj);
+    Entry := FDbContext.Entry(CurrentObj);
     Value := Entry.Member(Field.FieldName).GetCurrentValue.AsVariant;
     Result := True;
     Exit;
@@ -2853,45 +2901,44 @@ begin
   // 4. RTTI Fallback if field offset is not defined or is Lazy
   if (PropMap.FieldValueOffset <= 0) or PropMap.IsLazy then
   begin
-    var LProp := GetProperty(Field.FieldName);
-    if LProp <> nil then
+    Prop := GetProperty(Field.FieldName);
+    if Prop <> nil then
     begin
-      var LTempValue := LProp.GetValue(CurrentObj);
-      var LUnwrapped: TValue;
-      if TReflection.TryUnwrapProp(LTempValue, LUnwrapped) then
+      TempValue := Prop.GetValue(CurrentObj);
+      if TReflection.TryUnwrapProp(TempValue, Unwrapped) then
       begin
-        if not LUnwrapped.IsEmpty then
+        if not Unwrapped.IsEmpty then
         begin
           if (Field.DataType in [ftDate, ftTime, ftDateTime]) then
-             Value := VarAsType(LUnwrapped.AsType<TDateTime>, varDate)
+             Value := VarAsType(Unwrapped.AsType<TDateTime>, varDate)
           else if (Field.DataType = ftCurrency) then
-             Value := LUnwrapped.AsCurrency
+             Value := Unwrapped.AsCurrency
           else
-             Value := LUnwrapped.AsVariant;
+             Value := Unwrapped.AsVariant;
         end;
       end
       else
       begin
         if (Field.DataType in [ftDate, ftTime, ftDateTime]) then
-           Value := VarAsType(LTempValue.AsType<TDateTime>, varDate)
+           Value := VarAsType(TempValue.AsType<TDateTime>, varDate)
         else if (Field.DataType = ftCurrency) then
-           Value := LTempValue.AsCurrency
+           Value := TempValue.AsCurrency
         else
-           Value := LTempValue.AsVariant;
+           Value := TempValue.AsVariant;
       end;
       Result := not VarIsEmpty(Value);
       Exit;
     end;
 
     // Last resort: RTTI Field
-    LRttiType := TReflection.Context.GetType(CurrentObj.ClassType);
-    if LRttiType <> nil then
+    RttiType := TReflection.Context.GetType(CurrentObj.ClassType);
+    if RttiType <> nil then
     begin
-      RttiField := LRttiType.GetField(Field.FieldName);
+      RttiField := RttiType.GetField(Field.FieldName);
       if RttiField <> nil then
       begin
-        LFieldVal := RttiField.GetValue(CurrentObj);
-        if TReflection.TryUnwrapProp(LFieldVal, LUnwrappedField) then
+        FieldVal := RttiField.GetValue(CurrentObj);
+        if TReflection.TryUnwrapProp(FieldVal, LUnwrappedField) then
         begin
           if not LUnwrappedField.IsEmpty then
           begin
@@ -2906,11 +2953,11 @@ begin
         else
         begin
           if (Field.DataType in [ftDate, ftTime, ftDateTime]) then
-             Value := VarAsType(LFieldVal.AsType<TDateTime>, varDate)
+             Value := VarAsType(FieldVal.AsType<TDateTime>, varDate)
           else if (Field.DataType = ftCurrency) then
-             Value := LFieldVal.AsCurrency
+             Value := FieldVal.AsCurrency
           else
-             Value := LFieldVal.AsVariant;
+             Value := FieldVal.AsVariant;
         end;
         Result := not VarIsEmpty(Value);
         Exit;
@@ -2931,7 +2978,7 @@ begin
     end;
   end;
 
-  // Determinar o ponteiro para o valor real
+  // Determine the pointer to the actual value
   // CRITICAL: Ensure we have a valid non-zero offset before direct memory access
   if PropMap.FieldValueOffset > 0 then
   begin
@@ -2959,7 +3006,7 @@ begin
       Value := PInt64(PValue)^;
     ftDataSet:
     begin
-       // Para TDataSetField, o valor é o próprio objeto coleção
+
        Value := TValue.From<TObject>(PObject(PValue)^).AsVariant;
     end;
     ftFloat, ftCurrency:
@@ -2970,8 +3017,8 @@ begin
       // extraction from the object memory and correct conversion to a Variant type.
       if PropMap.PropertyType <> nil then
       begin
-        TValue.Make(PValue, PropMap.PropertyType, LVal);
-        Value := LVal.AsVariant;
+        TValue.Make(PValue, PropMap.PropertyType, Val);
+        Value := Val.AsVariant;
       end
       else
       begin
@@ -3004,7 +3051,7 @@ begin
       Exit;
     end;
   else
-    Exit; // Tipo não mapeado diretamente
+    Exit; // Type not directly mapped
   end;
 
   Result := not VarIsEmpty(Value);
@@ -3014,14 +3061,16 @@ end;
 //  GetFieldData — Override with TValueBuffer (TArray<Byte>) for modern Delphi
 //  This is the method TField.GetData actually calls (XE3+).
 // ---------------------------------------------------------------------------
-
-
 function TEntityDataSet.GetFieldData(Field: TField; Buffer: Pointer): Boolean;
 var
-  V: Variant;
-  Offset: Integer;
   BufferPtr: Pointer;
+  DateTimeValue: TDateTime;
+  DoubleValue: Double;
+  FloatValue: Double;
+  Int64Value: Int64;
+  Offset: Integer;
   P: PByte;
+  V: Variant;
 begin
   Result := False;
   if not Assigned(Field) then Exit;
@@ -3075,8 +3124,10 @@ begin
     end;
 
     case Field.DataType of
-      ftString, ftFixedChar: System.AnsiStrings.StrPLCopy(PAnsiChar(Buffer), AnsiString(string(V)), Field.Size);
-      ftWideString, ftFixedWideChar: System.SysUtils.StrPLCopy(PWideChar(Buffer), string(V), Field.Size);
+      ftString, ftFixedChar:
+        System.AnsiStrings.StrPLCopy(PAnsiChar(Buffer), AnsiString(string(V)), Field.Size);
+      ftWideString, ftFixedWideChar:
+        System.SysUtils.StrPLCopy(PWideChar(Buffer), string(V), Field.Size);
       ftShortint: PShortint(Buffer)^ := V;
       ftByte: PByte(Buffer)^ := V;
       ftSmallint: PSmallint(Buffer)^ := V;
@@ -3085,26 +3136,25 @@ begin
       ftLongWord: PLongWord(Buffer)^ := V;
       ftFloat:
       begin
-        var LFloat: Double := V;
-        PDouble(Buffer)^ := LFloat;
+        FloatValue := V;
+        PDouble(Buffer)^ := FloatValue;
       end;
       ftBoolean: PWordBool(Buffer)^ := V;
       ftDateTime, ftDate, ftTime:
       begin
-        var LDT: TDateTime;
         if VarIsStr(V) then
-          LDT := VarToDateTime(V)
+          DateTimeValue := VarToDateTime(V)
         else
-          LDT := V;
+          DateTimeValue := V;
         // Delphi's Data.DB expects ftDateTime/ftDate/ftTime fields to be stored as 
         // a 8-byte COMP (Int64 with floating point behavior) representing MILLISECONDS since year 0001.
         // We MUST convert our TDateTime (days) using the RTL's expected conversion.
-        PDouble(Buffer)^ := TimeStampToMSecs(DateTimeToTimeStamp(LDT));
+        PDouble(Buffer)^ := TimeStampToMSecs(DateTimeToTimeStamp(DateTimeValue));
       end;
       ftLargeint:
       begin
-        var LInt64: Int64 := V;
-        PInt64(Buffer)^ := LInt64;
+        Int64Value := V;
+        PInt64(Buffer)^ := Int64Value;
       end;
       ftCurrency:
       begin
@@ -3114,8 +3164,8 @@ begin
         // to the buffer would result in corrupted values (e.g., 4.87E-317) when the 
         // field's GetAsCurrency or GetValue methods are called. 
         // Therefore, we MUST convert the value to a Double before writing to the buffer.
-        var LDoubleVal: Double := V;
-        PDouble(Buffer)^ := LDoubleVal;
+        DoubleValue := V;
+        PDouble(Buffer)^ := DoubleValue;
       end;
       ftVariant: PVariant(Buffer)^ := V;
     else
@@ -3142,16 +3192,21 @@ end;
 
 procedure TEntityDataSet.SetFieldData(Field: TField; Buffer: Pointer);
 var
+  BufferPtr: Pointer;
   CurrentObj: TObject;
   Header: PEntityRecordHeader;
-  PropMap: TPropertyMap;
   Offset: Integer;
-  BufferPtr: Pointer;
   P: PByte;
+  PropMap: TPropertyMap;
+  RttiProp: TRttiProperty;
+  RttiType: TRttiType;
+  V: TValue;
 begin
-  if not Assigned(Field) then Exit;
-  if Field.ReadOnly or (State = dsBrowse) then Exit;
-  
+  if not Assigned(Field) then
+    Exit;
+  if Field.ReadOnly or (State = dsBrowse) then
+    Exit;
+
   if Field.FieldKind in [fkCalculated, fkLookup, fkInternalCalc] then
   begin
     if Field.FieldKind = fkCalculated then
@@ -3159,21 +3214,23 @@ begin
     else
       BufferPtr := Pointer(ActiveBuffer);
 
-    if BufferPtr = nil then Exit;
-    if not FCalcOffsets.TryGetValue(Field.FieldName, Offset) then Exit;
-    
+    if BufferPtr = nil then
+      Exit;
+    if not FCalcOffsets.TryGetValue(Field.FieldName, Offset) then
+      Exit;
+
     P := PByte(BufferPtr);
     Inc(P, Offset - 1);
-    
+
     if Buffer = nil then
     begin
-       P^ := 0; // Null
+      P^ := 0; // Null
     end
     else
     begin
-       P^ := 1; // Not Null
-       Inc(P);
-       Move(Buffer^, P^, Field.DataSize);
+      P^ := 1; // Not Null
+      Inc(P);
+      Move(Buffer^, P^, Field.DataSize);
     end;
     DataEvent(deFieldChange, NativeInt(Field));
     Exit;
@@ -3187,15 +3244,18 @@ begin
   // Identifica o objeto de destino (Insert ou registro existente)
   if (Header <> nil) and (Header.BookmarkIndex = -2) then
     CurrentObj := FInsertObj
-  else if (Header <> nil) and (Header.BookmarkIndex >= 0) and (Header.BookmarkIndex < FVirtualIndex.Count) then
+  else if (Header <> nil) and (Header.BookmarkIndex >= 0)
+      and (Header.BookmarkIndex < FVirtualIndex.Count) then
     CurrentObj := FItems[FVirtualIndex[Header.BookmarkIndex]]
   else if (State = dsInsert) then
     CurrentObj := FInsertObj
   else if (FCurrentRec >= 0) and (FCurrentRec < FVirtualIndex.Count) then
     CurrentObj := FItems[FVirtualIndex[FCurrentRec]];
 
-  if (CurrentObj = nil) or (FEntityMap = nil) then Exit;
-  if not FEntityMap.Properties.TryGetValue(Field.FieldName, PropMap) then Exit;
+  if (CurrentObj = nil) or (FEntityMap = nil) then
+    Exit;
+  if not FEntityMap.Properties.TryGetValue(Field.FieldName, PropMap) then
+    Exit;
 
   // 1. Shadow Property support
   if PropMap.IsShadow and (FDbContext <> nil) then
@@ -3204,12 +3264,15 @@ begin
       FDbContext.Entry(CurrentObj).Member(Field.FieldName).SetCurrentValue(TValue.Empty)
     else
     begin
-      var V: TValue;
       case Field.DataType of
-        ftString, ftWideString: V := string(PWideChar(Buffer));
-        ftInteger: V := PInteger(Buffer)^;
-        ftFloat: V := PDouble(Buffer)^;
-        ftBoolean: V := PBoolean(Buffer)^;
+        ftString, ftWideString:
+          V := string(PWideChar(Buffer));
+        ftInteger:
+          V := PInteger(Buffer)^;
+        ftFloat:
+          V := PDouble(Buffer)^;
+        ftBoolean:
+          V := PBoolean(Buffer)^;
       else
         V := TValue.Empty;
       end;
@@ -3227,21 +3290,24 @@ begin
     Inc(P, PropMap.FieldValueOffset);
     if Buffer <> nil then
     begin
-       case Field.DataType of
-         ftString, ftWideString: PString(P)^ := string(PWideChar(Buffer));
-         ftBoolean: PBoolean(P)^ := PBoolean(Buffer)^;
-         ftDateTime, ftDate, ftTime: PDateTime(P)^ := TimeStampToDateTime(MSecsToTimeStamp(Trunc(PDouble(Buffer)^)));
-       else
-         Move(Buffer^, P^, Field.DataSize);
-       end;
+      case Field.DataType of
+        ftString, ftWideString:
+          PString(P)^ := string(PWideChar(Buffer));
+        ftBoolean:
+          PBoolean(P)^ := PBoolean(Buffer)^;
+        ftDateTime, ftDate, ftTime:
+          PDateTime(P)^ := TimeStampToDateTime(MSecsToTimeStamp(Trunc(PDouble(Buffer)^)));
+      else
+        Move(Buffer^, P^, Field.DataSize);
+      end;
     end;
-    
+
     // Set HasValue flag if available
     if PropMap.FieldOffset > 0 then
     begin
-       P := PByte(CurrentObj);
-       Inc(P, PropMap.FieldOffset);
-       PBoolean(P)^ := (Buffer <> nil);
+      P := PByte(CurrentObj);
+      Inc(P, PropMap.FieldOffset);
+      PBoolean(P)^ := (Buffer <> nil);
     end;
     SetModified(True);
     DataEvent(deFieldChange, NativeInt(Field));
@@ -3249,28 +3315,35 @@ begin
   else if (CurrentObj <> nil) then
   begin
     // RTTI Fallback for properties without direct FieldOffset
-    var V: TValue := TValue.Empty;
+    V := TValue.Empty;
     if Buffer <> nil then
     begin
-       case Field.DataType of
-         ftString, ftWideString: V := string(PWideChar(Buffer));
-         ftInteger, ftSmallint, ftAutoInc: V := PInteger(Buffer)^;
-         ftLargeint: V := PInt64(Buffer)^;
-         ftFloat: V := PDouble(Buffer)^;
-        ftCurrency: V := PCurrency(Buffer)^;
-        ftBoolean: V := PBoolean(Buffer)^;
-        ftDateTime, ftDate, ftTime: V := TimeStampToDateTime(MSecsToTimeStamp(Trunc(PDouble(Buffer)^)));
+      case Field.DataType of
+        ftString, ftWideString:
+          V := string(PWideChar(Buffer));
+        ftInteger, ftSmallint, ftAutoInc:
+          V := PInteger(Buffer)^;
+        ftLargeint:
+          V := PInt64(Buffer)^;
+        ftFloat:
+          V := PDouble(Buffer)^;
+        ftCurrency:
+          V := PCurrency(Buffer)^;
+        ftBoolean:
+          V := PBoolean(Buffer)^;
+        ftDateTime, ftDate, ftTime:
+          V := TimeStampToDateTime(MSecsToTimeStamp(Trunc(PDouble(Buffer)^)));
       end;
     end;
 
-    var RttiType := TReflection.Context.GetType(CurrentObj.ClassType);
+    RttiType := TReflection.Context.GetType(CurrentObj.ClassType);
     if RttiType <> nil then
     begin
-      var RttiProp := RttiType.GetProperty(Field.FieldName);
+      RttiProp := RttiType.GetProperty(Field.FieldName);
       if RttiProp <> nil then
         RttiProp.SetValue(CurrentObj, V);
     end;
-      
+
     SetModified(True);
     DataEvent(deFieldChange, NativeInt(Field));
   end;
@@ -3320,41 +3393,47 @@ begin
     FEntityDataSet.ApplyFilterAndSort;
   end;
 end;
+
 procedure TEntityDataSet.SetMasterInheritance(AEntity: TObject);
+var
+  DetailProp: TRttiProperty;
+  DetailType: TRttiType;
+  I: Integer;
+  MasterField: TField;
+  MasterLinkFields, DetailLinkFields: TArray<string>;
+  MasterVal: Variant;
+  Parts: TArray<string>;
 begin
   if (FMasterDataSet = nil) or (FMasterFields = '') or (AEntity = nil) then Exit;
-  
-  var LMasterLinkFields := TArray<string>.Create();
-  var LDetailLinkFields := TArray<string>.Create();
   
   // Parse linkage
   // New format: MasterField=DetailField
   // Legacy format: MasterField (DetailField comes from IndexFieldNames)
-  var LParts := FMasterFields.Split(['=']);
-  LMasterLinkFields := LParts[0].Split([';', ',']);
+  Parts := FMasterFields.Split(['=']);
+  MasterLinkFields := Parts[0].Split([';', ',']);
   
-  if Length(LParts) > 1 then
-    LDetailLinkFields := LParts[1].Split([';', ','])
+  if Length(Parts) > 1 then
+    DetailLinkFields := Parts[1].Split([';', ','])
   else
-    LDetailLinkFields := FIndexFieldNames.Split([';', ',']); // TDataSet standard
+    DetailLinkFields := FIndexFieldNames.Split([';', ',']); // TDataSet standard
 
-  if Length(LDetailLinkFields) = 0 then
-    LDetailLinkFields := LMasterLinkFields; // Fallback to same names
+  if Length(DetailLinkFields) = 0 then
+    DetailLinkFields := MasterLinkFields; // Fallback to same names
 
-  for var I := 0 to High(LMasterLinkFields) do
+  for I := 0 to High(MasterLinkFields) do
   begin
-    if I > High(LDetailLinkFields) then Break;
+    if I > High(DetailLinkFields) then Break;
     
-    var LMasterField := FMasterDataSet.FindField(LMasterLinkFields[I].Trim);
-    if LMasterField <> nil then
+    MasterField := FMasterDataSet.FindField(MasterLinkFields[I].Trim);
+    if MasterField <> nil then
     begin
-      var LMasterVal := LMasterField.Value;
-      var LDetailType := TReflection.Context.GetType(AEntity.ClassType);
-      if (LDetailType <> nil) and (not VarIsNull(LMasterVal)) then
+      MasterVal := MasterField.Value;
+      DetailType := TReflection.Context.GetType(AEntity.ClassType);
+      if (DetailType <> nil) and (not VarIsNull(MasterVal)) then
       begin
-        var LDetailProp := LDetailType.GetProperty(LDetailLinkFields[I].Trim);
-        if LDetailProp <> nil then
-          LDetailProp.SetValue(AEntity, TValue.FromVariant(LMasterVal));
+        DetailProp := DetailType.GetProperty(DetailLinkFields[I].Trim);
+        if DetailProp <> nil then
+          DetailProp.SetValue(AEntity, TValue.FromVariant(MasterVal));
       end;
     end;
   end;

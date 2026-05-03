@@ -96,6 +96,7 @@ var
   FileName: string;
   I: Integer;
   Zip: TZipFile;
+  SubDirs: TArray<string>;
 begin
   InstalledPath := '';
   ToolsDir := TPath.Combine(TPath.GetHomePath, '.dext\tools\DelphiCodeCoverage');
@@ -156,7 +157,7 @@ begin
                
                if not FileExists(InstalledPath) then
                begin
-                  var SubDirs := TDirectory.GetDirectories(ToolsDir);
+                  SubDirs := TDirectory.GetDirectories(ToolsDir);
                   if Length(SubDirs) > 0 then
                      InstalledPath := TPath.Combine(SubDirs[0], 'CodeCoverage.exe');
                end;

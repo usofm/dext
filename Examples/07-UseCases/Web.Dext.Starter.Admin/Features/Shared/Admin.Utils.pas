@@ -17,6 +17,9 @@ var
   TargetPath: string;
   CandidatePath: string;
   I: Integer;
+  CategoryDirs: TArray<string>;
+  CatDir: string;
+  PotentialPath: string;
 begin
   AppDir := ExtractFilePath(ParamStr(0));
   AppDir := ExpandFileName(AppDir);
@@ -32,10 +35,10 @@ begin
       // Tenta encontrar em categorias comuns (01-06, 99)
       if TDirectory.Exists(SearchDir) then
       begin
-        var CategoryDirs := TDirectory.GetDirectories(SearchDir, '*');
-        for var CatDir in CategoryDirs do
+        CategoryDirs := TDirectory.GetDirectories(SearchDir, '*');
+        for CatDir in CategoryDirs do
         begin
-          var PotentialPath := TPath.Combine(CatDir, 'Web.Dext.Starter.Admin');
+          PotentialPath := TPath.Combine(CatDir, 'Web.Dext.Starter.Admin');
           if TDirectory.Exists(PotentialPath) then
           begin
             TargetPath := PotentialPath;

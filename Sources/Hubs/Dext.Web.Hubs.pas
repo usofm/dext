@@ -38,7 +38,7 @@
 {    App.MapHub<TMyHub>('/hubs/chat');                                      }
 {                                                                           }
 {    // Send from anywhere:                                                 }
-{    var Context := Services.GetService<IHubContext>;                       }
+{    Context := Services.GetService<IHubContext>;                           }
 {    Context.Clients.All.SendAsync('Notify', ['Hello!']);                   }
 {                                                                           }
 {***************************************************************************}

@@ -55,6 +55,7 @@ var
   App: IApplicationBuilder;
   Routes: TArray<TEndpointMetadata>;
   Found: Boolean;
+  Route: TEndpointMetadata;
 begin
   App := TApplicationBuilder.Create(nil);
   
@@ -64,7 +65,7 @@ begin
   // Assert
   Routes := App.GetRoutes;
   Found := False;
-  for var Route in Routes do
+  for Route in Routes do
     if Route.Path.StartsWith('/api/conventiontest') then
     begin
       Found := True;
@@ -79,6 +80,7 @@ var
   App: IApplicationBuilder;
   Routes: TArray<TEndpointMetadata>;
   Found: Boolean;
+  Route: TEndpointMetadata;
 begin
   App := TApplicationBuilder.Create(nil);
   
@@ -88,7 +90,7 @@ begin
   // Assert
   Routes := App.GetRoutes;
   Found := False;
-  for var Route in Routes do
+  for Route in Routes do
     if Route.Path.StartsWith('/api/custom') then
     begin
       Found := True;
@@ -103,6 +105,7 @@ var
   App: IApplicationBuilder;
   Routes: TArray<TEndpointMetadata>;
   Found: Boolean;
+  Route: TEndpointMetadata;
 begin
   App := TApplicationBuilder.Create(nil);
   
@@ -110,7 +113,7 @@ begin
   
   Routes := App.GetRoutes;
   Found := False;
-  for var Route in Routes do
+  for Route in Routes do
     if Route.Path.Equals('/api/conventiontest') then // Sem o 'T'
     begin
       Found := True;

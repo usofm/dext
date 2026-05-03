@@ -458,10 +458,12 @@ implementation
 { TEntityDataSetTests }
 
 procedure TEntityDataSetTests.Setup;
+var
+  U1, U2: TUserTest;
 begin
   SetLength(FUsers, 2);
-  var U1 := TUserTest.Create; U1.Id := 1; U1.Name := 'Cesar'; U1.Score := 100; U1.Active := True;
-  var U2 := TUserTest.Create; U2.Id := 2; U2.Name := 'Romero'; U2.Score := 200; U2.Active := False;
+  U1 := TUserTest.Create; U1.Id := 1; U1.Name := 'Cesar'; U1.Score := 100; U1.Active := True;
+  U2 := TUserTest.Create; U2.Id := 2; U2.Name := 'Romero'; U2.Score := 200; U2.Active := False;
   FUsers[0] := U1; FUsers[1] := U2;
 
   FDataSet := TEntityDataSet.Create(nil);
@@ -469,9 +471,11 @@ begin
 end;
 
 procedure TEntityDataSetTests.TearDown;
+var
+  U: TObject;
 begin
   FDataSet.Free;
-  for var U in FUsers do U.Free;
+  for U in FUsers do U.Free;
 end;
 
 procedure TEntityDataSetTests.Test_LoadArray_Count;
@@ -549,13 +553,15 @@ begin
 end;
 
 procedure TEntityDataSetTests.Test_ExportToJson;
+var
+  Json, ObjJson: string;
 begin
-  var Json := FDataSet.AsJsonArray;
+  Json := FDataSet.AsJsonArray;
   Should(Json.Contains('Cesar')).BeTrue;
   Should(Json.Contains('Romero')).BeTrue;
   
   FDataSet.First;
-  var ObjJson := FDataSet.AsJsonObject;
+  ObjJson := FDataSet.AsJsonObject;
   Should(ObjJson.Contains('Cesar')).BeTrue;
   Should(ObjJson.Contains('Romero')).BeFalse;
 end;
@@ -582,19 +588,21 @@ end;
 { TProductDataSetTests }
 
 procedure TProductDataSetTests.Setup;
+var
+  P1, P2, P3: TProductTest;
 begin
   SetLength(FProducts, 3);
-  var P1 := TProductTest.Create;
+  P1 := TProductTest.Create;
   P1.Id := 1; P1.Name := 'Widget Alpha'; P1.Price := 29.90; P1.Active := True;
   P1.Description := 'Premium widget for daily use';
   P1.Photo := [$FF, $D8, $FF, $E0];
   FProducts[0] := P1;
 
-  var P2 := TProductTest.Create;
+  P2 := TProductTest.Create;
   P2.Id := 2; P2.Name := 'Gadget Beta'; P2.Price := 149.99; P2.Active := True;
   FProducts[1] := P2;
 
-  var P3 := TProductTest.Create;
+  P3 := TProductTest.Create;
   P3.Id := 3; P3.Name := 'Tool Gamma'; P3.Price := 9.50; P3.Active := False;
   P3.CreatedAt := Now;
   FProducts[2] := P3;
@@ -604,9 +612,11 @@ begin
 end;
 
 procedure TProductDataSetTests.TearDown;
+var
+  P: TObject;
 begin
   FDataSet.Free;
-  for var P in FProducts do P.Free;
+  for P in FProducts do P.Free;
 end;
 
 procedure TProductDataSetTests.Test_FieldCount;
@@ -636,10 +646,12 @@ begin
 end;
 
 procedure TProductDataSetTests.Test_DateTime_Persistence;
+var
+  OriginalDate, DataSetDate: TDateTime;
 begin
   FDataSet.Last; // Go to P3
-  var OriginalDate := TProductTest(FProducts[2]).CreatedAt;
-  var DataSetDate := FDataSet.FieldByName('CreatedAt').AsDateTime;
+  OriginalDate := TProductTest(FProducts[2]).CreatedAt;
+  DataSetDate := FDataSet.FieldByName('CreatedAt').AsDateTime;
   
   // We compare formatted strings down to seconds cross-checked with raw double 
   // to ensure our MSecs conversion doesn't lose data.
@@ -671,13 +683,15 @@ begin
 end;
 
 procedure TProductDataSetTests.Test_Blob_Write_Stream;
-var Stream: TStream;
+var 
+  Stream: TStream;
+  NewData: TBytes;
 begin
   FDataSet.First;
   FDataSet.Edit;
   Stream := FDataSet.CreateBlobStream(FDataSet.FieldByName('Photo'), bmWrite);
   try
-    var NewData: TBytes := [$01, $02, $03];
+    NewData := [$01, $02, $03];
     Stream.Write(NewData[0], 3);
   finally
     Stream.Free;
@@ -751,18 +765,22 @@ end;
 { TCalculatedFieldsTests }
 
 procedure TCalculatedFieldsTests.Setup;
+var
+  U: TUserTest;
+  Lst: IList<TUserTest>;
+  Fld: TFloatField;
 begin
   FDataSet := TEntityDataSet.Create(nil);
-  var U := TUserTest.Create;
+  U := TUserTest.Create;
   U.Id := 10;
   U.Score := 20;
-  var Lst: IList<TUserTest> := TCollections.CreateList<TUserTest>(True);
+  Lst := TCollections.CreateList<TUserTest>(True);
   Lst.Add(U);
   FDataSet.Load(Lst as IObjectList, TUserTest, True);
   FDataSet.Close;
   
   // Add calculated field manually
-  var Fld := TFloatField.Create(FDataSet);
+  Fld := TFloatField.Create(FDataSet);
   Fld.FieldName := 'CalculatedScore';
   Fld.FieldKind := fkCalculated;
   Fld.DataSet := FDataSet;
@@ -787,11 +805,13 @@ begin
 end;
 
 procedure TCalculatedFieldsTests.Test_Internal_Calculated_Field;
+var
+  Fld: TFloatField;
 begin
   FDataSet.Close;
   
   // Add internal calc field manually
-  var Fld := TFloatField.Create(FDataSet);
+  Fld := TFloatField.Create(FDataSet);
   Fld.FieldName := 'InternalCalc';
   Fld.FieldKind := fkInternalCalc;
   Fld.DataSet := FDataSet;
@@ -810,28 +830,33 @@ end;
 { TMasterDetailDataSetTests }
 
 procedure TMasterDetailDataSetTests.Setup;
+var
+  O1, O2: TUserTest;
+  I1, I2, I3: TOrderItemTest;
 begin
   FMasterDS := TEntityDataSet.Create(nil);
   FDetailDS := TEntityDataSet.Create(nil);
 
   SetLength(FOrders, 2);
-  var O1 := TUserTest.Create; O1.Id := 100; O1.Name := 'O1'; FOrders[0] := O1;
-  var O2 := TUserTest.Create; O2.Id := 200; O2.Name := 'O2'; FOrders[1] := O2;
+  O1 := TUserTest.Create; O1.Id := 100; O1.Name := 'O1'; FOrders[0] := O1;
+  O2 := TUserTest.Create; O2.Id := 200; O2.Name := 'O2'; FOrders[1] := O2;
 
   SetLength(FItems, 3);
-  var I1 := TOrderItemTest.Create; I1.Id := 1; I1.OrderId := 100; FItems[0] := I1;
-  var I2 := TOrderItemTest.Create; I2.Id := 2; I2.OrderId := 100; FItems[1] := I2;
-  var I3 := TOrderItemTest.Create; I3.Id := 3; I3.OrderId := 200; FItems[2] := I3;
+  I1 := TOrderItemTest.Create; I1.Id := 1; I1.OrderId := 100; FItems[0] := I1;
+  I2 := TOrderItemTest.Create; I2.Id := 2; I2.OrderId := 100; FItems[1] := I2;
+  I3 := TOrderItemTest.Create; I3.Id := 3; I3.OrderId := 200; FItems[2] := I3;
 
   FMasterDS.Load(FOrders, TUserTest);
   FDetailDS.Load(FItems, TOrderItemTest);
 end;
 
 procedure TMasterDetailDataSetTests.TearDown;
+var
+  O, I: TObject;
 begin
   FDetailDS.Free; FMasterDS.Free;
-  for var O in FOrders do O.Free;
-  for var I in FItems do I.Free;
+  for O in FOrders do O.Free;
+  for I in FItems do I.Free;
 end;
 
 procedure TMasterDetailDataSetTests.Test_Detail_Count;
@@ -859,13 +884,13 @@ begin
   try
     MasterDataSource.DataSet := FMasterDS;
 
-    // Configurar o vínculo clássico
+    // Configurar o vÃ­nculo clÃ¡ssico
     FDetailDS.MasterSource := MasterDataSource;
     FDetailDS.MasterFields := 'Id';
     FDetailDS.IndexFieldNames := 'OrderId';
     FDetailDS.Open;
 
-    // Master está no registro 100 (Setup posiciona First)
+    // Master estÃ¡ no registro 100 (Setup posiciona First)
     Should(FMasterDS.FieldByName('Id').AsInteger).Be(100);
     Should(FDetailDS.RecordCount).Be(2);
 
@@ -884,10 +909,12 @@ end;
 { TEntityDataSetCRUDTests }
 
 procedure TEntityDataSetCRUDTests.Setup;
+var
+  U1: TUserTest;
 begin
   FDataSet := TEntityDataSet.Create(nil);
   FSourceList := TCollections.CreateList<TObject>(True);
-  var U1 := TUserTest.Create; U1.Id := 1; U1.Name := 'Cesar'; FSourceList.Add(U1);
+  U1 := TUserTest.Create; U1.Id := 1; U1.Name := 'Cesar'; FSourceList.Add(U1);
   FDataSet.Load(FSourceList as IObjectList, TUserTest, False);
 end;
 
@@ -922,8 +949,10 @@ begin
 end;
 
 procedure TEntityDataSetCRUDTests.Test_Insert_Between_Records;
+var
+  U2: TUserTest;
 begin
-  var U2 := TUserTest.Create; U2.Id := 3; U2.Name := 'Treis'; FSourceList.Add(U2);
+  U2 := TUserTest.Create; U2.Id := 3; U2.Name := 'Treis'; FSourceList.Add(U2);
   FDataSet.Refresh;
   FDataSet.Last;
   FDataSet.Insert;
@@ -935,8 +964,10 @@ begin
 end;
 
 procedure TEntityDataSetCRUDTests.Test_Refresh_Syncs_External_Changes;
+var
+  U2: TUserTest;
 begin
-  var U2 := TUserTest.Create;
+  U2 := TUserTest.Create;
   U2.Id := 2;
   U2.Name := 'Externo';
   FSourceList.Add(U2);
@@ -949,11 +980,14 @@ end;
 { TEntityDataSetStressTests }
 
 procedure TEntityDataSetStressTests.Setup;
+var
+  I: Integer;
+  U: TUserTest;
 begin
   FUsers := TCollections.CreateList<TObject>(True);
-  for var I := 1 to 1000 do
+  for I := 1 to 1000 do
   begin
-    var U := TUserTest.Create;
+    U := TUserTest.Create;
     U.Id := I; U.Name := 'U' + I.ToString; U.Score := I * 2; U.Active := (I mod 2 = 0);
     FUsers.Add(U);
   end;
@@ -1214,11 +1248,13 @@ end;
 { TNativeMasterDetailTests }
 
 procedure TNativeMasterDetailTests.Setup;
+var
+  Item: TOrderItemTest;
 begin
   FOrder := TOrderTest.Create;
   FOrder.Id := 1;
   
-  var Item := TOrderItemTest.Create;
+  Item := TOrderItemTest.Create;
   Item.Id := 101;
   Item.ProductName := 'Item 1';
   FOrder.Items.Add(Item);
@@ -1273,10 +1309,12 @@ begin
 end;
 
 procedure TEntityDataSetAutomationTests.Test_AutoInstantiate_Collection_Via_Attribute;
+var
+  LObj: TOrderTest;
 begin
   // Nota: Renomeado mentalmente para "Via_Activator" ja que Inject eh instavel com o Linker em certos tipos
   FMasterDS.Append;
-  var LObj := FMasterDS.GetCurrentObject as TOrderTest;
+  LObj := FMasterDS.GetCurrentObject as TOrderTest;
   
   // A lista Items deve ter sido instanciada internamente pelo InternalInsert
   // via registro global no initialization desta unit
@@ -1284,6 +1322,9 @@ begin
   FMasterDS.Cancel;
 end;
 procedure TEntityDataSetAutomationTests.Test_MasterDetail_ID_Sync_Nested;
+var
+  LItemsField: TDataSetField;
+  LDetailDS: TEntityDataSet;
 begin
   // 1. Carrega o mestre (Load ja cria os campos automaticamente via RTTI)
   FMasterDS.Append;
@@ -1291,8 +1332,8 @@ begin
   FMasterDS.Post;
   
   // 2. Busca o campo aninhado gerado automaticamente pelo Load<TOrderTest>
-  var LItemsField := FMasterDS.FieldByName('Items') as TDataSetField;
-  var LDetailDS := LItemsField.NestedDataSet as TEntityDataSet;
+  LItemsField := FMasterDS.FieldByName('Items') as TDataSetField;
+  LDetailDS := LItemsField.NestedDataSet as TEntityDataSet;
   
   // 3. Configura a vinculacao (o TDataSetField ja os conhece mas o dataset detalhe precisa deles para o sync)
   LDetailDS.MasterFields := 'Id';

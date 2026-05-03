@@ -1,4 +1,4 @@
-unit Dext.Entity.ReportedIssues.Tests;
+﻿unit Dext.Entity.ReportedIssues.Tests;
 
 interface
 
@@ -83,9 +83,11 @@ begin
 end;
 
 procedure TEntityReportedIssuesTests.Issue_3_TableName_Should_Be_Serialized_And_Restored;
+var
+  MD: TEntityClassMetadata;
 begin
   // 1. Setup metadata manually
-  var MD := TEntityClassMetadata.Create;
+  MD := TEntityClassMetadata.Create;
   try
     MD.EntityClassName := 'TOrder';
     MD.TableName := 'orders_table_name';
@@ -114,9 +116,10 @@ end;
 procedure TEntityReportedIssuesTests.Issue_2_5_AddFields_Should_Not_Contain_Fields_From_Other_Entities;
 var
   Member: TEntityMemberMetadata;
+  MD1, MD2: TEntityClassMetadata;
 begin
   // 1. Setup 2 entities in metadata
-  var MD1 := TEntityClassMetadata.Create;
+  MD1 := TEntityClassMetadata.Create;
   try
     MD1.EntityClassName := 'TOrder';
     MD1.TableName := 'orders';
@@ -135,7 +138,7 @@ begin
     MD1.Free;
   end;
 
-  var MD2 := TEntityClassMetadata.Create;
+  MD2 := TEntityClassMetadata.Create;
   try
     MD2.EntityClassName := 'TProduct';
     MD2.TableName := 'products';
@@ -183,9 +186,10 @@ end;
 procedure TEntityReportedIssuesTests.Issue_6_Activate_Dataset_Should_Not_AV_Even_Without_RTTI_Class;
 var
   Member: TEntityMemberMetadata;
+  MD: TEntityClassMetadata;
 begin
   // 1. Setup metadata WITHOUT a compiled class
-  var MD := TEntityClassMetadata.Create;
+  MD := TEntityClassMetadata.Create;
   try
     MD.EntityClassName := 'UnknownEntity';
     MD.TableName := 'unknown';
@@ -220,6 +224,8 @@ var
   P2: TEntityDataProvider;
   MD1: TEntityClassMetadata;
   MD2: TEntityClassMetadata;
+  RttiContext: TRttiContext;
+  RttiMethod: TRttiMethod;
 begin
   Stream := TMemoryStream.Create;
   try
@@ -247,11 +253,7 @@ begin
       // But we can call the public property setter which triggers the cache sync
       // Actually, TEntityDataProvider.Loaded calls SyncInternalCache;
       
-      var RttiContext: TRttiContext;
-      var RttiType: TRttiType;
-      var RttiMethod: TRttiMethod;
-      RttiType := RttiContext.GetType(TEntityDataProvider);
-      RttiMethod := RttiType.GetMethod('Loaded');
+      RttiMethod := RttiContext.GetType(TEntityDataProvider).GetMethod('Loaded');
       if RttiMethod <> nil then
         RttiMethod.Invoke(P2, []);
 

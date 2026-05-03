@@ -10,13 +10,16 @@ uses
   Dext.Auth.BasicAuth,
   Dext.Web.Interfaces;
 
+var
+  App: IWebApplication;
 begin
+  SetConsoleCharSet(65001);
   try
-    WriteLn('🔐 Dext Basic Authentication Demo');
-    WriteLn('==================================');
+    WriteLn('Starting Basic Auth Demo...');
+    WriteLn('===========================');
     WriteLn;
 
-    var App: IWebApplication := TWebApplication.Create;
+    App := TWebApplication.Create;
 
     // 1. Configure Basic Authentication Middleware
     // This defines HOW users are validated
@@ -38,7 +41,7 @@ begin
       end)
       .RequireAuthorization;
 
-    WriteLn('🔒 Registered protected endpoint: GET /api/privado');
+    WriteLn('Registered protected endpoint: GET /api/privado');
 
     // 3. Register Public Endpoint
     App.Builder.MapGet('/api/publico', procedure(Ctx: IHttpContext)
@@ -46,12 +49,12 @@ begin
         Ctx.Response.Write('📖 Este é um endpoint público, livre para todos.');
       end);
 
-    WriteLn('🔓 Registered public endpoint:    GET /api/publico');
+    WriteLn('Registered public endpoint:    GET /api/publico');
 
     WriteLn;
-    WriteLn('═══════════════════════════════════════════');
-    WriteLn('🌐 Server running on http://localhost:8080');
-    WriteLn('═══════════════════════════════════════════');
+    WriteLn('-------------------------------------------');
+    WriteLn('Server running on http://localhost:8080');
+    WriteLn('-------------------------------------------');
     WriteLn;
     WriteLn('📝 Test Commands:');
     WriteLn;
@@ -72,7 +75,7 @@ begin
     WriteLn;
 
     App.Run(8080);
-    
+
     ConsolePause;
     App.Stop;
 

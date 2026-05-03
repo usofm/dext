@@ -115,6 +115,7 @@ var
   Val: TJSONValue;
   Arr: TJSONArray;
   I: Integer;
+  CovObj: TJSONObject;
 begin
   Result := FTest; // Start with current/defaults
   
@@ -126,7 +127,7 @@ begin
 
   if Json.TryGetValue('coverage', Val) and (Val is TJSONObject) then
   begin
-    var CovObj := Val as TJSONObject;
+    CovObj := Val as TJSONObject;
     if CovObj.TryGetValue('exclude', Arr) then
     begin
       SetLength(Result.CoverageExclude, Arr.Count);
@@ -269,6 +270,7 @@ var
   SeqNode: TYamlNode;
   PlatformsSeq: TYamlSequence;
   PlatNode: TYamlNode;
+  PlatSeqNode: TYamlNode;
 begin
   Root := Doc.Root;
   if Root = nil then Exit;
@@ -291,7 +293,7 @@ begin
         Env.IsDefault := StrToBoolDef(GetScalarValue(FindNode(SeqNode, 'default'), 'false'), False);
         Env.Platforms := [];
 
-        var PlatSeqNode := FindNode(SeqNode, 'platforms');
+        PlatSeqNode := FindNode(SeqNode, 'platforms');
         if (PlatSeqNode <> nil) and (PlatSeqNode is TYamlSequence) then
         begin
           PlatformsSeq := PlatSeqNode as TYamlSequence;

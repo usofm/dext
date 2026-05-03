@@ -17,6 +17,7 @@ uses
   Dext.Types.UUID;
 
 type
+  /// <summary>Metaclass for custom attributes.</summary>
   TCustomAttributeClass = class of TCustomAttribute;
   
   /// <summary>
@@ -161,6 +162,9 @@ type
     class property Context: TRttiContext read FContext;
   end;
 
+  /// <summary>
+  ///   Default implementation for IPropertyHandler.
+  /// </summary>
   TPropertyHandler = class(TInterfacedObject, IPropertyHandler)
   private
     FMember: TRttiMember;
@@ -207,6 +211,8 @@ procedure TPropertyHandler.DiscoverMetadata;
 var
   Attr: TCustomAttribute;
   AttrName: string;
+  LProp: TRttiProperty;
+  LVal: string;
 begin
   FIsPK := False;
   FIsAutoInc := False;
@@ -222,10 +228,10 @@ begin
     else if SameText(AttrName, 'ColumnAttribute') then
     begin
       // Use RTTI to get the 'Name' property of the ColumnAttribute without depending on its unit
-      var LProp := TReflection.Context.GetType(Attr.ClassType).GetProperty('Name');
+      LProp := TReflection.Context.GetType(Attr.ClassType).GetProperty('Name');
       if LProp <> nil then
       begin
-        var LVal := LProp.GetValue(Attr).AsString;
+        LVal := LProp.GetValue(Attr).AsString;
         if LVal <> '' then
           FColumnName := LVal;
       end;
@@ -298,15 +304,19 @@ end;
 { TRttiObjectHelper }
 
 function TRttiObjectHelper.GetAttribute<T>: T;
+var
+  Attr: TCustomAttribute;
 begin
   Result := nil;
-  for var Attr in GetAttributes do if Attr is T then Exit(T(Attr));
+  for Attr in GetAttributes do if Attr is T then Exit(T(Attr));
 end;
 
 function TRttiObjectHelper.GetAttribute(AClass: TCustomAttributeClass): TCustomAttribute;
+var
+  Attr: TCustomAttribute;
 begin
   Result := nil;
-  for var Attr in GetAttributes do if Attr.InheritsFrom(AClass) then Exit(Attr);
+  for Attr in GetAttributes do if Attr.InheritsFrom(AClass) then Exit(Attr);
 end;
 
 function TRttiObjectHelper.HasAttribute<T>: Boolean;
@@ -332,6 +342,16 @@ var
   TypeName: string;
   LGenParts: TArray<string>;
   LTMark: Integer;
+  Field: TRttiField;
+  LFieldName: string;
+  LInnerName: string;
+  LInnerRtti: TRttiType;
+  ImplIntf: TRttiInterfaceType;
+  ValProp: TRttiProperty;
+  LElementName: string;
+  LElementRtti: TRttiType;
+  AddM: TRttiMethod;
+  Intf: TRttiInterfaceType;
 begin
   RttiType := TReflection.FContext.GetType(AType);
   IsSmartProp := False;
@@ -356,9 +376,9 @@ begin
     IsNullable := TypeName.Contains('Nullable');
     IsSmartProp := RttiType.HasAttribute(SmartPropAttribute);
 
-    for var Field in RttiType.GetFields do
+    for Field in RttiType.GetFields do
     begin
-      var LFieldName := Field.Name;
+      LFieldName := Field.Name;
       if SameText(LFieldName, 'FValue') or SameText(LFieldName, 'Value') then
       begin
         ValueField := Field;
@@ -401,8 +421,8 @@ begin
       LTMark := TypeName.IndexOf('<');
       if (LTMark > 0) and TypeName.EndsWith('>') then
       begin
-        var LInnerName := TypeName.Substring(LTMark + 1, TypeName.Length - LTMark - 2).Trim;
-        var LInnerRtti := TReflection.FContext.FindType(LInnerName);
+        LInnerName := TypeName.Substring(LTMark + 1, TypeName.Length - LTMark - 2).Trim;
+        LInnerRtti := TReflection.FContext.FindType(LInnerName);
         if LInnerRtti = nil then LInnerRtti := TReflection.FContext.FindType('System.' + LInnerName);
         if LInnerRtti <> nil then InnerType := LInnerRtti.Handle;
       end;
@@ -434,7 +454,7 @@ begin
     begin
        if RttiType is TRttiInterfaceType then
        begin
-          var Intf := TRttiInterfaceType(RttiType);
+          Intf := TRttiInterfaceType(RttiType);
           while Intf <> nil do
           begin
             if Intf.Name.Contains('IList<') or Intf.Name.Contains('IEnumerable<') then begin IsList := True; Break; end;
@@ -445,7 +465,7 @@ begin
        end
        else if RttiType is TRttiInstanceType then
        begin
-          for var ImplIntf in TRttiInstanceType(RttiType).GetImplementedInterfaces do
+          for ImplIntf in TRttiInstanceType(RttiType).GetImplementedInterfaces do
           begin
             if ImplIntf.Name.Contains('IList<') or ImplIntf.Name.Contains('IEnumerable<') then begin IsList := True; Break; end;
             if ImplIntf.Name.Contains('IDictionary<') then begin IsDictionary := True; Break; end;
@@ -460,15 +480,15 @@ begin
        LTMark := TypeName.IndexOf('<');
        if (LTMark > 0) and TypeName.EndsWith('>') then
        begin
-          var LInnerName := TypeName.Substring(LTMark + 1, TypeName.Length - LTMark - 2).Trim;
-          var LInnerRtti := TReflection.FContext.FindType(LInnerName);
+          LInnerName := TypeName.Substring(LTMark + 1, TypeName.Length - LTMark - 2).Trim;
+          LInnerRtti := TReflection.FContext.FindType(LInnerName);
           if LInnerRtti = nil then LInnerRtti := TReflection.FContext.FindType('System.' + LInnerName);
           if LInnerRtti <> nil then InnerType := LInnerRtti.Handle;
        end;
        
        if InnerType = nil then
        begin
-          var ValProp := RttiType.GetProperty('Value');
+          ValProp := RttiType.GetProperty('Value');
           if (ValProp <> nil) and (ValProp.PropertyType <> nil) then 
             InnerType := ValProp.PropertyType.Handle;
        end;
@@ -483,8 +503,8 @@ begin
         LGenParts := TypeName.Substring(LTMark + 1, TypeName.Length - LTMark - 2).Split([',']);
         if Length(LGenParts) > 0 then
         begin
-          var LElementName := LGenParts[High(LGenParts)].Trim; // Last part is usually the element or value
-          var LElementRtti := TReflection.FContext.FindType(LElementName);
+          LElementName := LGenParts[High(LGenParts)].Trim; // Last part is usually the element or value
+          LElementRtti := TReflection.FContext.FindType(LElementName);
           if LElementRtti = nil then LElementRtti := TReflection.FContext.FindType('System.' + LElementName);
           if LElementRtti <> nil then ElementType := LElementRtti.Handle;
         end;
@@ -493,7 +513,7 @@ begin
       // Fallback: look at 'Add' method or 'Items' property
       if ElementType = nil then
       begin
-        var AddM := RttiType.GetMethod('Add');
+        AddM := RttiType.GetMethod('Add');
         if (AddM <> nil) and (Length(AddM.GetParameters) > 0) and (AddM.GetParameters[High(AddM.GetParameters)].ParamType <> nil) then
           ElementType := AddM.GetParameters[High(AddM.GetParameters)].ParamType.Handle;
       end;
@@ -817,8 +837,10 @@ begin
 end;
 
 class function TReflection.IsSmartProp(AType: PTypeInfo): Boolean;
+var
+  Meta: TTypeMetadata;
 begin
-  var Meta := GetMetadata(AType);
+  Meta := GetMetadata(AType);
   Result := Meta.IsSmartProp or Meta.IsLazy;
 end;
 
@@ -903,6 +925,7 @@ begin
     end;
 
     Unwrapped := Meta.ValueField.GetValue(PData);
+    ADest := Unwrapped;
 
     // If unwrapped is an ILazy interface, extract its value
     if (Unwrapped.Kind = tkInterface) then
@@ -1022,6 +1045,9 @@ class function TReflection.GetDictionaryKeyType(AType: PTypeInfo): PTypeInfo;
 var
   TypeName: string;
   LTMark: Integer;
+  LGenParts: TArray<string>;
+  LKeyName: string;
+  LRtti: TRttiType;
 begin
   Result := nil;
   if not IsDictionaryType(AType) then Exit;
@@ -1030,11 +1056,11 @@ begin
   LTMark := TypeName.IndexOf('<');
   if LTMark > 0 then
   begin
-    var LGenParts := TypeName.Substring(LTMark + 1, TypeName.Length - LTMark - 2).Split([',']);
+    LGenParts := TypeName.Substring(LTMark + 1, TypeName.Length - LTMark - 2).Split([',']);
     if Length(LGenParts) >= 1 then
     begin
-      var LKeyName := LGenParts[0].Trim;
-      var LRtti := FContext.FindType(LKeyName);
+      LKeyName := LGenParts[0].Trim;
+      LRtti := FContext.FindType(LKeyName);
       if LRtti = nil then LRtti := FContext.FindType('System.' + LKeyName);
       if LRtti <> nil then Result := LRtti.Handle;
     end;
@@ -1050,6 +1076,14 @@ class function TReflection.CastFromString(const AValue: string; AType: PTypeInfo
 var
   G: TGUID;
   DecodedValue: string;
+  DTVal: TDateTime;
+  Parsed: Boolean;
+  S: string;
+  Y, M, D, H, N, Sc: Integer;
+  F: Double;
+  B: Boolean;
+  GuidStr: string;
+  U: TUUID;
 begin
   if AValue = '' then
   begin
@@ -1069,23 +1103,23 @@ begin
           begin
             // Parse date string in a locale-independent way.
             // Supports ISO 8601: 'yyyy-mm-dd', 'yyyy-mm-ddThh:nn:ss', 'yyyy-mm-dd hh:nn:ss'
-            var DTVal: TDateTime := 0;
-            var Parsed := False;
-            var S := DecodedValue.Trim;
+            DTVal := 0;
+            Parsed := False;
+            S := DecodedValue.Trim;
             // Check for ISO date pattern: starts with 4 digits, dash, 2 digits, dash, 2 digits
             if (Length(S) >= 10) and (S[5] = '-') and (S[8] = '-') then
             begin
               try
-                var Y := StrToInt(Copy(S, 1, 4));
-                var M := StrToInt(Copy(S, 6, 2));
-                var D := StrToInt(Copy(S, 9, 2));
+                Y := StrToInt(Copy(S, 1, 4));
+                M := StrToInt(Copy(S, 6, 2));
+                D := StrToInt(Copy(S, 9, 2));
                 DTVal := EncodeDate(Y, M, D);
                 // Check for time component: 'yyyy-mm-ddThh:nn:ss' or 'yyyy-mm-dd hh:nn:ss'
                 if (Length(S) >= 19) and CharInSet(S[11], ['T', 't', ' ']) then
                 begin
-                  var H := StrToIntDef(Copy(S, 12, 2), 0);
-                  var N := StrToIntDef(Copy(S, 15, 2), 0);
-                  var Sc := StrToIntDef(Copy(S, 18, 2), 0);
+                  H := StrToIntDef(Copy(S, 12, 2), 0);
+                  N := StrToIntDef(Copy(S, 15, 2), 0);
+                  Sc := StrToIntDef(Copy(S, 18, 2), 0);
                   DTVal := DTVal + EncodeTime(H, N, Sc, 0);
                 end;
                 Parsed := True;
@@ -1099,7 +1133,6 @@ begin
           end
           else
           begin
-            var F: Double;
             if TryStrToFloat(DecodedValue, F, TFormatSettings.Invariant) then
               Result := TValue.From<Double>(F)
             else
@@ -1111,8 +1144,7 @@ begin
         begin
           if AType = TypeInfo(Boolean) then
           begin
-            var S := DecodedValue.Trim.ToLower;
-            var B := (S = 'true') or (S = '1') or (S = 'on') or (S = 'yes');
+            B := (DecodedValue.Trim.ToLower = 'true') or (DecodedValue.Trim = '1') or (DecodedValue.Trim = 'on') or (DecodedValue.Trim = 'yes');
             Result := TValue.From<Boolean>(B);
           end
           else
@@ -1122,7 +1154,7 @@ begin
         begin
           if AType = TypeInfo(TGUID) then
           begin
-            var GuidStr := DecodedValue.Trim;
+            GuidStr := DecodedValue.Trim;
             if GuidStr <> '' then
             begin
               if not GuidStr.StartsWith('{') then GuidStr := '{' + GuidStr + '}';
@@ -1137,7 +1169,7 @@ begin
           end
           else if AType = TypeInfo(TUUID) then
           begin
-             var U := TUUID.FromString(DecodedValue.Trim);
+             U := TUUID.FromString(DecodedValue.Trim);
              TValue.Make(@U, AType, Result);
           end
           else

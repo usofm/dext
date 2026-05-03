@@ -1,16 +1,18 @@
-﻿program Web.TaskFlowAPI;
+program Web.TaskFlowAPI;
 
 uses
   Dext.MM,
   Dext.Utils,
   System.SysUtils,
-  Dext.Web,
   Dext.Web.Interfaces,
+  Dext.Web.ApplicationBuilder.Extensions,
   Dext.Web.Results,
+  Dext.Web,
   TaskFlow.Domain,
   TaskFlow.Repository.Interfaces,
   TaskFlow.Repository.Mock,
-  TaskFlow.Handlers.Tasks;
+  TaskFlow.Handlers.Tasks,
+  Dext.DI.Interfaces;
 
 type
   // ✅ Modelo para teste
@@ -41,12 +43,14 @@ end;
 
 var
   App: IWebApplication;
+  AppBuilder: TAppBuilder;
 
 begin
+  SetConsoleCharSet(65001);
   try
-    WriteLn('🚀 Starting TaskFlow API...');
-    WriteLn('📦 Dext Framework v0.1.0');
-    WriteLn('⏰ ', FormatDateTime('yyyy-mm-dd hh:nn:ss', Now));
+    WriteLn('Starting TaskFlow API...');
+    WriteLn('Dext Framework v0.1.0');
+    WriteLn('Time: ', FormatDateTime('yyyy-mm-dd hh:nn:ss', Now));
     WriteLn('');
 
     // 1. Criar aplicação Dext
@@ -60,23 +64,11 @@ begin
     // 3. Mapear Handlers
     App.MapControllers;
 
-    WriteLn('✅ Auto-mapped routes registered');
+    WriteLn('Auto-mapped routes registered');
     WriteLn('');
 
     // 4. ✅ MAPEAMENTO COM SMART BINDING (FASE 2)
-    var AppBuilder := App.GetApplicationBuilder;
-    
-    // ✅ Functional Middleware: Logging Simples
-    AppBuilder.Use(
-      procedure(Context: IHttpContext; Next: TRequestDelegate)
-      begin
-        WriteLn(Format('📝 [LOG] Request: %s %s', [Context.Request.Method, Context.Request.Path]));
-        
-        // Chama o próximo middleware
-        Next(Context);
-        
-        WriteLn('📝 [LOG] Response sent');
-      end);
+    AppBuilder := App.Builder;
 
     // ✅ Response Compression (gzip/deflate)
     AppBuilder.UseMiddleware(TCompressionMiddleware);
@@ -95,12 +87,22 @@ begin
         Context.Response.Json('{"message": "Tasks endpoint", "count": 5}');
       end);
 
-    // GET /api/tasks/{id} - Smart Binding de Inteiro (Route Param) + Results
-    App.Builder.MapGet<Integer, IResult>('/api/tasks/{id}',
-      function(Id: Integer): IResult
+    // GET /api/tasks/{id}
+    AppBuilder.MapGet('/api/tasks/{id}',
+      procedure(Context: IHttpContext)
+      var
+        Id: Integer;
+        IdStr: string;
       begin
+        if not Context.Request.RouteParams.TryGetValue('id', IdStr) then
+        begin
+          Context.Response.StatusCode := 400;
+          Context.Response.Json('{"error":"missing id"}');
+          Exit;
+        end;
+        Id := StrToIntDef(IdStr, 0);
         WriteLn(Format('🎯 HANDLER: GetTaskById (%d)', [Id]));
-        Result := Results.Json(Format('{"id": %d, "title": "Sample Task", "status": "pending"}', [Id]));
+        Context.Response.Json(Format('{"id": %d, "title": "Sample Task", "status": "pending"}', [Id]));
       end);
 
     // GET /api/tasks/stats - Mantido simples
@@ -110,33 +112,46 @@ begin
         Context.Response.Json('{"total": 10, "completed": 3, "pending": 7}');
       end);
 
-    // DELETE /api/tasks/{id} - Smart Binding + Service Injection (Simulado)
-    App.Builder.MapDelete<Integer, IHttpContext>('/api/tasks/{id}',
-      procedure(Id: Integer; Context: IHttpContext)
+    // DELETE /api/tasks/{id}
+    AppBuilder.MapDelete('/api/tasks/{id}',
+      procedure(Context: IHttpContext)
+      var
+        Id: Integer;
+        IdStr: string;
       begin
+        if not Context.Request.RouteParams.TryGetValue('id', IdStr) then
+        begin
+          Context.Response.StatusCode := 400;
+          Context.Response.Json('{"error":"missing id"}');
+          Exit;
+        end;
+        Id := StrToIntDef(IdStr, 0);
         WriteLn(Format('🎯 HANDLER: DeleteTask (%d)', [Id]));
-        // Aqui poderíamos injetar um ITaskService
         Context.Response.StatusCode := 204; // No Content
       end);
 
-    // ✅ NOVO: Endpoint com Handler Injection (Minimal API Style) + Results
-    // Recebe: Body (TUser), Serviço (IUserService) -> Retorna IResult
-    App.Builder.MapPost<TUser, IUserService, IResult>('/api/users',
-      function(User: TUser; UserService: IUserService): IResult
+    // POST /api/users
+    AppBuilder.MapPost<IHttpContext, TUser>('/api/users',
+      procedure(Context: IHttpContext; User: TUser)
       var
-        CreatedUser: TUser;
+        UserService: IUserService;
+        Created: TUser;
       begin
-        WriteLn('🎯 HANDLER: CreateUser executing via Handler Injection');
-        
-        // Lógica de negócio usando o serviço injetado
-        CreatedUser := UserService.CreateUser(User);
-        
-        // Resposta usando Results helper
-        Result := Results.Created('/api/users/1', 
-          Format('{"message": "User created", "name": "%s", "email": "%s"}', 
-          [CreatedUser.Name, CreatedUser.Email]));
-          
-        WriteLn('✅ Handler completed');
+        WriteLn('HANDLER: CreateUser executing');
+
+        // Resolve service from context
+        UserService := Context.Services.GetServiceAsInterface(TServiceType.FromInterface(IUserService)) as IUserService;
+        if Assigned(UserService) then
+        begin
+          Created := UserService.CreateUser(User);
+          Context.Response.StatusCode := 201;
+          Context.Response.Json(Format('{"message":"User created", "name":"%s"}', [Created.Name]));
+        end
+        else
+        begin
+          Context.Response.StatusCode := 500;
+          Context.Response.Json('{"error":"UserService not available"}');
+        end;
       end);
 
     WriteLn('✅ Manual routes mapped:');
@@ -157,7 +172,7 @@ begin
 
     // 5. 🚀 INICIAR SERVIDOR!
     App.Run(8080);
-    
+
     // Only pause if not running in automated mode
     ConsolePause;
 
@@ -166,7 +181,7 @@ begin
     begin
       WriteLn('❌ Startup error: ', E.Message);
       WriteLn('💀 Application terminated');
-      
+
       // Only pause if not running in automated mode
       ConsolePause;
     end;

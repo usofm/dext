@@ -50,6 +50,9 @@ uses
   System.Classes;
 
 type
+  /// <summary>
+  ///   Exception raised when an optimistic concurrency conflict is detected.
+  /// </summary>
   EOptimisticConcurrencyException = class(Exception);
 
   /// <summary>
@@ -205,16 +208,25 @@ type
     function RequestStreamingIterator(const ASpec: ISpecification<T>): IEnumerator<T>;
   end;
 
+  /// <summary>
+  ///   Provides access to a collection navigation property for an entity.
+  /// </summary>
   ICollectionEntry = interface
     ['{A1B2C3D4-E5F6-4789-0123-456789ABCDEF}']
     procedure Load;
   end;
 
+  /// <summary>
+  ///   Provides access to a reference navigation property for an entity.
+  /// </summary>
   IReferenceEntry = interface
     ['{B2C3D4E5-F6A7-4890-1234-567890BCDEFF}']
     procedure Load;
   end;
 
+  /// <summary>
+  ///   Provides access to a scalar property for an entity, allowing read and write operations.
+  /// </summary>
   IPropertyEntry = interface
     ['{D4E5F6A7-B8C9-4A12-3456-789012DEF012}']
     function GetCurrentValue: TValue;
@@ -252,6 +264,9 @@ type
     procedure SetLazyLoader(const ALazyLoader: ILazyLoader);
   end;
 
+  /// <summary>
+  ///   Represents design-time and runtime metadata for a single entity property/member.
+  /// </summary>
   TEntityMemberMetadata = class(TCollectionItem)
   private
     FName: string;
@@ -309,6 +324,9 @@ type
     property JoinTargetColumn: string read FJoinTargetColumn write FJoinTargetColumn;
   end;
 
+  /// <summary>
+  ///   Collection of entity member metadata.
+  /// </summary>
   TEntityMemberCollection = class(TOwnedCollection)
   private
     function GetItem(Index: Integer): TEntityMemberMetadata;
@@ -319,6 +337,9 @@ type
     property Items[Index: Integer]: TEntityMemberMetadata read GetItem write SetItem; default;
   end;
 
+  /// <summary>
+  ///   Represents design-time and runtime metadata for an entire entity class.
+  /// </summary>
   TEntityClassMetadata = class(TCollectionItem)
   private
     FEntityClassName: string;
@@ -345,6 +366,9 @@ type
     property Members: TEntityMemberCollection read FMembers write SetMembers;
   end;
 
+  /// <summary>
+  ///   Collection of entity class metadata.
+  /// </summary>
   TEntityClassCollection = class(TOwnedCollection)
   private
     function GetItem(Index: Integer): TEntityClassMetadata;
@@ -356,6 +380,9 @@ type
     property Items[Index: Integer]: TEntityClassMetadata read GetItem write SetItem; default;
   end;
 
+  /// <summary>
+  ///   Provider interface for accessing entity schema metadata and instance generation.
+  /// </summary>
   IEntityDataProvider = interface
     ['{884D5514-6F29-4F58-BF76-2244EEF9452A}']
     function GetEntities: TArray<string>;
@@ -455,7 +482,7 @@ type
   end;
 
 /// <summary>
-///   Unwraps Nullable<T> values and validates if FK is valid (non-zero for integers, non-empty for strings)
+///   Unwraps Nullable&lt;T&gt; values and validates if FK is valid (non-zero for integers, non-empty for strings)
 /// </summary>
 function TryUnwrapAndValidateFK(var AValue: TValue): Boolean;
 
@@ -463,12 +490,14 @@ implementation
 
 function TryUnwrapAndValidateFK(var AValue: TValue): Boolean;
 var
+  Field: TRttiField;
+  Fields: TArray<TRttiField>;
+  HasValue: Boolean;
+  HasValueField, ValueField: TRttiField;
+  HasValueVal: TValue;
+  Instance: Pointer;
   RType: TRttiType;
   TypeName: string;
-  Fields: TArray<TRttiField>;
-  HasValueField, ValueField: TRttiField;
-  HasValue: Boolean;
-  Instance: Pointer;
 begin
   Result := False;
   
@@ -489,7 +518,7 @@ begin
         ValueField := nil;
         
         // Find fHasValue and fValue fields
-        for var Field in Fields do
+        for Field in Fields do
         begin
           if Field.Name.ToLower.Contains('hasvalue') then
             HasValueField := Field
@@ -502,7 +531,7 @@ begin
           Instance := AValue.GetReferenceToRawData;
           
           // Check HasValue - it can be a string (Spring4D) or Boolean
-          var HasValueVal := HasValueField.GetValue(Instance);
+          HasValueVal := HasValueField.GetValue(Instance);
           if HasValueVal.Kind = tkUString then
             HasValue := HasValueVal.AsString <> ''
           else if HasValueVal.Kind = tkEnumeration then
@@ -709,8 +738,10 @@ begin
 end;
 
 function TEntityClassCollection.FindByName(const AClassName: string): TEntityClassMetadata;
+var
+  i: integer;
 begin
-  for var i := 0 to Count - 1 do
+  for i := 0 to Count - 1 do
   begin
     if SameText(Items[i].EntityClassName, AClassName) then
       Exit(Items[i]);

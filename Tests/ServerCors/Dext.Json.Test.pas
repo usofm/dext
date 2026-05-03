@@ -131,6 +131,7 @@ var
   User: TUser;
   UserWithAddr: TUserWithAddress;
   Json: string;
+  DeserializedUser: TUser;
 begin
   Writeln('=== TESTANDO RECORDS NO DEXT JSON ===');
 
@@ -144,7 +145,7 @@ begin
     Json := TDextJson.Serialize<TUser>(User);
     Writeln('User JSON: ', Json);
 
-    var DeserializedUser := TDextJson.Deserialize<TUser>(Json);
+    DeserializedUser := TDextJson.Deserialize<TUser>(Json);
     Writeln('Deserialized User - ID: ', DeserializedUser.Id, ', Name: ', DeserializedUser.Name);
 
     // ✅ TESTE 2: Record com record aninhado
@@ -224,6 +225,10 @@ procedure TestDextJsonArrays;
 var
   UserIds: TArray<Integer>;
   Json: string;
+  Deserialized: TArray<Integer>;
+  DeserializedUsers: TArray<TSimpleUser>;
+  User1, User2: TSimpleUser;
+  DeserializedList: IList<TSimpleUser>;
 begin
   Writeln('=== TESTANDO ARRAYS/LISTAS NO DEXT JSON ===');
 
@@ -237,7 +242,7 @@ begin
     Json := TDextJson.Serialize<TArray<Integer>>(UserIds);
     Writeln('JSON: ', Json);
 
-    var Deserialized := TDextJson.Deserialize<TArray<Integer>>(Json);
+    Deserialized := TDextJson.Deserialize<TArray<Integer>>(Json);
     Writeln('Deserialized Count: ', Length(Deserialized));
 
     // ✅ TESTE 1: TArray<T> (como no ASP.NET Core)
@@ -248,21 +253,21 @@ begin
     Json := TDextJson.Serialize<TArray<TSimpleUser>>(Users);
     Writeln('TArray<TUser> JSON: ', Json);
 
-    var DeserializedUsers := TDextJson.Deserialize<TArray<TSimpleUser>>(Json);
+    DeserializedUsers := TDextJson.Deserialize<TArray<TSimpleUser>>(Json);
     Writeln('Deserialized Users Count: ', Length(DeserializedUsers));
 
     // ✅ TESTE 2: IList<T> (como List<T> no C#)
     UserList := TCollections.CreateList<TSimpleUser>;
     try
-      var User1: TSimpleUser; User1.Id := 3; User1.Name := 'Bob';
-      var User2: TSimpleUser; User2.Id := 4; User2.Name := 'Alice';
+      User1.Id := 3; User1.Name := 'Bob';
+      User2.Id := 4; User2.Name := 'Alice';
       UserList.Add(User1);
       UserList.Add(User2);
 
       Json := TDextJson.Serialize<IList<TSimpleUser>>(UserList);
       Writeln('IList<TUser> JSON: ', Json);
 
-      var DeserializedList := TDextJson.Deserialize<IList<TSimpleUser>>(Json);
+      DeserializedList := TDextJson.Deserialize<IList<TSimpleUser>>(Json);
       Writeln('Deserialized List Count: ', DeserializedList.Count);
       // DeserializedList.Free;
     finally
@@ -280,13 +285,15 @@ end;
 procedure TestListOnly;
 var
   Json: string;
+  User1, User2: TSimpleUser;
+  DeserializedList: IList<TSimpleUser>;
 begin
   Writeln('=== TESTE APENAS IList<T> ===');
 
   UserList := TCollections.CreateList<TSimpleUser>;
   try
-    var User1: TSimpleUser; User1.Id := 3; User1.Name := 'Bob';
-    var User2: TSimpleUser; User2.Id := 4; User2.Name := 'Alice';
+    User1.Id := 3; User1.Name := 'Bob';
+    User2.Id := 4; User2.Name := 'Alice';
     UserList.Add(User1);
     UserList.Add(User2);
 
@@ -294,7 +301,7 @@ begin
     Writeln('JSON Serializado: ', Json);
 
     // Aqui deve dar o erro
-    var DeserializedList := TDextJson.Deserialize<IList<TSimpleUser>>(Json);
+    DeserializedList := TDextJson.Deserialize<IList<TSimpleUser>>(Json);
     Writeln('Deserializado Count: ', DeserializedList.Count);
     // DeserializedList.Free;
 
@@ -307,6 +314,7 @@ procedure TestDextJsonSettings;
 var
   User: TUser;
   Json: string;
+  CamelCaseSettings, SnakeCaseSettings, EnumStringSettings: TJsonSettings;
 begin
   Writeln('=== TESTANDO NOVAS CONFIGURAÇÕES ===');
 
@@ -319,7 +327,7 @@ begin
 
   try
     // ✅ Teste 1: CamelCase + IgnoreNullValues
-    var CamelCaseSettings := TJsonSettings.Indented
+    CamelCaseSettings := TJsonSettings.Indented
       .CamelCase
       .IgnoreNullValues;
 
@@ -328,7 +336,7 @@ begin
     Writeln(Json);
 
     // ✅ Teste 2: SnakeCase
-    var SnakeCaseSettings := TJsonSettings.Indented
+    SnakeCaseSettings := TJsonSettings.Indented
       .SnakeCase;
 
     Json := TDextJson.Serialize<TUser>(User, SnakeCaseSettings);
@@ -336,7 +344,7 @@ begin
     Writeln(Json);
 
     // ✅ Teste 3: Enum como String
-    var EnumStringSettings := TJsonSettings.Indented
+    EnumStringSettings := TJsonSettings.Indented
       .EnumAsString;
 
     Json := TDextJson.Serialize<TUser>(User, EnumStringSettings);
@@ -355,6 +363,8 @@ procedure TestCompleteSettings;
 var
   User: TUser;
   Json: string;
+  Settings: TJsonSettings;
+  DeserializedUser: TUser;
 begin
   Writeln('=== TESTE COMPLETO CONFIGURAÇÕES ===');
 
@@ -368,7 +378,7 @@ begin
 
   try
     // ✅ Teste: CamelCase + EnumAsString + IgnoreNullValues
-    var Settings := TJsonSettings.Indented
+    Settings := TJsonSettings.Indented
       .CamelCase
       .EnumAsString
       .IgnoreNullValues;
@@ -378,7 +388,7 @@ begin
     Writeln(Json);
 
     // ✅ Teste RoundTrip: Serializar -> Deserializar
-    var DeserializedUser := TDextJson.Deserialize<TUser>(Json, Settings);
+    DeserializedUser := TDextJson.Deserialize<TUser>(Json, Settings);
     Writeln('RoundTrip - UserName: ', DeserializedUser.UserName);
     Writeln('RoundTrip - Status: ', Ord(DeserializedUser.Status));
 
@@ -402,6 +412,8 @@ type
 var
   User: TSimpleUser;
   Json: string;
+  StringSettings, NumberSettings: TJsonSettings;
+  Deserialized1, Deserialized2: TSimpleUser;
 begin
   Writeln('=== TESTE ESPECÍFICO ENUM ===');
 
@@ -410,24 +422,24 @@ begin
 
   try
     // ✅ Teste 1: Enum como String
-    var StringSettings := TJsonSettings.Default
+    StringSettings := TJsonSettings.Default
       .EnumAsString;
 
     Json := TDextJson.Serialize<TSimpleUser>(User, StringSettings);
     Writeln('Enum as String - JSON: ', Json);
 
-    var Deserialized1 := TDextJson.Deserialize<TSimpleUser>(Json, StringSettings);
+    Deserialized1 := TDextJson.Deserialize<TSimpleUser>(Json, StringSettings);
     Writeln('Enum as String - RoundTrip Status: ', Ord(Deserialized1.Status), ' (Expected: 0)');
     Writeln('Enum as String - RoundTrip StatusNumber: ', Ord(Deserialized1.StatusNumber), ' (Expected: 2)');
 
     // ✅ Teste 2: Enum como Number
-    var NumberSettings := TJsonSettings.Default
+    NumberSettings := TJsonSettings.Default
       .EnumAsNumber;
 
     Json := TDextJson.Serialize<TSimpleUser>(User, NumberSettings);
     Writeln('Enum as Number - JSON: ', Json);
 
-    var Deserialized2 := TDextJson.Deserialize<TSimpleUser>(Json, NumberSettings);
+    Deserialized2 := TDextJson.Deserialize<TSimpleUser>(Json, NumberSettings);
     Writeln('Enum as Number - RoundTrip Status: ', Ord(Deserialized2.Status), ' (Expected: 0)');
     Writeln('Enum as Number - RoundTrip StatusNumber: ', Ord(Deserialized2.StatusNumber), ' (Expected: 2)');
 
@@ -450,6 +462,7 @@ type
 var
   Entity: TEntity;
   Json: string;
+  DeserializedEntity: TEntity;
 begin
   Writeln('=== TESTE TGUID SUPPORT ===');
 
@@ -465,7 +478,7 @@ begin
     Writeln(Json);
 
     // Teste RoundTrip
-    var DeserializedEntity := TDextJson.Deserialize<TEntity>(Json);
+    DeserializedEntity := TDextJson.Deserialize<TEntity>(Json);
 
     Writeln('Original Id: ', GUIDToString(Entity.Id));
     Writeln('Deserialized Id: ', GUIDToString(DeserializedEntity.Id));
@@ -494,6 +507,8 @@ type
 var
   Product: TProduct;
   Json: string;
+  Settings: TJsonSettings;
+  DeserializedProduct: TProduct;
 begin
   Writeln('=== TESTE TGUID COM CONFIGURAÇÕES ===');
 
@@ -502,7 +517,7 @@ begin
   Product.CategoryId := StringToGUID('{FEDCBA98-7654-3210-FEDC-BA9876543210}');
 
   try
-    var Settings := TJsonSettings.Indented
+    Settings := TJsonSettings.Indented
       .CamelCase
       .IgnoreNullValues;
 
@@ -510,7 +525,7 @@ begin
     Writeln('TGUID + CamelCase:');
     Writeln(Json);
 
-    var DeserializedProduct := TDextJson.Deserialize<TProduct>(Json, Settings);
+    DeserializedProduct := TDextJson.Deserialize<TProduct>(Json, Settings);
 
     Writeln('RoundTrip Success: ',
       IsEqualGUID(Product.ProductId, DeserializedProduct.ProductId) and
@@ -536,6 +551,8 @@ type
 var
   Event: TEvent;
   Json: string;
+  ISOSettings, UnixSettings, CustomSettings, RoundTripSettings: TJsonSettings;
+  DeserializedEvent: TEvent;
 begin
   Writeln('=== TESTE DATETIME FORMATS ===');
 
@@ -546,27 +563,27 @@ begin
 
   try
     // ✅ Teste 1: ISO8601 (padrão)
-    var ISOSettings := TJsonSettings.Indented.ISODateFormat;
+    ISOSettings := TJsonSettings.Indented.ISODateFormat;
     Json := TDextJson.Serialize<TEvent>(Event, ISOSettings);
     Writeln('ISO8601 Format:');
     Writeln(Json);
 
     // ✅ Teste 2: Unix Timestamp
-    var UnixSettings := TJsonSettings.Indented.UnixTimestamp;
+    UnixSettings := TJsonSettings.Indented.UnixTimestamp;
     Json := TDextJson.Serialize<TEvent>(Event, UnixSettings);
     Writeln('Unix Timestamp:');
     Writeln(Json);
 
     // ✅ Teste 3: Formato Customizado
-    var CustomSettings := TJsonSettings.Indented.CustomDateFormat('dd/mm/yyyy hh:nn:ss');
+    CustomSettings := TJsonSettings.Indented.CustomDateFormat('dd/mm/yyyy hh:nn:ss');
     Json := TDextJson.Serialize<TEvent>(Event, CustomSettings);
     Writeln('Custom Format:');
     Writeln(Json);
 
     // ✅ Teste 4: RoundTrip com Unix Timestamp
-    var RoundTripSettings := TJsonSettings.Default.UnixTimestamp;
+    RoundTripSettings := TJsonSettings.Default.UnixTimestamp;
     Json := TDextJson.Serialize<TEvent>(Event, RoundTripSettings);
-    var DeserializedEvent := TDextJson.Deserialize<TEvent>(Json, RoundTripSettings);
+    DeserializedEvent := TDextJson.Deserialize<TEvent>(Json, RoundTripSettings);
 
     Writeln('RoundTrip Success - With Trunc (OLD): ',
       (Trunc(Event.StartDate) = Trunc(DeserializedEvent.StartDate)) and
@@ -592,6 +609,8 @@ type
 var
   Log: TLogEntry;
   Json: string;
+  Settings: TJsonSettings;
+  DeserializedLog: TLogEntry;
 begin
   Writeln('=== TESTE COMBINADO DATETIME + GUID + SETTINGS ===');
 
@@ -601,7 +620,7 @@ begin
   Log.Severity := 2;
 
   try
-    var Settings := TJsonSettings.Indented
+    Settings := TJsonSettings.Indented
       .CamelCase
       .UnixTimestamp  // Dates as numbers
       .EnumAsString;  // Enums as strings
@@ -610,7 +629,7 @@ begin
     Writeln('Combined Settings:');
     Writeln(Json);
 
-    var DeserializedLog := TDextJson.Deserialize<TLogEntry>(Json, Settings);
+    DeserializedLog := TDextJson.Deserialize<TLogEntry>(Json, Settings);
 
     Writeln('RoundTrip - GUID Match: ', IsEqualGUID(Log.LogId, DeserializedLog.LogId));
     Writeln('RoundTrip - Date Match: ',
@@ -642,6 +661,8 @@ type
 var
   Test: TDateTest;
   Json: string;
+  TestJson: string;
+  Deserialized: TDateTest;
 begin
   Writeln('=== TESTE FORMATOS DE DATA ===');
 
@@ -656,8 +677,8 @@ begin
     Writeln(Json);
 
     // Teste com diferentes formatos de entrada
-    var TestJson := '{"CustomDate":"01/12/2024","USDate":"12/01/2024","ISODate":"2024-12-01","ISODateOnly":"2024-12-01"}';
-    var Deserialized := TDextJson.Deserialize<TDateTest>(TestJson);
+    TestJson := '{"CustomDate":"01/12/2024","USDate":"12/01/2024","ISODate":"2024-12-01","ISODateOnly":"2024-12-01"}';
+    Deserialized := TDextJson.Deserialize<TDateTest>(TestJson);
 
     Writeln('RoundTrip - CustomDate: ', DateToStr(Deserialized.CustomDate));
     Writeln('RoundTrip - USDate: ', DateToStr(Deserialized.USDate));
@@ -678,15 +699,17 @@ type
     Date1: TDateTime;
     Date2: TDateTime;
   end;
-
+var
+  TestJson: string;
+  Deserialized: TAmbiguousDate;
 begin
   Writeln('=== TESTE DATAS AMBÍGUAS ===');
 
   // Testar com JSON que tem datas ambíguas
-  var TestJson := '{"Date1":"06/05/2024","Date2":"12/01/2024"}'; // 06/05 pode ser Junho 5 ou Maio 6
+  TestJson := '{"Date1":"06/05/2024","Date2":"12/01/2024"}'; // 06/05 pode ser Junho 5 ou Maio 6
 
   try
-    var Deserialized := TDextJson.Deserialize<TAmbiguousDate>(TestJson);
+    Deserialized := TDextJson.Deserialize<TAmbiguousDate>(TestJson);
 
     Writeln('Date1 (06/05/2024): ', DateToStr(Deserialized.Date1));
     Writeln('Date2 (12/01/2024): ', DateToStr(Deserialized.Date2));
@@ -730,6 +753,8 @@ type
 var
   Product: TProduct;
   Json: string;
+  JsonObj: TJsonObject;
+  DeserializedProduct: TProduct;
 begin
   Writeln('=== TESTE ATRIBUTOS AVANÇADOS ===');
 
@@ -747,7 +772,7 @@ begin
     Writeln(Json);
 
     // ✅ Verificações
-    var JsonObj := TJsonObject.Parse(Json) as TJsonObject;
+    JsonObj := TJsonObject.Parse(Json) as TJsonObject;
     try
       Writeln('JsonName funciona: ', JsonObj.Contains('product_name'));
       Writeln('JsonIgnore funciona: ', not JsonObj.Contains('InternalCode'));
@@ -760,7 +785,7 @@ begin
     end;
 
     // ✅ Teste RoundTrip
-    var DeserializedProduct := TDextJson.Deserialize<TProduct>(Json);
+    DeserializedProduct := TDextJson.Deserialize<TProduct>(Json);
     Writeln('RoundTrip - Name: ', DeserializedProduct.Name);
     Writeln('RoundTrip - Price: ', DeserializedProduct.Price.ToString);
     Writeln('RoundTrip - Stock: ', DeserializedProduct.Stock);
@@ -802,6 +827,8 @@ type
 var
   User: TAdvancedUser;
   Json: string;
+  Settings: TJsonSettings;
+  DeserializedUser: TAdvancedUser;
 begin
   Writeln('=== TESTE TODAS AS FEATURES COMBINADAS ===');
 
@@ -814,14 +841,14 @@ begin
   User.PhoneNumber := '5511999999999';
 
   try
-    var Settings := TJsonSettings.Indented
+    Settings := TJsonSettings.Indented
       .EnumAsString;
 
     Json := TDextJson.Serialize<TAdvancedUser>(User, Settings);
     Writeln('Todas as Features:');
     Writeln(Json);
 
-    var DeserializedUser := TDextJson.Deserialize<TAdvancedUser>(Json, Settings);
+    DeserializedUser := TDextJson.Deserialize<TAdvancedUser>(Json, Settings);
 
     Writeln('RoundTrip - GUID: ', IsEqualGUID(User.UserId, DeserializedUser.UserId));
     Writeln('RoundTrip - UserName: ', User.UserName = DeserializedUser.UserName);
@@ -850,6 +877,8 @@ type
 var
   Localized: TLocalized;
   Json: string;
+  JsonObj: TJsonObject;
+  Deserialized: TLocalized;
 begin
   Writeln('=== TESTE LOCALIZAÇÃO CORRIGIDO ===');
 
@@ -862,13 +891,13 @@ begin
     Writeln('Serializado:');
     Writeln(Json);
 
-    var JsonObj := TJsonObject.Parse(Json) as TJsonObject;
+    JsonObj := TJsonObject.Parse(Json) as TJsonObject;
     try
       Writeln('PriceBR como string: ', JsonObj.S['PriceBR']);
       Writeln('PriceString como número: ', JsonObj.F['PriceString']); // Deve ser 123.45
       Writeln('NormalPrice como número: ', JsonObj.F['NormalPrice']);
 
-      var Deserialized := TDextJson.Deserialize<TLocalized>(Json);
+      Deserialized := TDextJson.Deserialize<TLocalized>(Json);
       Writeln('RoundTrip - PriceBR: ', Deserialized.PriceBR);
       Writeln('RoundTrip - PriceString: ', Deserialized.PriceString); // Deve ser "123.45"
       Writeln('RoundTrip - NormalPrice: ', Deserialized.NormalPrice);
@@ -908,6 +937,7 @@ type
 var
   Edge: TEdgeCase;
   Json: string;
+  Deserialized: TEdgeCase;
 begin
   Writeln('=== TESTE CASOS EXTREMOS CORRIGIDO ===');
 
@@ -920,7 +950,7 @@ begin
     Json := TDextJson.Serialize<TEdgeCase>(Edge);
     Writeln('Serializado: ', Json);
 
-    var Deserialized := TDextJson.Deserialize<TEdgeCase>(Json);
+    Deserialized := TDextJson.Deserialize<TEdgeCase>(Json);
     Writeln('RoundTrip - VerySmall: ', Deserialized.VerySmall);
     Writeln('RoundTrip - VeryLarge: ', Deserialized.VeryLarge);
     Writeln('RoundTrip - IntegerString: ', Deserialized.IntegerString);
@@ -951,6 +981,8 @@ type
 var
   Test: TTestNumberString;
   Json: string;
+  JsonObj: TJsonObject;
+  Deserialized: TTestNumberString;
 begin
   Writeln('=== TESTE JsonNumber EM STRING ===');
 
@@ -964,7 +996,7 @@ begin
     Writeln(Json);
 
     // Verificar se serializou como números
-    var JsonObj := TJsonObject.Parse(Json) as TJsonObject;
+    JsonObj := TJsonObject.Parse(Json) as TJsonObject;
     try
       Writeln('Stock como número: ', JsonObj.Types['Stock'] = jdtFloat);
       Writeln('Price como número: ', JsonObj.Types['Price'] = jdtFloat);
@@ -975,7 +1007,7 @@ begin
     end;
 
     // Desserialização
-    var Deserialized := TDextJson.Deserialize<TTestNumberString>(Json);
+    Deserialized := TDextJson.Deserialize<TTestNumberString>(Json);
     Writeln('Desserializado - Stock: ', Deserialized.Stock);
     Writeln('Desserializado - Price: ', Deserialized.Price);
     Writeln('RoundTrip Success: ', (Test.Stock = Deserialized.Stock) and (Test.Price = Deserialized.Price));
@@ -1037,25 +1069,22 @@ begin
           Writeln('  - FromBody')
         else if Attr is FromQueryAttribute then
         begin
-          var QueryAttr := FromQueryAttribute(Attr);
-          if QueryAttr.Name <> '' then
-            Writeln('  - FromQuery("', QueryAttr.Name, '")')
+          if FromQueryAttribute(Attr).Name <> '' then
+            Writeln('  - FromQuery("', FromQueryAttribute(Attr).Name, '")')
           else
             Writeln('  - FromQuery');
         end
         else if Attr is FromRouteAttribute then
         begin
-          var RouteAttr := FromRouteAttribute(Attr);
-          if RouteAttr.Name <> '' then
-            Writeln('  - FromRoute("', RouteAttr.Name, '")')
+          if FromRouteAttribute(Attr).Name <> '' then
+            Writeln('  - FromRoute("', FromRouteAttribute(Attr).Name, '")')
           else
             Writeln('  - FromRoute');
         end
         else if Attr is FromHeaderAttribute then
         begin
-          var HeaderAttr := FromHeaderAttribute(Attr);
-          if HeaderAttr.Name <> '' then
-            Writeln('  - FromHeader("', HeaderAttr.Name, '")')
+          if FromHeaderAttribute(Attr).Name <> '' then
+            Writeln('  - FromHeader("', FromHeaderAttribute(Attr).Name, '")')
           else
             Writeln('  - FromHeader');
         end
@@ -1123,34 +1152,44 @@ type
     Name: string;
     Email: string;
   end;
+var
+  Context: TRttiContext;
+  BindingProvider: TBindingSourceProvider;
+  CreateUserMethod: TRttiMethod;
+  CreateUserParams: TArray<TRttiParameter>;
+  GetUserMethod: TRttiMethod;
+  GetUserParams: TArray<TRttiParameter>;
+  Param: TRttiParameter;
+  Source: TBindingSource;
+  Name: string;
 begin
   Writeln('=== CENÁRIOS REAIS BINDING (FASE A) ===');
 
   try
-    var Context := TRttiContext.Create;
-    var BindingProvider := TBindingSourceProvider.Create;
+    Context := TRttiContext.Create;
+    BindingProvider := TBindingSourceProvider.Create;
     try
       // Testar CreateUser method
-      var CreateUserMethod := Context.GetType(TUserController).GetMethod('CreateUser');
-      var CreateUserParams := CreateUserMethod.GetParameters;
+      CreateUserMethod := Context.GetType(TUserController).GetMethod('CreateUser');
+      CreateUserParams := CreateUserMethod.GetParameters;
 
       Writeln('CreateUser Method Parameters:');
-      for var Param in CreateUserParams do
+      for Param in CreateUserParams do
       begin
-        var Source := BindingProvider.GetBindingSource(Param);
-        var Name := BindingProvider.GetBindingName(Param);
+        Source := BindingProvider.GetBindingSource(Param);
+        Name := BindingProvider.GetBindingName(Param);
         Writeln('  - ', Param.Name, ' -> ', GetEnumName(TypeInfo(TBindingSource), Ord(Source)), ' (', Name, ')');
       end;
 
       // Testar GetUser method
-      var GetUserMethod := Context.GetType(TUserController).GetMethod('GetUser');
-      var GetUserParams := GetUserMethod.GetParameters;
+      GetUserMethod := Context.GetType(TUserController).GetMethod('GetUser');
+      GetUserParams := GetUserMethod.GetParameters;
 
       Writeln('GetUser Method Parameters:');
-      for var Param in GetUserParams do
+      for Param in GetUserParams do
       begin
-        var Source := BindingProvider.GetBindingSource(Param);
-        var Name := BindingProvider.GetBindingName(Param);
+        Source := BindingProvider.GetBindingSource(Param);
+        Name := BindingProvider.GetBindingName(Param);
         Writeln('  - ', Param.Name, ' -> ', GetEnumName(TypeInfo(TBindingSource), Ord(Source)), ' (', Name, ')');
       end;
 
@@ -1394,6 +1433,7 @@ procedure TestProviders;
 var
   User: TUser;
   JsonJDO, JsonSystem: string;
+  UserFromSystem: TUser;
 begin
   Writeln('=== TESTANDO DRIVERS JSON ===');
 
@@ -1423,7 +1463,7 @@ begin
     // 4. Testar Deserialização Cruzada
     // Serializado com System.JSON -> Deserializado com JsonDataObjects
     TDextJson.Provider := TJsonDataObjectsProvider.Create;
-    var UserFromSystem := TDextJson.Deserialize<TUser>(JsonSystem);
+    UserFromSystem := TDextJson.Deserialize<TUser>(JsonSystem);
     Writeln('🔄 Cross-Deserialization (System -> JDO): ', UserFromSystem.UserName);
 
     if UserFromSystem.UserName = User.UserName then
@@ -1439,4 +1479,5 @@ begin
 end;
 
 end.
+
 

@@ -416,13 +416,14 @@ var
   Url: string;
   First: Boolean;
   Data: IRestRequestData;
+  Pair: TPair<string, string>;
 begin
   Data := GetData;
   Url := Data.GetEndpoint;
   if Data.GetQueryParams.Count > 0 then
   begin
     First := not Url.Contains('?');
-    for var Pair in Data.GetQueryParams do
+    for Pair in Data.GetQueryParams do
     begin
       if First then
         Url := Url + '?'
@@ -529,11 +530,14 @@ begin
 end;
 
 function TRestRequest.Execute: TAsyncBuilder<IRestResponse>;
+var
+  Data: IRestRequestData;
+  Client: TRestClient;
+  Body: TStream;
+  OwnsBody: Boolean;
 begin
-  var Data := GetData;
-  var Client := Data.GetClient;
-  var Body: TStream;
-  var OwnsBody: Boolean;
+  Data := GetData;
+  Client := Data.GetClient;
 
   if Data.HasMultipartData then
   begin

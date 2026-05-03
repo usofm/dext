@@ -1,4 +1,4 @@
-﻿program Web.EventBusDemo;
+program Web.EventBusDemo;
 
 {$APPTYPE CONSOLE}
 (*
@@ -33,6 +33,7 @@ var
   App: IWebApplication;
 begin
   try
+    SetConsoleCharSet(65001);
     WriteLn('==============================================');
     WriteLn(' Dext Event Bus — Web Integration Demo');
     WriteLn('==============================================');

@@ -217,6 +217,9 @@ begin
 end;
 
 procedure TDextIndyWebServer.Run;
+var
+  LifetimeIntf: IInterface;
+  Lifetime: IHostApplicationLifetime;
 begin
   Start;
 
@@ -238,8 +241,8 @@ begin
   signal(SIGTERM, @SignalHandler);
 {$ENDIF}
   // Get Lifetime Service to observe external stop requests
-  var LifetimeIntf := FServices.GetServiceAsInterface(TServiceType.FromInterface(IHostApplicationLifetime));
-  var Lifetime: IHostApplicationLifetime := nil;
+  LifetimeIntf := FServices.GetServiceAsInterface(TServiceType.FromInterface(IHostApplicationLifetime));
+  Lifetime := nil;
   if LifetimeIntf <> nil then
       Lifetime := LifetimeIntf as IHostApplicationLifetime;
 

@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.AdvancedQuery;
+unit EntityDemo.Tests.AdvancedQuery;
 
 interface
 
@@ -97,6 +97,7 @@ var
   AvgAge: Double;
   MinAge, MaxAge: Double;
   Addr: TAddress;
+  U1, U2, U3: TUser;
 begin
   Log('   Testing Aggregations...');
 
@@ -107,17 +108,17 @@ begin
   FContext.Entities<TAddress>.Add(Addr);
   FContext.SaveChanges;
 
-  var U1 := TUser.Create;
+  U1 := TUser.Create;
   U1.Name := 'A';
   U1.Age := 10;
   U1.AddressId := Addr.Id;
   FContext.Entities<TUser>.Add(U1);
-  var U2 := TUser.Create;
+  U2 := TUser.Create;
   U2.Name := 'B';
   U2.Age := 20;
   U2.AddressId := Addr.Id;
   FContext.Entities<TUser>.Add(U2);
-  var U3 := TUser.Create;
+  U3 := TUser.Create;
   U3.Name := 'C';
   U3.Age := 30;
   U3.AddressId := Addr.Id;
@@ -184,6 +185,7 @@ var
   CitiesQuery: TFluentQuery<string>;
   DistinctCities: IList<string>; // Changed to IList
   Addr: TAddress;
+  U4, U5, U6: TUser;
 begin
   Log('   Testing Distinct...');
 
@@ -195,19 +197,19 @@ begin
   FContext.SaveChanges;
 
   // Let's add users with duplicate cities
-  var U4 := TUser.Create;
+  U4 := TUser.Create;
   U4.Name := 'D';
   U4.City := 'New York';
   U4.AddressId := Addr.Id;
   FContext.Entities<TUser>.Add(U4);
 
-  var U5 := TUser.Create;
+  U5 := TUser.Create;
   U5.Name := 'E';
   U5.City := 'New York';
   U5.AddressId := Addr.Id;
   FContext.Entities<TUser>.Add(U5);
 
-  var U6 := TUser.Create;
+  U6 := TUser.Create;
   U6.Name := 'F';
   U6.City := 'London';
   U6.AddressId := Addr.Id;
@@ -244,6 +246,8 @@ var
   Paged: IPagedResult<TUser>;
   i: Integer;
   Addr: TAddress;
+  U: TUser;
+  Query: TFluentQuery<TUser>;
 begin
   Log('   Testing Pagination...');
 
@@ -258,14 +262,14 @@ begin
   // Let's add 4 more to make 10
   for i := 7 to 10 do
   begin
-    var U := TUser.Create;
+    U := TUser.Create;
     U.Name := 'User' + i.ToString;
     U.AddressId := Addr.Id;
     FContext.Entities<TUser>.Add(U);
   end;
   FContext.SaveChanges;
 
-  var Query := FContext.Entities<TUser>.QueryAll;
+  Query := FContext.Entities<TUser>.QueryAll;
   // Page 1 of 3 (Size 3) -> 10 items total -> 4 pages (3, 3, 3, 1)
   Paged := Query.Paginate(1, 3);
   AssertTrue(Paged.TotalCount = 10, 'TotalCount should be 10', Format('TotalCount: %d', [Paged.TotalCount]));
@@ -286,6 +290,9 @@ var
   Grouped: TFluentQuery<IGrouping<string, TUser>>;
   GroupsList: IList<IGrouping<string, TUser>>; // Changed to IList
   Group: IGrouping<string, TUser>;
+  UsersQuery: TFluentQuery<TUser>;
+  Count: Integer;
+  U: TUser;
 begin
   Log('   Testing GroupBy...');
 
@@ -293,7 +300,7 @@ begin
   // U4, U5 -> New York
   // U6 -> London
 
-  var UsersQuery := FContext.Entities<TUser>.QueryAll;
+  UsersQuery := FContext.Entities<TUser>.QueryAll;
 
   // Use the TQuery.GroupBy function
   Grouped := TQuery.GroupBy<TUser, string>(UsersQuery.Where(
@@ -316,15 +323,15 @@ begin
     if Group.Key = 'New York' then
     begin
      // Count items in group
-      var Count := 0;
-      for var U in Group do
+      Count := 0;
+      for U in Group do
         Inc(Count);
       AssertTrue(Count = 2, 'New York group should have 2 users', Format('Found %d', [Count]));
     end
     else if Group.Key = 'London' then
     begin
-      var Count := 0;
-      for var U in Group do
+      Count := 0;
+      for U in Group do
         Inc(Count);
       AssertTrue(Count = 1, 'London group should have 1 user', Format('Found %d',
         [Count]));
@@ -414,12 +421,14 @@ end;
 procedure TAdvancedQueryTest.TestTypeSafeQuery;
 var
   Users: IList<TUser>;
+  U: TUser;
+  Query: TFluentQuery<TUser>;
 begin
   Log('   Testing Type-Safe Query (TUserType)...');
   TearDown;
   Setup;
 
-  var U := TUser.Create;
+  U := TUser.Create;
   U.Name := 'TypeSafe User';
   U.Age := 25;
   FContext.Entities<TUser>.Add(U);
@@ -431,7 +440,7 @@ begin
   // Where(...) takes ISpecification or IExpression (via implicit?)
   // TFluentQuery.Where(Expression) exists.
   
-  var Query := FContext.Entities<TUser>.QueryAll
+  Query := FContext.Entities<TUser>.QueryAll
     .Where(TUserType.Age > 18)
     .Where(TUserType.Name <> '');
     //.Where(TUserType.Age > 18)

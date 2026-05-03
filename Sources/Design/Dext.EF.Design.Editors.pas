@@ -68,6 +68,7 @@ var
   ProjectGroup: IOTAProjectGroup;
   Project: IOTAProject;
   I, J, K: Integer;
+  CurFile: string;
 begin
   Result := nil;
   ModuleServices := BorlandIDEServices as IOTAModuleServices;
@@ -91,7 +92,7 @@ begin
         
         for K := 0 to Project.GetModuleCount - 1 do
         begin
-          var CurFile := Project.GetModule(K).FileName;
+          CurFile := Project.GetModule(K).FileName;
           if (CurFile = '') or (Module.FileName = '') then Continue;
 
           if SameText(TPath.GetFullPath(CurFile), TPath.GetFullPath(Module.FileName)) then
@@ -230,13 +231,16 @@ begin
 end;
 
 procedure RefreshBoundDataSets(AProvider: TEntityDataProvider; ADesigner: IDesigner);
+var
+  I: Integer;
+  OwnedComponent: TComponent;
 begin
   if (AProvider = nil) or (AProvider.Owner = nil) then
     Exit;
 
-  for var I := 0 to AProvider.Owner.ComponentCount - 1 do
+  for I := 0 to AProvider.Owner.ComponentCount - 1 do
   begin
-    var OwnedComponent := AProvider.Owner.Components[I];
+    OwnedComponent := AProvider.Owner.Components[I];
     if (OwnedComponent is TEntityDataSet) and
        (TEntityDataSet(OwnedComponent).DataProvider = AProvider) and
        (TEntityDataSet(OwnedComponent).EntityClassName <> '') then
@@ -365,6 +369,7 @@ var
   HasUsesMatch: Boolean;
   InsertPosition: Integer;
   InsertText: string;
+  Match: TMatch;
 begin
   if AUnitName = '' then
     Exit;
@@ -383,7 +388,7 @@ begin
 
   UsesMatches := TRegEx.Matches(Source, RegexUsesSection, [roIgnoreCase, roMultiLine]);
   HasUsesMatch := False;
-  for var Match in UsesMatches do
+  for Match in UsesMatches do
   begin
     if Match.Index > ImplementationMatch.Index then
     begin
@@ -417,22 +422,26 @@ begin
 end;
 
 procedure TEntityDataProviderComponentProperty.GetValues(Proc: TGetStrProc);
+var
+  I: Integer;
+  OwnedComponent: TComponent;
+  Component: TComponent;
 begin
   if (GetComponent(0) <> nil) and (GetComponent(0) is TComponent) and
      (TComponent(GetComponent(0)).Owner <> nil) then
   begin
-    for var I := 0 to TComponent(GetComponent(0)).Owner.ComponentCount - 1 do
+    for I := 0 to TComponent(GetComponent(0)).Owner.ComponentCount - 1 do
     begin
-      var OwnedComponent := TComponent(GetComponent(0)).Owner.Components[I];
+      OwnedComponent := TComponent(GetComponent(0)).Owner.Components[I];
       if OwnedComponent is TEntityDataProvider then
         Proc(OwnedComponent.Name);
     end;
     Exit;
   end;
 
-  for var I := 0 to Designer.Root.ComponentCount - 1 do
+  for I := 0 to Designer.Root.ComponentCount - 1 do
   begin
-    var Component := Designer.Root.Components[I];
+    Component := Designer.Root.Components[I];
     if Component is TEntityDataProvider then
       Proc((Component as TComponent).Name);
   end;
@@ -581,6 +590,11 @@ procedure TEntityDataSetSelectionEditor.ExecuteVerb(Index: Integer; const List: 
 var
   DataSet: TEntityDataSet;
   Provider: TEntityDataProvider;
+  I: Integer;
+  UnitName: string;
+  DP: IEntityDataProvider;
+  Entities: TArray<string>;
+  Selected: string;
 begin
   if (List.Count = 0) or not (List[0] is TEntityDataSet) then
     Exit;
@@ -601,11 +615,11 @@ begin
           Exit;
 
         // Re-scan only the unit of this entity if possible
-        var UnitName := Provider.GetEntityUnitName(DataSet.EntityClassName);
+        UnitName := Provider.GetEntityUnitName(DataSet.EntityClassName);
         if UnitName <> '' then
         begin
           // Find the full filename from ModelUnits
-          for var I := 0 to Provider.ModelUnits.Count - 1 do
+          for I := 0 to Provider.ModelUnits.Count - 1 do
           begin
             if SameText(ChangeFileExt(ExtractFileName(Provider.ModelUnits[I]), ''), UnitName) then
             begin
@@ -643,10 +657,10 @@ begin
         if Provider = nil then
           Exit;
 
-        var UnitName := Provider.GetEntityUnitName(DataSet.EntityClassName);
+        UnitName := Provider.GetEntityUnitName(DataSet.EntityClassName);
         if UnitName <> '' then
         begin
-          for var I := 0 to Provider.ModelUnits.Count - 1 do
+          for I := 0 to Provider.ModelUnits.Count - 1 do
           begin
             if SameText(ChangeFileExt(ExtractFileName(Provider.ModelUnits[I]), ''), UnitName) then
             begin
@@ -679,11 +693,11 @@ begin
       end;
     5: // Dext: Search Entity Class...
       begin
-        var DP: IEntityDataProvider;
+        DP := nil;
         if Assigned(DataSet.DataProvider) and DataSet.DataProvider.GetInterface(IEntityDataProvider, DP) then
         begin
-          var Entities := DP.GetEntities;
-          var Selected := DataSet.EntityClassName;
+          Entities := DP.GetEntities;
+          Selected := DataSet.EntityClassName;
           if SelectEntity(Entities, Selected) then
           begin
             DataSet.EntityClassName := Selected;

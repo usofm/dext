@@ -304,6 +304,7 @@ var
   BodyStream: TStream;
   BodyContent: string;
   Buffer: TBytes;
+  OldPos: Int64;
 begin
   Stopwatch := TStopwatch.StartNew;
   
@@ -322,7 +323,7 @@ begin
     BodyStream := AContext.Request.Body;
     if BodyStream.Size <= FOptions.MaxBodySize then
     begin
-      var OldPos := BodyStream.Position;
+      OldPos := BodyStream.Position;
       try
         BodyStream.Position := 0;
         SetLength(Buffer, BodyStream.Size);

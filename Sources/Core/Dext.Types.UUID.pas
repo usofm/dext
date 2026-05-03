@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -181,6 +181,7 @@ end;
 class function TUUID.FromString(const S: string): TUUID;
 var
   CleanStr: string;
+  I: Integer;
 begin
   CleanStr := S.Trim;
   
@@ -195,7 +196,7 @@ begin
     raise Exception.CreateFmt('Invalid UUID string: %s', [S]);
   
   // Parse hex string to bytes (Big-Endian)
-  for var I := 0 to 15 do
+  for I := 0 to 15 do
     Result.FBytes[I] := StrToInt('$' + CleanStr.Substring(I * 2, 2));
 end;
 

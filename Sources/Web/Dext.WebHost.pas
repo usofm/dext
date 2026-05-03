@@ -123,13 +123,18 @@ begin
 end;
 
 function TWebHostBuilder.UseUrls(const AUrls: string): IWebHostBuilder;
+var
+  Parts: TArray<string>;
+  CleanUrls: TArray<string>;
+  Part: string;
+  Trimmed: string;
 begin
   // Simple split by comma or semicolon
-  var Parts := AUrls.Split([',', ';']);
-  var CleanUrls: TArray<string>;
-  for var Part in Parts do
+  Parts := AUrls.Split([',', ';']);
+  CleanUrls := nil;
+  for Part in Parts do
   begin
-    var Trimmed := Part.Trim;
+    Trimmed := Part.Trim;
     if Trimmed <> '' then
     begin
       SetLength(CleanUrls, Length(CleanUrls) + 1);
@@ -148,6 +153,8 @@ var
   Host: IWebApplication;
   Port: Integer;
   PortStr: string;
+  FirstUrl: string;
+  ColonPos: Integer;
 begin
   // 1. Create the Application Builder with the DI Container
   // The services registered in FServices are transferred/copied to the builder
@@ -191,10 +198,10 @@ begin
   // 3. Determine Port from URLs (Naive implementation - takes first URL's port)
   if Length(FUrls) > 0 then
   begin
-    var FirstUrl := FUrls[0];
+    FirstUrl := FUrls[0];
     // http://localhost:5000
     // Very basic parsing for now
-    var ColonPos := LastDelimiter(':', FirstUrl);
+    ColonPos := LastDelimiter(':', FirstUrl);
     if ColonPos > 0 then
     begin
       PortStr := Copy(FirstUrl, ColonPos + 1, Length(FirstUrl));

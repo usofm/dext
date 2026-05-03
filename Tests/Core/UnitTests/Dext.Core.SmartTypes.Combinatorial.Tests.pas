@@ -115,39 +115,50 @@ begin
 end;
 
 procedure TSmartTypesCombinatorialTests.Test_FloatType_Stability;
+var
+  V: Double;
 begin
   // Using Invariant to avoid decimal separator issues in tests
-  var V: Double := 1234.56;
+  V := 1234.56;
   TestTypeStability<Double>(V, TValueConverter.Convert<string>(V));
 end;
 
 procedure TSmartTypesCombinatorialTests.Test_CurrencyType_Stability;
+var
+  V: Currency;
 begin
-  var V: Currency := 99.99;
+  V := 99.99;
   TestTypeStability<Currency>(V, TValueConverter.Convert<string>(V));
 end;
 
 procedure TSmartTypesCombinatorialTests.Test_DateTimeType_Stability;
+var
+  D: TDateTime;
 begin
-  var D := EncodeDateTime(2025, 12, 19, 14, 30, 0, 0);
+  D := EncodeDateTime(2025, 12, 19, 14, 30, 0, 0);
   TestTypeStability<TDateTime>(D, TValueConverter.Convert<string>(D));
 end;
 
 procedure TSmartTypesCombinatorialTests.Test_DateType_Stability;
+var
+  D: TDate;
 begin
-  var D := EncodeDate(2025, 12, 19);
+  D := EncodeDate(2025, 12, 19);
   TestTypeStability<TDate>(D, TValueConverter.Convert<string>(D));
 end;
 
 procedure TSmartTypesCombinatorialTests.Test_TimeType_Stability;
+var
+  T: TTime;
 begin
-  var T := EncodeTime(14, 30, 0, 0);
+  T := EncodeTime(14, 30, 0, 0);
   TestTypeStability<TTime>(T, TValueConverter.Convert<string>(T));
 end;
 
 procedure TSmartTypesCombinatorialTests.Test_QueryMode_Expression_Generation;
 var
   P: Prop<Integer>;
+  Expr: ISpecification;
 begin
   // Create a pseudo-query mode prop
   P := Default(Prop<Integer>);
@@ -156,7 +167,7 @@ begin
   Should(P.IsQueryMode).BeTrue;
   Should(P.Name).Be('Age');
   
-  var Expr := P > 18;
+  Expr := P > 18;
   Should(Expr.Expression).NotBeNil;
   Should(Expr.Expression.Kind).Be(ekBinary);
   Should(TBinaryExpression(Expr.Expression).Operator).Be(boGreaterThan);

@@ -1,4 +1,4 @@
-﻿unit Dext.Web.Middleware.Compression;
+unit Dext.Web.Middleware.Compression;
 
 interface
 
@@ -115,6 +115,7 @@ var
   OriginalResponse: IHttpResponse;
   CompressedStream: TMemoryStream;
   ZStream: TZCompressionStream;
+  OutBuffer: TBytes;
 begin
   AcceptEncoding := AContext.Request.GetHeader('Accept-Encoding').ToLower;
   
@@ -148,7 +149,7 @@ begin
         OriginalResponse.SetContentLength(CompressedStream.Size);
         
         CompressedStream.Position := 0;
-        var OutBuffer: TBytes;
+        OutBuffer := nil;
         SetLength(OutBuffer, CompressedStream.Size);
         CompressedStream.ReadBuffer(OutBuffer[0], CompressedStream.Size);
         OriginalResponse.Write(OutBuffer);

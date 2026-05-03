@@ -365,16 +365,20 @@ end;
 procedure TTestCommand.GenerateCoverageLists(const BaseDir, SourceDir: string; const Excludes: TArray<string>; out UnitFile, SourcePathFile: string);
   
   function GetUnitNameFromFile(const FileName: string): string;
+  var
+    Lines: TArray<string>;
+    Line, Trimmed: string;
+    Parts: TArray<string>;
   begin
     Result := TPath.GetFileNameWithoutExtension(FileName); 
     try
-      var Lines := TFile.ReadAllLines(FileName);
-      for var Line in Lines do
+      Lines := TFile.ReadAllLines(FileName);
+      for Line in Lines do
       begin
-        var Trimmed := Line.Trim;
+        Trimmed := Line.Trim;
         if Trimmed.ToLower.StartsWith('unit ') then
         begin
-          var Parts := Trimmed.Split([' ', ';']);
+          Parts := Trimmed.Split([' ', ';']);
           if Length(Parts) >= 2 then
           begin
             Result := Parts[1];
@@ -390,7 +394,7 @@ procedure TTestCommand.GenerateCoverageLists(const BaseDir, SourceDir: string; c
 var
   Units, Paths: TStringList;
   Files: TArray<string>;
-  FileName, UnitName, Mask: string;
+  FileName, UnitName, Mask, Dir: string;
   Excluded: Boolean;
 begin
   SafeWriteLn('Scanning sources in: ' + SourceDir);
@@ -430,7 +434,7 @@ begin
       end;
       if Excluded then Continue;
       Units.Add(UnitName + ExtractFileExt(FileName));
-      var Dir := ExtractFilePath(FileName);
+      Dir := ExtractFilePath(FileName);
       if Paths.IndexOf(Dir) = -1 then Paths.Add(Dir);
     end;
     UnitFile := TPath.Combine(TPath.Combine(BaseDir, BUILD_DIR), 'units.lst');
@@ -471,6 +475,7 @@ end;
 procedure TTestCommand.RunWithCoverage(const ProjectFile: string; const Args: TCommandLineArgs; Config: TDextConfig; GlobalConfig: TDextGlobalConfig; const DesiredDelphi: string);
 var
   ExePath, MapPath, UnitLst, SourceLst, CoverageCmd, DCCExe, SourceDir: string;
+  ReportDir, XmlPath, HtmlPath, JsonPath, TestArgs, DccXml, SonarXml, HtmlReport: string;
 begin
   SourceDir := GetSourceDirectory(GetCurrentDir);
   GenerateAutoInclude(GetCurrentDir, SourceDir);
@@ -495,22 +500,22 @@ begin
   end;
 
   SafeWriteLn('Executing Code Coverage using: ' + DCCExe);
-  var ReportDir := TPath.Combine(TPath.GetDirectoryName(ExePath), 'report');
+  ReportDir := TPath.Combine(TPath.GetDirectoryName(ExePath), 'report');
   if Config.Test.ReportDir <> '' then
      ReportDir := TPath.GetFullPath(TPath.Combine(ExtractFileDir(ProjectFile), Config.Test.ReportDir));
 
   ForceDirectories(ReportDir);
   
-  var XmlPath := TPath.Combine(ReportDir, 'test-results.xml');
-  var HtmlPath := TPath.Combine(ReportDir, 'test-results.html');
-  var JsonPath := TPath.Combine(ReportDir, 'test-results.json');
+  XmlPath := TPath.Combine(ReportDir, 'test-results.xml');
+  HtmlPath := TPath.Combine(ReportDir, 'test-results.html');
+  JsonPath := TPath.Combine(ReportDir, 'test-results.json');
   
   // Create placeholders to satisfy potential existence checks
   TFile.WriteAllText(XmlPath, '');
   TFile.WriteAllText(HtmlPath, '');
   TFile.WriteAllText(JsonPath, '');
 
-  var TestArgs := Format('^-junit:"%s" ^-html:"%s" ^-json:"%s"', [XmlPath, HtmlPath, JsonPath]);
+  TestArgs := Format('^-junit:"%s" ^-html:"%s" ^-json:"%s"', [XmlPath, HtmlPath, JsonPath]);
   
   CoverageCmd := Format('-e "%s" -m "%s" -uf "%s" -spf "%s" -od "%s" -lt -html -xml -xmllines -a %s', 
     [ExePath, MapPath, UnitLst, SourceLst, ReportDir, TestArgs]);
@@ -526,8 +531,8 @@ begin
     else
     begin
       SafeWriteLn('Coverage analysis complete. Check output in ' + ReportDir);
-      var DccXml := TPath.Combine(ReportDir, 'CodeCoverage_Summary.xml');
-      var SonarXml := TPath.Combine(ReportDir, 'dext_coverage.xml');
+      DccXml := TPath.Combine(ReportDir, 'CodeCoverage_Summary.xml');
+      SonarXml := TPath.Combine(ReportDir, 'dext_coverage.xml');
       TSonarConverter.Convert(DccXml, SonarXml, SourceDir, Config.Test.CoverageThreshold);
       
       // Check if tests actually passed
@@ -539,7 +544,7 @@ begin
       
       if Args.HasOption('open') then
       begin
-         var HtmlReport := TPath.Combine(ReportDir, 'CodeCoverage_Summary.html');
+         HtmlReport := TPath.Combine(ReportDir, 'CodeCoverage_Summary.html');
          if FileExists(HtmlReport) then
          begin
             SafeWriteLn('Opening report: ' + HtmlReport);

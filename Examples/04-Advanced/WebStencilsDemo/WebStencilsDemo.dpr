@@ -1,4 +1,4 @@
-﻿program WebStencilsDemo;
+program WebStencilsDemo;
 
 {$APPTYPE CONSOLE}
 
@@ -12,18 +12,21 @@ uses
   Startup in 'Startup.pas',
   Customer in 'Models\Customer.pas';
 
+var
+  App: IWebApplication;
+  Provider: IServiceProvider;
 begin
   SetConsoleCharset;
   try
     // Use the WebApplication helper for a cleaner setup
-    var App: IWebApplication := WebApplication;
+    App := WebApplication;
     
     // Register the startup class
     App.UseStartup(TStartup.Create);
 
     // Build services and seed database BEFORE running
     Writeln('🔧 Initializing services...');
-    var Provider := App.BuildServices;
+    Provider := App.BuildServices;
 
     Writeln('📦 Setting up database...');
     TStartup.SeedData(Provider);

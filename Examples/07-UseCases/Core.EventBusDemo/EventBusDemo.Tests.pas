@@ -41,6 +41,7 @@ var
   Provider: IServiceProvider;
   Tracker: TEventBusTracker;
   OrderSvc: IOrderService;
+  Last: TOrderPlacedEvent;
 begin
   // Arrange
   Services := TDextServices.New;
@@ -60,7 +61,7 @@ begin
   PrintResult('PublishedCount = 1',
     Tracker.PublishedCount<TOrderPlacedEvent> = 1);
 
-  var Last := Tracker.LastPublished<TOrderPlacedEvent>;
+  Last := Tracker.LastPublished<TOrderPlacedEvent>;
   PrintResult('OrderId = 101',    Last.OrderId = 101);
   PrintResult('CustomerId = 55',  Last.CustomerId = 55);
   PrintResult('ItemCount = 3',    Last.ItemCount = 3);
@@ -73,6 +74,7 @@ var
   Provider: IServiceProvider;
   Tracker: TEventBusTracker;
   OrderSvc: IOrderService;
+  All: TArray<TOrderPlacedEvent>;
 begin
   Services := TDextServices.New;
   TEventBusTracker.Register(Services, Tracker)
@@ -89,7 +91,7 @@ begin
   PrintResult('Three orders -> count = 3',
     Tracker.PublishedCount<TOrderPlacedEvent> = 3);
 
-  var All := Tracker.GetPublished<TOrderPlacedEvent>;
+  All := Tracker.GetPublished<TOrderPlacedEvent>;
   PrintResult('GetPublished returns 3 items', Length(All) = 3);
   PrintResult('First order ID = 201', All[0].OrderId = 201);
   PrintResult('Last order ID = 203',  All[2].OrderId = 203);

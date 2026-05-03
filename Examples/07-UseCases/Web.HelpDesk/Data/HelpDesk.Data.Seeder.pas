@@ -1,4 +1,4 @@
-﻿unit HelpDesk.Data.Seeder;
+unit HelpDesk.Data.Seeder;
 
 {***************************************************************************}
 {                                                                           }
@@ -31,32 +31,32 @@ uses
   HelpDesk.Domain.Enums;
 
 class procedure TDbSeeder.Seed(const Provider: IServiceProvider);
-var
-  Scope: IServiceScope;
-  Db: THelpDeskContext;
-  Agent, Customer: TUser;
-  Ticket1, Ticket2: TTicket;
-  Comment: TComment;
-begin
-  Scope := Provider.CreateScope;
-  try
-    Db := Scope.ServiceProvider.GetService(THelpDeskContext) as THelpDeskContext;
+  var
+    Scope: IServiceScope;
+    Db: THelpDeskContext;
+    Agent, Customer, Admin: TUser;
+    Ticket1, Ticket2: TTicket;
+    Comment: TComment;
+  begin
+    Scope := Provider.CreateScope;
+    try
+      Db := Scope.ServiceProvider.GetService(THelpDeskContext) as THelpDeskContext;
 
-    // Create Schema
-    if Db.EnsureCreated then
-      WriteLn('Database created successfully.');
+      // Create Schema
+      if Db.EnsureCreated then
+        WriteLn('Database created successfully.');
 
-    // Check if seeded
-    if Db.Users.QueryAll.Any then
-    begin
-      WriteLn('Database already seeded.');
-      Exit;
-    end;
+      // Check if seeded
+      if Db.Users.QueryAll.Any then
+      begin
+        WriteLn('Database already seeded.');
+        Exit;
+      end;
 
-    WriteLn('Seeding HelpDesk data...');
+      WriteLn('Seeding HelpDesk data...');
 
-    // 1. Users
-    var Admin := TUser.Create;
+      // 1. Users
+      Admin := TUser.Create;
     Admin.Name := 'System Administrator';
     Admin.Email := 'admin@helpdesk.com';
     Admin.PasswordHash := 'hash_1234';

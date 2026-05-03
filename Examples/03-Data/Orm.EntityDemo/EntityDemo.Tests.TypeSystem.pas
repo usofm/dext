@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.TypeSystem;
+unit EntityDemo.Tests.TypeSystem;
 
 interface
 
@@ -105,6 +105,9 @@ begin
 end;
 
 procedure TTypeSystemTest.TestChicFluentAdd;
+var
+  SimpleUserBuilder: TFunc<string, Integer, TUser>;
+  MetaUserBuilder: TFunc<string, Integer, TUser>;
 begin
   Log('   Testing "Chic" Fluent Add syntax...');
   TearDown;
@@ -131,7 +134,7 @@ begin
       end);
       
   // Syntax 3: "Local Factory" Pattern (Manual version)
-  var SimpleUserBuilder := function(const AName: string; AAge: Integer): TUser
+  SimpleUserBuilder := function(AName: string; AAge: Integer): TUser
     begin
        Result := TUser.Create;
        Result.Name := AName;
@@ -139,7 +142,7 @@ begin
     end;    
 
   // Syntax 4: "Metadata Factory" (Power version using TypeSystem)
-  var MetaUserBuilder := function(const AName: string; AAge: Integer): TUser
+  MetaUserBuilder := function(AName: string; AAge: Integer): TUser
     begin
        Result := TEntityType<TUser>.Construct(procedure(B: IEntityBuilder<TUser>)
          begin

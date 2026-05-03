@@ -163,6 +163,7 @@ begin
     procedure(AContext: IHttpContext)
     var
       MiddlewareInstance: IMiddleware;
+      Obj: TObject;
     begin
       if Registration.IsDelegate then
       begin
@@ -177,7 +178,7 @@ begin
       else
       begin
         // Handle Class Middleware
-        var Obj := TActivator.CreateInstance(ServiceProvider, Registration.MiddlewareClass, Registration.Parameters);
+        Obj := TActivator.CreateInstance(ServiceProvider, Registration.MiddlewareClass, Registration.Parameters);
         try
           if not Supports(Obj, IMiddleware, MiddlewareInstance) then
             raise EArgumentException.Create('Middleware must implement IMiddleware');
@@ -490,6 +491,7 @@ var
   RoutingMiddleware: IMiddleware;
   RouteMatcher: IRouteMatcher;
   RoutingHandler: TRequestDelegate;
+  I: Integer;
 begin
   // Final pipeline - returns 404
   FinalPipeline :=
@@ -510,7 +512,7 @@ begin
   RoutingHandler := CreateRoutingDelegate(RoutingMiddleware, FinalPipeline);
 
   // Build pipeline: other middlewares -> routing -> 404
-  for var I := FMiddlewares.Count - 1 downto 0 do
+  for I := FMiddlewares.Count - 1 downto 0 do
   begin
     RoutingHandler := CreateMiddlewarePipeline(FMiddlewares[I], RoutingHandler);
   end;

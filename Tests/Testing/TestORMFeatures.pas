@@ -1,4 +1,4 @@
-﻿unit TestORMFeatures;
+unit TestORMFeatures;
 
 {$I ..\..\Sources\Dext.inc}
 
@@ -524,6 +524,7 @@ var
   Product: TProductVersion;
   StaleProduct: TProductVersion;
   ExceptionRaised: Boolean;
+  ProductId: Integer;
 begin
   // Arrange: Create and then delete product
   Product := TProductVersion.Create; Track(Product);
@@ -534,7 +535,7 @@ begin
   FContext.Products.Add(Product);
   FContext.SaveChanges;
   
-  var ProductId := Product.Id;
+  ProductId := Product.Id;
   
   // Load in second context (simulates another user)
   FContext2.DetachAll;
@@ -606,6 +607,7 @@ var
   Doc: TDocument;
   Cmd: IDbCommand;
   IsDeletedVal: Integer;
+  DocId: Integer;
 begin
   // Arrange
   Doc := TDocument.Create; Track(Doc);
@@ -615,7 +617,7 @@ begin
   FContext.Documents.Add(Doc);
   FContext.SaveChanges;
   
-  var DocId := Doc.Id;
+  DocId := Doc.Id;
   
   // Act: Remove (should soft delete)
   FContext.Documents.Remove(Doc);
@@ -974,9 +976,12 @@ end;
 // TRelationshipTests
 // ============================================================================
 
+{$HINTS OFF}
 procedure TRelationshipTests.Setup;
 var
   DbConn: IDbConnection;
+  Dummy1: Lazy<TUserProfile>;
+  Dummy2: Lazy<TAuthor>;
 begin
   // FEntities does NOT own objects - ORM's IdentityMap manages their lifetime
   FEntities := TCollections.CreateList<TObject>(False);
@@ -991,11 +996,12 @@ begin
   FContext := TORMFeaturesContext.Create(DbConn);
   
   // Force RTTI for generics
-  var Dummy1: Lazy<TUserProfile>;
-  var Dummy2: Lazy<TAuthor>;
+  Dummy1.Create; // Use it to avoid warnings if necessary, or just keep as is
+  Dummy2.Create;
   
   SetupSchema;
 end;
+{$HINTS ON}
 
 procedure TRelationshipTests.SetupSchema;
 begin

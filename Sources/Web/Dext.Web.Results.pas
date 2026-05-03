@@ -330,6 +330,9 @@ var
   Formatter: IOutputFormatter;
   Selector: IOutputFormatterSelector;
   Formatters: TArray<IOutputFormatter>;
+  SelectorObj: IInterface;
+  RegistryObj: IInterface;
+  Registry: IOutputFormatterRegistry;
 begin
   AContext.Response.StatusCode := FStatusCode;
   Ctx := TOutputFormatterContext.Create(AContext, TypeInfo(T), TValue.From<T>(FValue));
@@ -339,16 +342,16 @@ begin
   // 1. Resolve Selector
   if AContext.Services <> nil then
   begin
-    var SelectorObj := AContext.Services.GetServiceAsInterface(TServiceType.FromInterface(TypeInfo(IOutputFormatterSelector)));
+    SelectorObj := AContext.Services.GetServiceAsInterface(TServiceType.FromInterface(TypeInfo(IOutputFormatterSelector)));
     if SelectorObj <> nil then
     begin
        Selector := SelectorObj as IOutputFormatterSelector;
 
        // 2. Resolve Formatters via Registry
-       var RegistryObj := AContext.Services.GetServiceAsInterface(TServiceType.FromInterface(TypeInfo(IOutputFormatterRegistry)));
+       RegistryObj := AContext.Services.GetServiceAsInterface(TServiceType.FromInterface(TypeInfo(IOutputFormatterRegistry)));
        if RegistryObj <> nil then
        begin
-          var Registry := RegistryObj as IOutputFormatterRegistry;
+          Registry := RegistryObj as IOutputFormatterRegistry;
           Formatters := Registry.GetAll;
           
           if Length(Formatters) > 0 then

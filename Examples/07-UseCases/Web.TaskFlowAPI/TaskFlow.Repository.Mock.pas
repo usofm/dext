@@ -95,6 +95,9 @@ function TTaskRepositoryMock.FilterTasks(const Tasks: TArray<TTask>;
 var
   Task: TTask;
   FilteredTasks: IList<TTask>;
+  StartIndex, EndIndex: Integer;
+  I: Integer;
+  PaginatedTasks: TArray<TTask>;
 begin
   FilteredTasks := TCollections.CreateList<TTask>;
   try
@@ -123,14 +126,14 @@ begin
     // Aplicar paginação
     if Filter.Page > 0 then
     begin
-      var StartIndex := (Filter.Page - 1) * Filter.PageSize;
-      var EndIndex := Min(StartIndex + Filter.PageSize, FilteredTasks.Count);
+      StartIndex := (Filter.Page - 1) * Filter.PageSize;
+      EndIndex := Min(StartIndex + Filter.PageSize, FilteredTasks.Count);
 
       if StartIndex < FilteredTasks.Count then
       begin
-        var PaginatedTasks: TArray<TTask> := [];
+        PaginatedTasks := [];
         SetLength(PaginatedTasks, EndIndex - StartIndex);
-        for var I := StartIndex to EndIndex - 1 do
+        for I := StartIndex to EndIndex - 1 do
           PaginatedTasks[I - StartIndex] := FilteredTasks[I];
         Result := PaginatedTasks;
       end
@@ -270,6 +273,7 @@ var
   Task: TTask;
   Status: TTaskStatus;
   CountArray: TArray<TTaskStatusCount>;
+  I: Integer;
 begin
   StatusCounts := TCollections.CreateDictionary<TTaskStatus, Integer>;
   try
@@ -283,7 +287,7 @@ begin
 
     // Converter para array
     SetLength(CountArray, StatusCounts.Count);
-    var I := 0;
+    I := 0;
     for Status in StatusCounts.Keys do
     begin
       CountArray[I] := TTaskStatusCount.Create(Status, StatusCounts[Status]);
@@ -303,6 +307,7 @@ var
   Pending, InProgress, Completed, Cancelled, Overdue: Integer;
   TotalCompletionTime: Double;
   CompletedCount: Integer;
+  AverageCompletionTime: Double;
 begin
   AllTasks := GetTasksArray;
 
@@ -335,7 +340,7 @@ begin
       Inc(Overdue);
   end;
 
-  var AverageCompletionTime := 0.0;
+  AverageCompletionTime := 0.0;
   if CompletedCount > 0 then
     AverageCompletionTime := TotalCompletionTime / CompletedCount;
 
@@ -439,6 +444,8 @@ end;
 // ===========================================================================
 
 procedure TTaskRepositoryMock.SeedSampleData;
+var
+  Task: TTask;
 begin
   // Dados de exemplo para testes
   CreateTask(TTask.Create('Implementar API REST', 'Criar endpoints da TaskFlow API', tpHigh, Now + 5));
@@ -448,7 +455,7 @@ begin
   CreateTask(TTask.Create('Refatorar código', 'Melhorar estrutura do projeto', tpMedium, Now + 10));
 
   // Marcar algumas como em progresso e completas
-  var Task := GetById(1);
+  Task := GetById(1);
   Task.Status := tsInProgress;
   UpdateTask(1, Task);
 

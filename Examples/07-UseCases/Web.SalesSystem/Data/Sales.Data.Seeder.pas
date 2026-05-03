@@ -28,6 +28,8 @@ class procedure TDbSeeder.Seed(const Provider: IServiceProvider);
 var
   Scope: IServiceScope;
   Db: TSalesDbContext;
+  P1, P2, P3: TProduct;
+  C1, C2: TCustomer;
 begin
   Writeln('[*] Initializing Database Seeding...');
   
@@ -52,17 +54,17 @@ begin
         Writeln('[*] Seeding initial data...');
         
         // Products
-        var P1 := TProduct.Create; P1.Name := 'Laptop Gamer'; P1.Price := 5000; P1.StockQuantity := 10;
-        var P2 := TProduct.Create; P2.Name := 'Mouse Wireless'; P2.Price := 150; P2.StockQuantity := 50;
-        var P3 := TProduct.Create; P3.Name := 'Mechanical Keyboard'; P3.Price := 400; P3.StockQuantity := 20;
+        P1 := TProduct.Create; P1.Name := 'Laptop Gamer'; P1.Price := 5000; P1.StockQuantity := 10;
+        P2 := TProduct.Create; P2.Name := 'Mouse Wireless'; P2.Price := 150; P2.StockQuantity := 50;
+        P3 := TProduct.Create; P3.Name := 'Mechanical Keyboard'; P3.Price := 400; P3.StockQuantity := 20;
         
         Db.Products.Add(P1);
         Db.Products.Add(P2);
         Db.Products.Add(P3);
         
         // Customers
-        var C1 := TCustomer.Create; C1.Name := 'John Doe'; C1.Email := 'john@example.com'; C1.Status := TCustomerStatus.Active; C1.CreditLimit := 10000;
-        var C2 := TCustomer.Create; C2.Name := 'Alice Smith'; C2.Email := 'alice@example.com'; C2.Status := TCustomerStatus.Active; C2.CreditLimit := 5000;
+        C1 := TCustomer.Create; C1.Name := 'John Doe'; C1.Email := 'john@example.com'; C1.Status := TCustomerStatus.Active; C1.CreditLimit := 10000;
+        C2 := TCustomer.Create; C2.Name := 'Alice Smith'; C2.Email := 'alice@example.com'; C2.Status := TCustomerStatus.Active; C2.CreditLimit := 5000;
         
         Db.Customers.Add(C1);
         Db.Customers.Add(C2);

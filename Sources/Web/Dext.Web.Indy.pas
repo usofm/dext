@@ -228,6 +228,7 @@ var
   P, EndP: PChar;
   Key, Value: string;
   Len: Integer;
+  EqP, AmpP: PChar;
 begin
   Result := TCollections.CreateStringDictionary(True);
   if AQuery = '' then Exit;
@@ -238,8 +239,8 @@ begin
 
   while P < EndP do
   begin
-    var EqP := StrScan(P, '=');
-    var AmpP := StrScan(P, '&');
+    EqP := StrScan(P, '=');
+    AmpP := StrScan(P, '&');
 
     if (AmpP = nil) or (AmpP > EndP) then
       AmpP := EndP;
@@ -332,11 +333,14 @@ var
   Stream: TStream;
   P, NextP: Int64;
   BoundaryBytes: TBytes;
+  Idx, SemiPos: Integer;
+  BoundaryValue: string;
 
   function FindBytes(const B: TBytes; Start: Int64): Int64;
   var
     J: Integer;
     Match: Boolean;
+    Bt: Byte;
   begin
     Result := -1;
     if Length(B) = 0 then Exit;
@@ -346,7 +350,6 @@ var
       Match := True;
       for J := 0 to Length(B) - 1 do
       begin
-        var Bt: Byte;
         if (Stream.Read(Bt, 1) <> 1) or (Bt <> B[J]) then
         begin
           Match := False;
@@ -371,6 +374,8 @@ var
     PartName, PartFileName, PartContentType: string;
     ContentDisp: string;
     B: Byte;
+    LowerLine: string;
+    ContentSize: Int64;
 
     function ExtractValue(const Key: string): string;
     var
@@ -428,7 +433,7 @@ var
       
       for Line in HeaderList do
       begin
-        var LowerLine := Line.ToLower;
+        LowerLine := Line.ToLower;
         if LowerLine.StartsWith('content-disposition:') then
         begin
           ContentDisp := Line;
@@ -445,7 +450,7 @@ var
       begin
         PartStream := TMemoryStream.Create;
         // The part content starts at HeaderEndPos and ends at Finish - 2 (CRLF before boundary)
-        var ContentSize := Finish - HeaderEndPos - 2;
+        ContentSize := Finish - HeaderEndPos - 2;
         if ContentSize > 0 then
         begin
           Stream.Position := HeaderEndPos;
@@ -463,13 +468,13 @@ begin
   ContentTypeStr := FRequestInfo.ContentType;
   if not ContentTypeStr.ToLower.StartsWith('multipart/form-data') then Exit;
   
-  var Idx := Pos('boundary=', ContentTypeStr.ToLower);
+  Idx := Pos('boundary=', ContentTypeStr.ToLower);
   if Idx = 0 then Exit;
   
   // Extract boundary value and clean it up
-  var BoundaryValue := Copy(ContentTypeStr, Idx + 9, MaxInt);
+  BoundaryValue := Copy(ContentTypeStr, Idx + 9, MaxInt);
   // Remove any trailing parameters (e.g., "; charset=...")
-  var SemiPos := Pos(';', BoundaryValue);
+  SemiPos := Pos(';', BoundaryValue);
   if SemiPos > 0 then
     BoundaryValue := Copy(BoundaryValue, 1, SemiPos - 1);
   // Remove surrounding quotes if present
@@ -498,6 +503,7 @@ end;
 function TDextIndyHttpRequest.GetBody: TStream;
 var
   FormData: string;
+  Bytes: TBytes;
 begin
   if FBodyStream = nil then
   begin
@@ -521,7 +527,7 @@ begin
         FormData := FRequestInfo.FormParams;
         
       FBodyStream := TMemoryStream.Create;
-      var Bytes := TEncoding.UTF8.GetBytes(FormData);
+      Bytes := TEncoding.UTF8.GetBytes(FormData);
       if Length(Bytes) > 0 then
         FBodyStream.WriteBuffer(Bytes[0], Length(Bytes));
       FBodyStream.Position := 0;
@@ -604,6 +610,7 @@ procedure TDextIndyHttpResponse.SetContentType(const AValue: string);
 var
   LParts: TArray<string>;
   i: Integer;
+  LPart: string;
 begin
   // Do NOT use AddHeader for Content-Type, Indy handles it natively via properties.
   // Adding it to CustomHeaders leads to duplicate headers which confuses some HTTP clients.
@@ -614,7 +621,7 @@ begin
     FResponseInfo.ContentType := LParts[0].Trim;
     for i := 1 to High(LParts) do
     begin
-      var LPart := LParts[i].Trim;
+      LPart := LParts[i].Trim;
       if LPart.ToLower.StartsWith('charset=') then
         FResponseInfo.CharSet := LPart.Substring(8).Trim
       else
@@ -668,6 +675,8 @@ begin
 end;
 
 procedure TDextIndyHttpResponse.Write(const AStream: TStream);
+var
+  MemStream: TMemoryStream;
 begin
   FResponseInfo.ContentStream := AStream;
   FResponseInfo.FreeContentStream := False; // We do not own external stream unless specified, usually caller owns it or it's a TFileStream.
@@ -684,7 +693,7 @@ begin
   // Let's implement copy for now to be safe and consistent with buffering. 
   // Optimization to TFileStream can be done if we detect type or add WriteFile().
   
-  var MemStream := TMemoryStream.Create;
+  MemStream := TMemoryStream.Create;
   MemStream.CopyFrom(AStream, 0);
   MemStream.Position := 0;
   FResponseInfo.ContentStream := MemStream;

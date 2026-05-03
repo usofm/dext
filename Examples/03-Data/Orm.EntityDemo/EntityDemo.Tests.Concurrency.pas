@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.Concurrency;
+unit EntityDemo.Tests.Concurrency;
 
 interface
 
@@ -26,6 +26,9 @@ procedure TConcurrencyTest.Run;
 var
   Context2: TDbContext;
   Dialect: ISQLDialect;
+  P, ProductA, ProductB, PDelete, ProductDeleteA, ProductDeleteB: TProduct;
+  SQL: string;
+  DBPrice: Double;
 begin
   Dialect := TDbConfig.CreateDialect;
   
@@ -36,7 +39,7 @@ begin
   //FContext.Entities<TProduct>; // Already registered in Base
   //FContext.EnsureCreated; // Already created in Base
 
-  var P := TProduct.Create;
+  P := TProduct.Create;
   P.Name := 'Concurrency Product';
   P.Price := 100;
   P.Version := 1; // Initial version
@@ -53,10 +56,10 @@ begin
     Context2.Entities<TProduct>; // Register in second context
     
     // User A loads product (from FContext)
-    var ProductA := FContext.Entities<TProduct>.Find(P.Id);
+    ProductA := FContext.Entities<TProduct>.Find(P.Id);
     
     // User B loads product (from Context2)
-    var ProductB := Context2.Entities<TProduct>.Find(P.Id);
+    ProductB := Context2.Entities<TProduct>.Find(P.Id);
     
     AssertTrue(ProductA.Version = 1, 'User A sees Version 1', 'User A Version mismatch');
     AssertTrue(ProductB.Version = 1, 'User B sees Version 1', 'User B Version mismatch');
@@ -83,17 +86,17 @@ begin
     end;
     
     // Verify DB state (use proper quoting for each database)
-    var SQL := Format('SELECT %s FROM %s WHERE %s = %d', 
+    SQL := Format('SELECT %s FROM %s WHERE %s = %d', 
       [Dialect.QuoteIdentifier('Price'), Dialect.QuoteIdentifier('products'), 
        Dialect.QuoteIdentifier('Id'), P.Id]);
-    var DBPrice: Double := FConn.ExecSQLScalar(SQL);
+    DBPrice := FConn.ExecSQLScalar(SQL);
     AssertTrue(DBPrice = 150, 'DB Price is 150 (User A)', 'DB Price mismatch: ' + DBPrice.ToString);
     
     // 3. Concurrent Delete Scenario
     Log('Testing Concurrent Delete...');
     
     // Create new product for delete test
-    var PDelete := TProduct.Create;
+    PDelete := TProduct.Create;
     PDelete.Name := 'Delete Product';
     PDelete.Price := 300;
     PDelete.Version := 1;
@@ -101,10 +104,10 @@ begin
     FContext.SaveChanges;
     
     // User A loads (FContext)
-    var ProductDeleteA := FContext.Entities<TProduct>.Find(PDelete.Id);
+    ProductDeleteA := FContext.Entities<TProduct>.Find(PDelete.Id);
     
     // User B loads (Context2)
-    var ProductDeleteB := Context2.Entities<TProduct>.Find(PDelete.Id);
+    ProductDeleteB := Context2.Entities<TProduct>.Find(PDelete.Id);
     
     // User A deletes
     FContext.Entities<TProduct>.Remove(ProductDeleteA);

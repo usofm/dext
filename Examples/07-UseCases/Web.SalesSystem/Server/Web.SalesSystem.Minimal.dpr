@@ -1,4 +1,4 @@
-﻿program Web.SalesSystem.Minimal;
+program Web.SalesSystem.Minimal;
 
 {$APPTYPE CONSOLE}
 
@@ -6,6 +6,7 @@ uses
   Dext.MM,
   Dext.Utils,
   Dext.Web,
+  Dext.DI.Interfaces,
   System.SysUtils,
   Sales.Startup in 'Sales.Startup.pas',
   Sales.Auth in 'Sales.Auth.pas',
@@ -16,13 +17,16 @@ uses
   Sales.Data.Context in '..\Data\Sales.Data.Context.pas',
   Sales.Data.Seeder in '..\Data\Sales.Data.Seeder.pas';
 
+var
+  App: IWebApplication;
+  Provider: IServiceProvider;
 begin
   SetConsoleCharSet;
   try
     WriteLn('🚀 Sales System Minimal API (CQRS Style)');
     WriteLn('========================================');
 
-    var App: IWebApplication := WebApplication;
+    App := WebApplication;
     
     // Register Startup Configuration
     App.UseStartup(TStartup.Create);
@@ -31,7 +35,7 @@ begin
     // This phase constructs the container and allows us to resolve the DbContext for migration/seeding
     // BEFORE the server starts accepting requests.
     try
-      var Provider := App.BuildServices;
+      Provider := App.BuildServices;
       TDbSeeder.Seed(Provider);
     except
       on E: Exception do

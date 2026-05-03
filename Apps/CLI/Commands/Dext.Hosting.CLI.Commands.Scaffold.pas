@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -119,7 +119,14 @@ var
   MappingStyle: TMappingStyle;
   PropertyStyle: TPropertyStyle;
   GenerateMetadata: Boolean;
-  I: Integer;
+  SchemaName: string;
+  MappingStr: string;
+  PropertyStr: string;
+  MetadataStr: string;
+  FilteredTables: TList<string>;
+  T, F: string;
+  SW, TableSW: TStopwatch;
+  TableName: string;
 begin
   // Check for help
   if Args.HasOption('help') or Args.HasOption('h') then
@@ -130,14 +137,14 @@ begin
 
   // Parse required arguments
   ConnectionStr := Args.GetOption('connection');
-  if ConnectionStr.IsEmpty then
+  if ConnectionStr = '' then
     ConnectionStr := Args.GetOption('c');
     
   DriverName := Args.GetOption('driver');
-  if DriverName.IsEmpty then
+  if DriverName = '' then
     DriverName := Args.GetOption('d');
     
-  if ConnectionStr.IsEmpty or DriverName.IsEmpty then
+  if (ConnectionStr = '') or (DriverName = '') then
   begin
     SafeWriteLn('Error: --connection and --driver are required.');
     ShowUsage;
@@ -146,34 +153,34 @@ begin
   
   // Parse optional arguments
   OutputFile := Args.GetOption('output');
-  if OutputFile.IsEmpty then
+  if OutputFile = '' then
     OutputFile := Args.GetOption('o');
-  if OutputFile.IsEmpty then
+  if OutputFile = '' then
     OutputFile := 'Entities.pas';
     
   UnitName := Args.GetOption('unit');
-  if UnitName.IsEmpty then
+  if UnitName = '' then
     UnitName := Args.GetOption('u');
 
   // If a custom unit name (with namespace) is provided but no output file,
   // use the unit name as the filename base.
-  if (not UnitName.IsEmpty) and (Args.GetOption('output').IsEmpty and Args.GetOption('o').IsEmpty) then
+  if (UnitName <> '') and (Args.GetOption('output') = '') and (Args.GetOption('o') = '') then
      OutputFile := UnitName + '.pas';
 
   // The Unit Name MUST match the physical filename in Delphi
   UnitName := TPath.GetFileNameWithoutExtension(OutputFile);
     
   TableFilter := Args.GetOption('tables');
-  if TableFilter.IsEmpty then
+  if TableFilter = '' then
     TableFilter := Args.GetOption('t');
     
-  if not TableFilter.IsEmpty then
+  if TableFilter <> '' then
     TableList := TableFilter.Split([','])
   else
     TableList := [];
 
-  var SchemaName := Args.GetOption('schema');
-  if SchemaName.IsEmpty then
+  SchemaName := Args.GetOption('schema');
+  if SchemaName = '' then
     SchemaName := Args.GetOption('s');
     
   UseFluent := Args.HasOption('fluent');
@@ -206,9 +213,7 @@ begin
   if Args.HasOption('smart') then PropertyStyle := psSmart;
 
     
-  var MappingStr: string;
-  var PropertyStr: string;
-  var MetadataStr: string;
+    
   
   if UseFluent then MappingStr := 'Fluent' else MappingStr := 'Attributes';
   if PropertyStyle = psSmart then PropertyStr := 'Smart Properties' else PropertyStr := 'POCO';
@@ -241,11 +246,11 @@ begin
     end;
     
     // Configure driver
-    DriverName := DriverName.ToLower;
+    DriverName := LowerCase(DriverName);
     if DriverName = 'sqlite' then
     begin
       FDConnection.DriverName := 'SQLite';
-      if not ConnectionStr.Contains('=') then
+      if not (Pos('=', ConnectionStr) > 0) then
         FDConnection.Params.Values['Database'] := ConnectionStr
       else
         FDConnection.ConnectionString := 'DriverID=SQLite;' + ConnectionStr;
@@ -301,13 +306,13 @@ begin
     // Apply table filter if specified
     if Length(TableList) > 0 then
     begin
-      var FilteredTables: TList<string> := TList<string>.Create;
+      FilteredTables := TList<string>.Create;
       try
-        for var T in Tables do
+        for T in Tables do
         begin
-          for var F in TableList do
+          for F in TableList do
           begin
-            if T.ToLower = Trim(F).ToLower then
+            if SameText(T, Trim(F)) then
             begin
               FilteredTables.Add(T);
               Break;
@@ -320,8 +325,8 @@ begin
       end;
     end;
     
-    SafeWriteLn('Found ' + Length(Tables).ToString + ' tables:');
-    for var T in Tables do
+    SafeWriteLn('Found ' + IntToStr(Length(Tables)) + ' tables:');
+    for T in Tables do
       SafeWriteLn('  - ' + T);
     SafeWriteLn('');
     
@@ -333,14 +338,14 @@ begin
     
     // Get metadata for each table
     SafeWriteLn('Extracting metadata...');
-    var SW := TStopwatch.StartNew;
-    for var TableName in Tables do
+    SW := TStopwatch.StartNew;
+    for TableName in Tables do
     begin
-      var TableSW := TStopwatch.StartNew;
+      TableSW := TStopwatch.StartNew;
       SafeWrite('  Reading metadata: ' + TableName + '...');
       try
         MetaList := MetaList + [Provider.GetTableMetadata(TableName)];
-        SafeWriteLn(' Done in ' + TableSW.ElapsedMilliseconds.ToString + ' ms');
+        SafeWriteLn(' Done in ' + IntToStr(TableSW.ElapsedMilliseconds) + ' ms');
       except
         on E: Exception do
           SafeWriteLn(' ❌ Error: ' + E.Message);

@@ -236,9 +236,11 @@ begin
 end;
 
 function TNavigator.GetRouteName(ViewClass: TClass): string;
+var
+  Key: string;
 begin
   // First check if there's a registered route for this class
-  for var Key in FRoutes.Keys do
+  for Key in FRoutes.Keys do
     if FRoutes[Key].ViewClass = ViewClass then
       Exit(Key);
       
@@ -289,8 +291,10 @@ begin
 end;
 
 function TNavigator.FindRouteByClass(ViewClass: TClass): TRouteInfo;
+var
+  Key: string;
 begin
-  for var Key in FRoutes.Keys do
+  for Key in FRoutes.Keys do
     if FRoutes[Key].ViewClass = ViewClass then
       Exit(FRoutes[Key]);
       

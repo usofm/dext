@@ -12,6 +12,7 @@ var
   U: TUUID;
   S: string;
 begin
+  SetConsoleCharSet;
   WriteLn('► Testing Basic String Conversion...');
   
   // Test canonical format (no braces)
@@ -90,6 +91,8 @@ procedure TestUUIDv7;
 var
   U1, U2: TUUID;
   S1, S2: string;
+  Bytes: TBytes;
+  Version: Integer;
 begin
   WriteLn('► Testing UUID v7 (Time-Ordered)...');
   
@@ -108,8 +111,8 @@ begin
     raise Exception.Create('UUID v7 not time-ordered!');
   
   // Check version bits (should be 7)
-  var Bytes := U1.ToBytes;
-  var Version := (Bytes[6] shr 4) and $0F;
+  Bytes := U1.ToBytes;
+  Version := (Bytes[6] shr 4) and $0F;
   if Version <> 7 then
     raise Exception.CreateFmt('Invalid version: expected 7, got %d', [Version]);
   

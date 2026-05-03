@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -111,6 +111,7 @@ end;
 procedure TAsyncLogger.Log(ALevel: TLogLevel; const AMessage: string; const AArgs: array of const);
 var
   Entry: PLogEntry;
+  Node: PScopeNode;
 begin
   if not IsEnabled(ALevel) then Exit;
   
@@ -122,7 +123,7 @@ begin
     Entry.ThreadID := TThread.CurrentThread.ThreadID;
     
     // Capture Context
-    var Node := TraceContext.Current;
+    Node := TraceContext.Current;
     if Node <> nil then
     begin
       Entry.TraceId := Node.TraceId;
@@ -157,16 +158,20 @@ begin
 end;
 
 function TAsyncLogger.BeginScope(const AMessage: string; const AArgs: array of const): IDisposable;
+var
+  Node: PScopeNode;
 begin
   // Start new scope with generated IDs (auto-handled by TraceContext)
-  var Node := TraceContext.Push(TLogFormatter.FormatMessage(AMessage, AArgs), TUUID.Empty, TUUID.Empty);
+  Node := TraceContext.Push(TLogFormatter.FormatMessage(AMessage, AArgs), TUUID.Empty, TUUID.Empty);
   Result := TScopeGuard.Create(Node);
 end;
 
 function TAsyncLogger.BeginScope(const AState: TObject): IDisposable;
+var
+  Node: PScopeNode;
 begin
   // Simpler scope
-  var Node := TraceContext.Push('ObjectScope', TUUID.Empty, TUUID.Empty);
+  Node := TraceContext.Push('ObjectScope', TUUID.Empty, TUUID.Empty);
   Node.State := AState;
   Result := TScopeGuard.Create(Node);
 end;

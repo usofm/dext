@@ -169,6 +169,7 @@ var
   Entry: TWindowEntry;
   Now: TDateTime;
   WindowElapsed: Boolean;
+  RetryAfter: Integer;
 begin
   FLock.Enter;
   try
@@ -191,7 +192,7 @@ begin
         // Check limit
         if Entry.RequestCount >= FPermitLimit then
         begin
-          var RetryAfter := FWindowSeconds - SecondsBetween(Now, Entry.WindowStart);
+          RetryAfter := FWindowSeconds - SecondsBetween(Now, Entry.WindowStart);
           Result := TRateLimitResult.Deny('Fixed window limit exceeded', RetryAfter);
         end
         else
@@ -294,6 +295,8 @@ var
   I: Integer;
   ValidCount: Integer;
   NewRequest: TRequestTimestamp;
+  OldestRequest: TDateTime;
+  RetryAfter: Integer;
 begin
   FLock.Enter;
   try
@@ -322,8 +325,8 @@ begin
     
     if ValidCount >= FPermitLimit then
     begin
-      var OldestRequest := RequestList[0].Timestamp;
-      var RetryAfter := SecondsBetween(IncSecond(OldestRequest, FWindowSeconds), Now);
+      OldestRequest := RequestList[0].Timestamp;
+      RetryAfter := SecondsBetween(IncSecond(OldestRequest, FWindowSeconds), Now);
       Result := TRateLimitResult.Deny('Sliding window limit exceeded', RetryAfter);
     end
     else
@@ -425,6 +428,7 @@ end;
 function TTokenBucketLimiter.TryAcquire(const APartitionKey: string): TRateLimitResult;
 var
   Entry: TBucketEntry;
+  RetryAfter: Integer;
 begin
   FLock.Enter;
   try
@@ -449,7 +453,7 @@ begin
     end
     else
     begin
-      var RetryAfter := Ceil((1.0 - Entry.Tokens) / FRefillRate);
+      RetryAfter := Ceil((1.0 - Entry.Tokens) / FRefillRate);
       FEntries.AddOrSetValue(APartitionKey, Entry);
       Result := TRateLimitResult.Deny('Token bucket empty', RetryAfter);
     end;

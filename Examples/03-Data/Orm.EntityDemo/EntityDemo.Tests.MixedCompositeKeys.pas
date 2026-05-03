@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.MixedCompositeKeys;
+unit EntityDemo.Tests.MixedCompositeKeys;
 
 interface
 
@@ -17,9 +17,12 @@ type
 implementation
 
 procedure TMixedCompositeKeyTest.Run;
+var
+  Entity: TMixedKeyEntity;
+  Found: TMixedKeyEntity;
 begin
   Log('🔑 Running Mixed Composite Key Tests...');
-  var Entity := TMixedKeyEntity.Create;
+  Entity := TMixedKeyEntity.Create;
   Entity.Key1 := 10;
   Entity.Key2 := 'ABC';
   Entity.Value := 'Test Value';
@@ -28,7 +31,7 @@ begin
   FContext.SaveChanges;
 
   // This expects Find to handle array of Variant
-  var Found := FContext.Entities<TMixedKeyEntity>.Find([10, 'ABC']);
+  Found := FContext.Entities<TMixedKeyEntity>.Find([10, 'ABC']);
 
   AssertTrue(Found <> nil, 'Found entity by mixed keys', 'Entity not found');
   if Found <> nil then

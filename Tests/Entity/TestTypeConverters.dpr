@@ -1,4 +1,4 @@
-﻿program TestTypeConverters;
+program TestTypeConverters;
 
 {$APPTYPE CONSOLE}
 
@@ -22,8 +22,9 @@ procedure TestGuidConverter;
 var
   Converter: TGuidConverter;
   Guid: TGUID;
-  Value, Result: TValue;
+  Value, Result, Restored: TValue;
   SqlCast: string;
+  RestoredGuid: TGUID;
 begin
   WriteLn('► Testing GUID Converter...');
   
@@ -43,8 +44,8 @@ begin
     WriteLn('  Converted:     ', Result.AsString);
     
     // Test FromDatabase
-    var Restored := Converter.FromDatabase(Result, TypeInfo(TGUID));
-    var RestoredGuid := Restored.AsType<TGUID>;
+    Restored := Converter.FromDatabase(Result, TypeInfo(TGUID));
+    RestoredGuid := Restored.AsType<TGUID>;
     if not IsEqualGUID(Guid, RestoredGuid) then
       raise Exception.Create('FromDatabase failed - GUID mismatch');
     
@@ -74,8 +75,8 @@ end;
 procedure TestEnumConverter;
 var
   Converter: TEnumConverter;
-  Value, Result: TValue;
-  Role: TUserRole;
+  Value, Result, Restored: TValue;
+  Role, RestoredRole: TUserRole;
 begin
   WriteLn('► Testing Enum Converter (Integer mode)...');
   
@@ -92,8 +93,8 @@ begin
       raise Exception.Create('ToDatabase failed - wrong integer value');
     
     // Test FromDatabase
-    var Restored := Converter.FromDatabase(Result, TypeInfo(TUserRole));
-    var RestoredRole := Restored.AsType<TUserRole>;
+    Restored := Converter.FromDatabase(Result, TypeInfo(TUserRole));
+    RestoredRole := Restored.AsType<TUserRole>;
     if RestoredRole <> urAdmin then
       raise Exception.Create('FromDatabase failed - enum mismatch');
     
@@ -118,8 +119,8 @@ begin
       raise Exception.Create('ToDatabase failed - wrong string value');
     
     // Test FromDatabase
-    var Restored := Converter.FromDatabase(Result, TypeInfo(TUserRole));
-    var RestoredRole := Restored.AsType<TUserRole>;
+    Restored := Converter.FromDatabase(Result, TypeInfo(TUserRole));
+    RestoredRole := Restored.AsType<TUserRole>;
     if RestoredRole <> urSuperAdmin then
       raise Exception.Create('FromDatabase failed - enum mismatch');
     
@@ -161,7 +162,6 @@ begin
   if Converter <> nil then
     raise Exception.Create('Custom converter not cleared');
   WriteLn('  ✓ Cleared custom converters');
-  
   WriteLn('✓ Type Converter Registry tests passed');
   WriteLn('');
 end;

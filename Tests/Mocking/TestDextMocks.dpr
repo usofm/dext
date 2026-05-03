@@ -64,6 +64,7 @@ end;
 procedure TestBasicMocking;
 var
   CalculatorMock: Mock<ICalculator>;
+  Result: Integer;
 begin
   WriteLn('=== Test 1: Basic Mocking ===');
 
@@ -73,7 +74,7 @@ begin
   CalculatorMock.Setup.Returns(42).When.Add(10, 20);
 
   // Act
-  var Result := CalculatorMock.Instance.Add(10, 20);
+  Result := CalculatorMock.Instance.Add(10, 20);
   
   // Assert
   if Result = 42 then
@@ -85,6 +86,7 @@ end;
 procedure TestArgumentMatchers;
 var
   CalculatorMock: Mock<ICalculator>;
+  R1, R2: Integer;
 begin
   WriteLn('');
   WriteLn('=== Test 2: Argument Matchers ===');
@@ -95,8 +97,8 @@ begin
   CalculatorMock.Setup.Returns(100).When.Add(Arg.Any<Integer>, Arg.Any<Integer>);
   
   // Act - different arguments
-  var R1 := CalculatorMock.Instance.Add(1, 2);
-  var R2 := CalculatorMock.Instance.Add(50, 100);
+  R1 := CalculatorMock.Instance.Add(1, 2);
+  R2 := CalculatorMock.Instance.Add(50, 100);
   
   // Assert
   if (R1 = 100) and (R2 = 100) then
@@ -108,6 +110,7 @@ end;
 procedure TestStringMatching;
 var
   Greeter: Mock<IGreeter>;
+  Result: string;
 begin
   WriteLn('');
   WriteLn('=== Test 3: String Matching ===');
@@ -118,7 +121,7 @@ begin
   Greeter.Setup.Returns('Hello, World!').When.Greet(Arg.Any<string>);
   
   // Act
-  var Result := Greeter.Instance.Greet('John');
+  Result := Greeter.Instance.Greet('John');
   
   // Assert
   if Result = 'Hello, World!' then
@@ -214,6 +217,7 @@ end;
 procedure TestMultipleReturns;
 var
   CalculatorMock: Mock<ICalculator>;
+  R1, R2, R3, R4: Integer;
 begin
   WriteLn('');
   WriteLn('=== Test 7: Multiple Returns (Sequence) ===');
@@ -223,10 +227,10 @@ begin
   // Setup to return values in sequence
   CalculatorMock.Setup.ReturnsInSequence([1, 2, 3]).When.Add(Arg.Any<Integer>, Arg.Any<Integer>);
   
-  var R1 := CalculatorMock.Instance.Add(0, 0);
-  var R2 := CalculatorMock.Instance.Add(0, 0);
-  var R3 := CalculatorMock.Instance.Add(0, 0);
-  var R4 := CalculatorMock.Instance.Add(0, 0); // Should return last value again
+  R1 := CalculatorMock.Instance.Add(0, 0);
+  R2 := CalculatorMock.Instance.Add(0, 0);
+  R3 := CalculatorMock.Instance.Add(0, 0);
+  R4 := CalculatorMock.Instance.Add(0, 0); // Should return last value again
   
   if (R1 = 1) and (R2 = 2) and (R3 = 3) and (R4 = 3) then
     WriteLn('  PASS: Sequence returns worked correctly')
@@ -319,6 +323,7 @@ procedure TestInterceptionDirectly;
 var
   Interceptor: TSimpleInterceptor;
   Calculator: ICalculator;
+  Res: Integer;
 begin
   WriteLn('');
   WriteLn('=== Test 8: Direct Interception ===');
@@ -330,7 +335,7 @@ begin
   Calculator := TProxy.CreateInterface<ICalculator>(Interceptor);
   
   // 3. Act
-  var Res := Calculator.Add(5, 5);
+  Res := Calculator.Add(5, 5);
   
   // 4. Assert
   if (Res = 123) and (Interceptor.CallCount = 1) and (Interceptor.LastMethod = 'Add') then

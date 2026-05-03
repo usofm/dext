@@ -118,8 +118,8 @@ end;
 function TEvaluatorVisitor.GetPropertyValue(const APropertyName: string): TValue;
 var
   Typ: TRttiType;
-  Prop: TRttiProperty;
-  Fld: TRttiField;
+  Prop, P: TRttiProperty;
+  Fld, F: TRttiField;
   Val: TValue;
   V: Variant;
 begin
@@ -138,7 +138,7 @@ begin
     if Prop = nil then
     begin
       // Fallback: Case-insensitive search for properties
-      for var P in Typ.GetProperties do
+      for P in Typ.GetProperties do
         if SameText(P.Name, APropertyName) then
         begin
           Prop := P;
@@ -154,7 +154,7 @@ begin
       if Fld = nil then
       begin
         // Fallback: Case-insensitive search for fields
-        for var F in Typ.GetFields do
+        for F in Typ.GetFields do
           if SameText(F.Name, APropertyName) then
           begin
             Fld := F;
@@ -173,9 +173,9 @@ begin
   // Unwrap Smart Types (Prop<T>)
   if (Val.Kind = tkRecord) and string(Val.TypeInfo.Name).StartsWith('Prop<') then
   begin
-    var ValueField := TReflection.Context.GetType(Val.TypeInfo).GetField('FValue');
-    if ValueField <> nil then
-      Val := ValueField.GetValue(Val.GetReferenceToRawData);
+    Fld := TReflection.Context.GetType(Val.TypeInfo).GetField('FValue');
+    if Fld <> nil then
+      Val := Fld.GetValue(Val.GetReferenceToRawData);
   end;
   
   Result := Val;
@@ -191,8 +191,9 @@ begin
     Result := TLiteralExpression(AExpression).Value
   else if AExpression is TArithmeticExpression then
   begin
-    var Math := TArithmeticExpression(AExpression);
-    Result := Calculate(ResolveValue(Math.Left), ResolveValue(Math.Right), Math.ArithmeticOperator);
+    Result := Calculate(ResolveValue(TArithmeticExpression(AExpression).Left), 
+                        ResolveValue(TArithmeticExpression(AExpression).Right), 
+                        TArithmeticExpression(AExpression).ArithmeticOperator);
   end
   else
     Result := TValue.Empty;
@@ -201,6 +202,9 @@ end;
 function TEvaluatorVisitor.Compare(const Left, Right: TValue; Op: TBinaryOperator): Boolean;
 var
   L, R: Variant;
+  S, P: string;
+  I: Integer;
+  Elem: TValue;
 begin
   if Left.IsEmpty or Right.IsEmpty then
   begin
@@ -227,8 +231,8 @@ begin
       begin
         // Simple LIKE implementation (case-insensitive)
         // Supports % at start/end
-        var S := VarToStr(L).ToLower;
-        var P := VarToStr(R).ToLower;
+        S := VarToStr(L).ToLower;
+        P := VarToStr(R).ToLower;
         if P.StartsWith('%') and P.EndsWith('%') then
           Result := S.Contains(P.Substring(1, P.Length - 2))
         else if P.StartsWith('%') then
@@ -244,9 +248,9 @@ begin
         Result := False;
         if Right.IsArray then
         begin
-          for var I := 0 to Right.GetArrayLength - 1 do
+          for I := 0 to Right.GetArrayLength - 1 do
           begin
-            var Elem := Right.GetArrayElement(I);
+            Elem := Right.GetArrayElement(I);
             if Compare(Left, Elem, boEqual) then
             begin
               Result := True;
@@ -281,21 +285,28 @@ begin
 end;
 
 procedure TEvaluatorVisitor.Visit(const AExpression: IExpression);
+var
+  Bin: TBinaryExpression;
+  L, R: TValue;
+  Log: TLogicalExpression;
+  LeftRes, RightRes: Boolean;
+  Un: TUnaryExpression;
+  Val: TValue;
 begin
   if AExpression is TBinaryExpression then
   begin
-    var Bin := TBinaryExpression(AExpression);
-    var L := ResolveValue(Bin.Left);
-    var R := ResolveValue(Bin.Right);
+    Bin := TBinaryExpression(AExpression);
+    L := ResolveValue(Bin.Left);
+    R := ResolveValue(Bin.Right);
     FResult := Compare(L, R, Bin.BinaryOperator);
   end
   else if AExpression is TLogicalExpression then
   begin
-    var Log := TLogicalExpression(AExpression);
+    Log := TLogicalExpression(AExpression);
     
     // Visit Left
     Visit(Log.Left);
-    var LeftRes := FResult;
+    LeftRes := FResult;
     
     // Short-circuit
     if (Log.LogicalOperator = loAnd) and (not LeftRes) then
@@ -311,7 +322,7 @@ begin
     
     // Visit Right
     Visit(Log.Right);
-    var RightRes := FResult;
+    RightRes := FResult;
     
     if Log.LogicalOperator = loAnd then
       FResult := LeftRes and RightRes
@@ -320,7 +331,7 @@ begin
   end
   else if AExpression is TUnaryExpression then
   begin
-    var Un := TUnaryExpression(AExpression);
+    Un := TUnaryExpression(AExpression);
     if Un.UnaryOperator = uoNot then
     begin
       Visit(Un.Expression);
@@ -328,12 +339,12 @@ begin
     end
     else if Un.UnaryOperator = uoIsNull then
     begin
-      var Val := GetPropertyValue(Un.PropertyName);
+      Val := GetPropertyValue(Un.PropertyName);
       FResult := Val.IsEmpty or (Val.Kind = tkClass) and (Val.AsObject = nil) or (Val.Kind = tkInterface) and (Val.AsInterface = nil);
     end
     else if Un.UnaryOperator = uoIsNotNull then
     begin
-      var Val := GetPropertyValue(Un.PropertyName);
+      Val := GetPropertyValue(Un.PropertyName);
       FResult := not (Val.IsEmpty or (Val.Kind = tkClass) and (Val.AsObject = nil) or (Val.Kind = tkInterface) and (Val.AsInterface = nil));
     end;
   end

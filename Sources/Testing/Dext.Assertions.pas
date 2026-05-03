@@ -658,6 +658,8 @@ function AreJsonNodesEqual(const Node1, Node2: IDextJsonNode): Boolean;
 var
   I: Integer;
   Key: string;
+  Arr1, Arr2: IDextJsonArray;
+  Obj1, Obj2: IDextJsonObject;
 begin
   if (Node1 = nil) or (Node2 = nil) then
   begin
@@ -678,8 +680,8 @@ begin
     jntBoolean: Result := Node1.AsBoolean = Node2.AsBoolean;
     jntArray:
       begin
-        var Arr1 := IDextJsonArray(Node1);
-        var Arr2 := IDextJsonArray(Node2);
+        Arr1 := IDextJsonArray(Node1);
+        Arr2 := IDextJsonArray(Node2);
         if Arr1.Count <> Arr2.Count then
         begin
           Result := False;
@@ -695,8 +697,8 @@ begin
       end;
     jntObject:
       begin
-        var Obj1 := IDextJsonObject(Node1);
-        var Obj2 := IDextJsonObject(Node2);
+        Obj1 := IDextJsonObject(Node1);
+        Obj2 := IDextJsonObject(Node2);
         if Obj1.Count <> Obj2.Count then
         begin
           Result := False;
@@ -724,10 +726,12 @@ begin
 end;
 
 function AreJsonEqual(const Json1, Json2: string): Boolean;
+var
+  Node1, Node2: IDextJsonNode;
 begin
   try
-    var Node1 := TDextJson.Provider.Parse(Json1);
-    var Node2 := TDextJson.Provider.Parse(Json2);
+    Node1 := TDextJson.Provider.Parse(Json1);
+    Node2 := TDextJson.Provider.Parse(Json2);
     Result := AreJsonNodesEqual(Node1, Node2);
   except
     Result := False;
@@ -1468,6 +1472,8 @@ var
   Field: TRttiField;
   ActualValue: TValue;
   ActualStr, ExpectedStr: string;
+  RecType: TRttiRecordType;
+  ValueField: TRttiField;
 begin
   if Self.FValue = nil then
     Self.Fail(Format('Cannot check property "%s" on nil object', [PropertyName]));
@@ -1496,8 +1502,8 @@ begin
     // If it's a Prop<T> Smart Type, extract the inner FValue
     if (ActualValue.Kind = tkRecord) and string(ActualValue.TypeInfo.Name).StartsWith('Prop<') then
     begin
-      var RecType := TReflection.Context.GetType(ActualValue.TypeInfo).AsRecord;
-      var ValueField := RecType.GetField('FValue');
+      RecType := TReflection.Context.GetType(ActualValue.TypeInfo).AsRecord;
+      ValueField := RecType.GetField('FValue');
       if ValueField <> nil then
         ActualValue := ValueField.GetValue(ActualValue.GetReferenceToRawData);
     end;
@@ -1719,11 +1725,13 @@ end;
 { ShouldList<T> }
 
 constructor ShouldList<T>.Create(const Value: System.IEnumerable<T>);
+var
+  LEnumRTL: System.IEnumerator<T>;
 begin
   FItems := [];
   if Value <> nil then
   begin
-    var LEnumRTL := Value.GetEnumerator;
+    LEnumRTL := Value.GetEnumerator;
     while LEnumRTL.MoveNext do
     begin
       SetLength(FItems, Length(FItems) + 1);
@@ -1734,11 +1742,13 @@ begin
 end;
 
 constructor ShouldList<T>.Create(const Value: Dext.Collections.Base.IEnumerable<T>);
+var
+  LEnumDext: Dext.Collections.Base.IEnumerator<T>;
 begin
   FItems := [];
   if Value <> nil then
   begin
-    var LEnumDext := Value.GetEnumerator;
+    LEnumDext := Value.GetEnumerator;
     while LEnumDext.MoveNext do
     begin
       SetLength(FItems, Length(FItems) + 1);
@@ -1805,11 +1815,12 @@ function ShouldList<T>.Contain(const Item: T): ShouldList<T>;
 var
   Found: Boolean;
   Comparer: System.Generics.Defaults.IEqualityComparer<T>;
+  LItem: T;
 begin
   Found := False;
   Comparer := System.Generics.Defaults.TEqualityComparer<T>.Default;
   
-  for var LItem in FItems do
+  for LItem in FItems do
     if Comparer.Equals(LItem, Item) then
     begin
       Found := True;
@@ -1825,11 +1836,12 @@ function ShouldList<T>.NotContain(const Item: T): ShouldList<T>;
 var
   Found: Boolean;
   Comparer: System.Generics.Defaults.IEqualityComparer<T>;
+  LItem: T;
 begin
   Found := False;
   Comparer := System.Generics.Defaults.TEqualityComparer<T>.Default;
   
-  for var LItem in FItems do
+  for LItem in FItems do
     if Comparer.Equals(LItem, Item) then
     begin
       Found := True;
@@ -1844,10 +1856,11 @@ end;
 function ShouldList<T>.AllSatisfy(const Predicate: TFunc<T, Boolean>): ShouldList<T>;
 var
   AllMatch: Boolean;
+  LItem: T;
 begin
   AllMatch := True;
   
-  for var LItem in FItems do
+  for LItem in FItems do
     if not Predicate(LItem) then
     begin
       AllMatch := False;
@@ -1862,10 +1875,11 @@ end;
 function ShouldList<T>.AnySatisfy(const Predicate: TFunc<T, Boolean>): ShouldList<T>;
 var
   AnyMatch: Boolean;
+  LItem: T;
 begin
   AnyMatch := False;
   
-  for var LItem in FItems do
+  for LItem in FItems do
     if Predicate(LItem) then
     begin
       AnyMatch := True;
@@ -1918,13 +1932,13 @@ var
   ExpItem: T;
   Found: Boolean;
   I: Integer;
+  Used: TArray<Boolean>;
 begin
   Comparer := System.Generics.Defaults.TEqualityComparer<T>.Default;
   
   if Length(FItems) <> Length(Expected) then
     Fail(Format('Expected %d items but found %d', [Length(Expected), Length(FItems)]));
     
-  var Used: TArray<Boolean>;
   SetLength(Used, Length(FItems));
   for I := 0 to High(Used) do Used[I] := False;
 
@@ -1957,12 +1971,13 @@ end;
 function ShouldList<T>.BeEquivalentTo(const Expected: System.IEnumerable<T>): ShouldList<T>;
 var
   Arr: TArray<T>;
+  LEnumRTL: System.IEnumerator<T>;
 begin
   if Expected = nil then
     Exit(BeEquivalentTo(TArray<T>(nil)));
 
   Arr := [];
-  var LEnumRTL := Expected.GetEnumerator;
+  LEnumRTL := Expected.GetEnumerator;
   while LEnumRTL.MoveNext do
   begin
     SetLength(Arr, Length(Arr) + 1);
@@ -1974,12 +1989,13 @@ end;
 function ShouldList<T>.BeEquivalentTo(const Expected: Dext.Collections.Base.IEnumerable<T>): ShouldList<T>;
 var
   Arr: TArray<T>;
+  LEnumDext: Dext.Collections.Base.IEnumerator<T>;
 begin
   if Expected = nil then
     Exit(BeEquivalentTo(TArray<T>(nil)));
 
   Arr := [];
-  var LEnumDext := Expected.GetEnumerator;
+  LEnumDext := Expected.GetEnumerator;
   while LEnumDext.MoveNext do
   begin
     SetLength(Arr, Length(Arr) + 1);

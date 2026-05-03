@@ -17,6 +17,7 @@ var
   Dict: IDictionary<string, string>;
   V: string;
   I: Integer;
+  K: string;
 begin
   Writeln('--- Test: Dictionary Rehash and Metadata Preservation ---');
   Dict := TCollections.CreateDictionary<string, string>;
@@ -33,7 +34,7 @@ begin
   Writeln('Verifying all keys after rehash:');
   for I := 1 to 4 do
   begin
-    var K := 'Key' + I.ToString;
+    K := 'Key' + I.ToString;
     if Dict.TryGetValue(K, V) then
       Writeln('  ' + K + ': ' + V)
     else

@@ -475,12 +475,13 @@ var
   HeaderStr, PayloadStr, Signature: string;
   Claim: TClaim;
   ExpirationTime: TDateTime;
+  PayloadJson: TStringBuilder;
 begin
   // Create header - build JSON manually to avoid formatting
   HeaderStr := Base64UrlEncode('{"alg":"HS256","typ":"JWT"}');
 
   // Create payload - build JSON manually to avoid formatting
-  var PayloadJson := TStringBuilder.Create;
+  PayloadJson := TStringBuilder.Create;
   try
     PayloadJson.Append('{');
     
@@ -579,6 +580,7 @@ var
   Claim: TClaim;
   ExpClaim: string;
   ExpTime: Int64;
+  IssuerFound, AudienceFound: Boolean;
 begin
   Result.IsValid := False;
   Result.ErrorMessage := '';
@@ -626,7 +628,7 @@ begin
   // Validate issuer if configured
   if FIssuer <> '' then
   begin
-    var IssuerFound := False;
+    IssuerFound := False;
     for Claim in Claims do
     begin
       if (Claim.ClaimType = 'iss') and (Claim.Value = FIssuer) then
@@ -646,7 +648,7 @@ begin
   // Validate audience if configured
   if FAudience <> '' then
   begin
-    var AudienceFound := False;
+    AudienceFound := False;
     for Claim in Claims do
     begin
       if (Claim.ClaimType = 'aud') and (Claim.Value = FAudience) then

@@ -498,8 +498,9 @@ function TTestFilter.Matches(const AUnitName, AClassName, AFixtureName, ATestNam
   const ACategories: TArray<string>; AIsExplicit: Boolean;
   const ASelectedTests: TArray<string>): Boolean;
 var
-  Cat, FilterCat, FullName, FullNameAlt, Selected: string;
+  Cat, FilterCat, FullName, FullNameAlt, Selected, CleanSelected: string;
   CategoryMatch: Boolean;
+  ParenIdx: Integer;
 begin
   // If we have selected tests, only run those
   if Length(ASelectedTests) > 0 then
@@ -510,8 +511,8 @@ begin
 
     for Selected in ASelectedTests do
     begin
-      var CleanSelected := Selected;
-      var ParenIdx := CleanSelected.IndexOf('(');
+      CleanSelected := Selected;
+      ParenIdx := CleanSelected.IndexOf('(');
       if ParenIdx > 0 then
         CleanSelected := CleanSelected.Substring(0, ParenIdx);
 
@@ -692,6 +693,7 @@ var
   I, J: Integer;
   TempMethod: TRttiMethod;
   Methods: TArray<TRttiMethod>;
+  AttrName: string;
 begin
   Methods := Fixture.RttiType.GetMethods;
 
@@ -699,7 +701,7 @@ begin
   begin
     for Attr in Method.GetAttributes do
     begin
-      var AttrName := Attr.ClassName;
+      AttrName := Attr.ClassName;
 
       // Test methods
       if (Attr is TestAttribute) or (AttrName = 'TestAttribute') then
@@ -1140,6 +1142,7 @@ class procedure TTestRunner.RunAll;
 var
   Fixture: TTestFixtureInfo;
   Stopwatch: TStopwatch;
+  ActiveCount: Integer;
 begin
 {$IFDEF CONSOLE}
   // Enable UTF-8 for Unicode symbols in console
@@ -1156,7 +1159,7 @@ begin
   FFilter := Default(TTestFilter);
   FFilter.IncludeExplicit := False;
 
-  var ActiveCount := GetActiveTestCount;
+  ActiveCount := GetActiveTestCount;
   NotifyRunStart(ActiveCount);
   TTestConsole.WriteHeader('DEXT TEST RUNNER');
   TTestConsole.WriteInfo(Format('Discovered %d fixtures with %d tests (Running %d)', [FixtureCount, TestCount, ActiveCount]));
@@ -1189,6 +1192,7 @@ class procedure TTestRunner.RunFiltered(const AFilter: TTestFilter);
 var
   Fixture: TTestFixtureInfo;
   Stopwatch: TStopwatch;
+  ActiveCount: Integer;
 begin
   if FFixtures = nil then
     Discover;
@@ -1199,7 +1203,7 @@ begin
   FSummary.Reset;
   FFilter := AFilter;
 
-  var ActiveCount := GetActiveTestCount;
+  ActiveCount := GetActiveTestCount;
   DiagnosticLog(Format('[Runner.RunFiltered] ActiveCount=%d, SelectedTests=%d', 
     [ActiveCount, Length(FSelectedTests)]));
 

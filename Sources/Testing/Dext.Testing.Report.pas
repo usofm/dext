@@ -787,6 +787,7 @@ var
   TotalTests, TotalPassed, TotalFailed, TotalSkipped: Integer;
   TotalTime: Double;
   PassRate: Double;
+  SuitesObj: IList<TObject>;
 begin
   TotalTests := 0; TotalPassed := 0; TotalFailed := 0; TotalSkipped := 0; TotalTime := 0;
   for Suite in FTestSuites do begin
@@ -815,7 +816,7 @@ begin
     (Engine as ITemplateFilterRegistry).RegisterFilter('GetStatusClass', function(val: string): string begin Result := GetStatusClass(TTestResult(val.ToInteger)); end);
     (Engine as ITemplateFilterRegistry).RegisterFilter('GetStatusIcon', function(val: string): string begin Result := GetStatusIcon(TTestResult(val.ToInteger)); end);
 
-    var SuitesObj: IList<TObject> := TCollections.CreateList<TObject>;
+    SuitesObj := TCollections.CreateList<TObject>;
     for Suite in FTestSuites do SuitesObj.Add(Suite);
     Context.SetList('Suites', SuitesObj.ToArray);
 

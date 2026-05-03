@@ -16,6 +16,7 @@ var
   Bench: TBenchmark;
   Sizes: TArray<Integer>;
   Size: Integer;
+  LogFileName: string;
 begin
   SetConsoleCharSet;
   try
@@ -62,7 +63,7 @@ begin
       Writeln('');
       Bench.PrintResults;
 
-      var LogFileName := Format('performance_results_%s.md', [FormatDateTime('yyyymmdd_hhnn', Now)]);
+      LogFileName := Format('performance_results_%s.md', [FormatDateTime('yyyymmdd_hhnn', Now)]);
       Bench.SaveToMarkdown(LogFileName);
       
       Writeln('');

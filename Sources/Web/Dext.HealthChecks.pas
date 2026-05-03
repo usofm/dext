@@ -216,6 +216,9 @@ var
   OverallStatus: THealthStatus;
   Json: TStringBuilder;
   StatusStr: string;
+  Key: string;
+  Res: THealthCheckResult;
+  First: Boolean;
 begin
   if AContext.Request.Path <> '/health' then
   begin
@@ -226,9 +229,9 @@ begin
   // Use the scoped provider from the context to resolve health checks
   Results := FService.CheckHealth(AContext.Services);
   OverallStatus := THealthStatus.Healthy;
-    for var Key in Results.Keys do
+    for Key in Results.Keys do
     begin
-      var Res := Results[Key];
+      Res := Results[Key];
       if Res.Status = THealthStatus.Unhealthy then
         OverallStatus := THealthStatus.Unhealthy
       else if (Res.Status = THealthStatus.Degraded) and (OverallStatus = THealthStatus.Healthy) then
@@ -247,13 +250,13 @@ begin
         
       Json.Append('"checks": {');
       
-      var First := True;
-      for var Key in Results.Keys do
+      First := True;
+      for Key in Results.Keys do
       begin
         if not First then Json.Append(',');
         First := False;
         
-        var Res := Results[Key];
+        Res := Results[Key];
         case Res.Status of
           THealthStatus.Healthy: StatusStr := 'Healthy';
           THealthStatus.Degraded: StatusStr := 'Degraded';
@@ -304,6 +307,7 @@ procedure THealthCheckBuilder.Build;
 var
   CapturedChecks: TArray<TClass>;
   LChecks: IList<TClass>;
+  Factory: TFunc<IServiceProvider, TObject>;
 begin
   // Capture the checks array for the factory closure
   LChecks := FChecks;
@@ -311,7 +315,7 @@ begin
   
   // Create factory that will configure the service with registered checks
   // Note: We don't capture 'Self' (the record) here, only the local CapturedChecks
-  var Factory: TFunc<IServiceProvider, TObject> := 
+  Factory := 
     function(Provider: IServiceProvider): TObject
     var
       Service: THealthCheckService;

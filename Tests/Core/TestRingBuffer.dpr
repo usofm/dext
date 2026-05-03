@@ -19,12 +19,13 @@ var
   RB: TRingBuffer;
   Entry: PLogEntry;
   ReadEntry: TLogEntry;
+  i: Integer;
 begin
   Writeln('--- TestBasicCycle ---');
   RB := TRingBuffer.Create(4); // Size 16
   try
     // Fill 16 items
-    for var i := 0 to 15 do
+    for i := 0 to 15 do
     begin
       Assert(RB.TryWrite(Entry), Format('Write %d', [i]));
       Entry.SequenceId := i;
@@ -35,14 +36,14 @@ begin
     Assert(not RB.TryWrite(Entry), 'Buffer Full Check');
     
     // Read 8
-    for var i := 0 to 7 do
+    for i := 0 to 7 do
     begin
       Assert(RB.TryRead(ReadEntry), Format('Read %d', [i]));
       Assert(ReadEntry.SequenceId = i, Format('Seq match %d', [i]));
     end;
     
     // Write 8 more (Wrap around)
-    for var i := 16 to 23 do
+    for i := 16 to 23 do
     begin
       Assert(RB.TryWrite(Entry), Format('Write %d (Wrapped)', [i]));
       Entry.SequenceId := i;
@@ -50,7 +51,7 @@ begin
     end;
     
     // Read Remaining 16 (8 old + 8 new)
-    for var i := 8 to 23 do
+    for i := 8 to 23 do
     begin
       Assert(RB.TryRead(ReadEntry), Format('Read %d (Mixed)', [i]));
       Assert(ReadEntry.SequenceId = i, Format('Seq match %d', [i]));

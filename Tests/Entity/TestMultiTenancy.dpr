@@ -1,4 +1,4 @@
-program TestMultiTenancy;
+﻿program TestMultiTenancy;
 
 {$APPTYPE CONSOLE}
 
@@ -59,6 +59,9 @@ var
   ProductList: Dext.Collections.IList<TProduct>;
   Connection: TFDConnection;
   DBConn: IDbConnection;
+  PGDialect, SSDialect: ISQLDialect;
+  SQL: string;
+  Generator: TSqlGenerator<TProduct>;
 begin
   WriteLn('Initializing Test... (Build Log 19)');
 
@@ -173,8 +176,8 @@ begin
     // but we can test if ApplyTenantConfig generates the right SQL.
     // Let's use a mock Dialect and check the ExecuteSchemaSetup.
     
-    var PGDialect: ISQLDialect := TPostgreSQLDialect.Create;
-    var SQL := PGDialect.GetSetSchemaSQL('schema_s');
+    PGDialect := TPostgreSQLDialect.Create;
+    SQL := PGDialect.GetSetSchemaSQL('schema_s');
     WriteLn('Postgres SetSchema SQL: ', SQL);
     if SQL <> 'SET search_path TO "schema_s", public;' then
       raise Exception.Create('Unexpected Postgres SetSchema SQL!');
@@ -185,14 +188,14 @@ begin
       raise Exception.Create('Unexpected Postgres CreateSchema SQL!');
     
     WriteLn('--- Case 7: Schema Tenancy (SQL Server Mock) ---');
-    var SSDialect: ISQLDialect := TSQLServerDialect.Create;
+    SSDialect := TSQLServerDialect.Create;
     SQL := SSDialect.GetCreateSchemaSQL('schema_s');
     WriteLn('SQL Server CreateSchema SQL: ', SQL);
     if not SQL.Contains('CREATE SCHEMA [schema_s]') then
       raise Exception.Create('Unexpected SQL Server CreateSchema SQL!');
       
     // Test prefixing in Generator
-    var Generator := TSqlGenerator<TProduct>.Create(SSDialect);
+    Generator := TSqlGenerator<TProduct>.Create(SSDialect);
     try
       Generator.Schema := 'schema_s';
       SQL := Generator.GenerateSelect;

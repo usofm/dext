@@ -1,4 +1,4 @@
-﻿program Web.TicketSales;
+program Web.TicketSales;
 
 {$APPTYPE CONSOLE}
 
@@ -28,6 +28,9 @@ uses
 const
   DEFAULT_PORT = 9000;
 
+var
+  App: IWebApplication;
+  Provider: IServiceProvider;
 begin
   SetConsoleCharSet;
   try
@@ -38,12 +41,12 @@ begin
     WriteLn('');
 
     // Create application with fluent startup
-    var App: IWebApplication := TDextApplication.Create;
+    App := TDextApplication.Create;
     App.UseStartup(TStartup.Create);
 
     // Build services and seed database BEFORE running
     WriteLn('🔧 Initializing services...');
-    var Provider := App.BuildServices;
+    Provider := App.BuildServices;
 
     WriteLn('📦 Setting up database...');
     TDbSeeder.Seed(Provider);

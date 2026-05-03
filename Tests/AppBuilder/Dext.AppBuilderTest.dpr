@@ -25,6 +25,8 @@ var
   Context: IHttpContext;
   Services: IServiceCollection;
   ServiceProvider: IServiceProvider;
+  ExceptionOptions: TExceptionHandlerOptions;
+  LoggingOptions: THttpLoggingOptions;
 begin
   SetConsoleCharSet;
   try
@@ -39,10 +41,10 @@ begin
     AppBuilder := TApplicationBuilder.Create(ServiceProvider);
 
     // 3. Configure pipeline
-    var ExceptionOptions := TExceptionHandlerOptions.Development;
+    ExceptionOptions := TExceptionHandlerOptions.Development;
     AppBuilder.UseMiddleware(TExceptionHandlerMiddleware, TValue.From(ExceptionOptions));
     
-    var LoggingOptions := THttpLoggingOptions.Default;
+    LoggingOptions := THttpLoggingOptions.Default;
     AppBuilder.UseMiddleware(THttpLoggingMiddleware, TValue.From(LoggingOptions));
     
     AppBuilder.Map('/hello',

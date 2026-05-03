@@ -87,13 +87,15 @@ begin
 end;
 
 procedure TDextCLI.ShowHelp;
+var
+  Cmd: IConsoleCommand;
 begin
   SafeWriteLn('Dext CLI Tool');
   SafeWriteLn('-------------');
   SafeWriteLn('Usage: MyApp.exe <command> [args]');
   SafeWriteLn('');
   SafeWriteLn('Available Commands:');
-  for var Cmd in FCommands.Values do
+  for Cmd in FCommands.Values do
   begin
     SafeWriteLn('  ' + Cmd.GetName.PadRight(20) + Cmd.GetDescription);
   end;
@@ -107,6 +109,8 @@ var
   Args: TCommandLineArgs;
   RawArgs: TArray<string>;
   i: Integer;
+  CurrentDir: string;
+  Registry: TProjectRegistry;
 begin
   // Check if any arguments passed
   if ParamCount = 0 then
@@ -155,13 +159,13 @@ begin
 
   // Auto-register project if we are in a valid folder (has .dproj or .dext.config)
   try
-    var CurrentDir := GetCurrentDir;
+    CurrentDir := GetCurrentDir;
     // Simple heuristic: if .dproj exists or .dext.config exists
     if Length(TDirectory.GetFiles(CurrentDir, '*.dproj')) > 0 then
     begin
        // Use lazy loaded registry to avoid performance hit on every command?
        // It's fast enough for CLI.
-       var Registry := TProjectRegistry.Create;
+       Registry := TProjectRegistry.Create;
        try
          Registry.RegisterProject(CurrentDir);
        finally

@@ -28,7 +28,7 @@
 {  Since prototypes are readonly (only metadata), caching is safe.          }
 {                                                                           }
 {  Usage:                                                                   }
-{    var u := Prototype.Entity<TSmartPerson>;                               }
+{    u := Prototype.Entity<TSmartPerson>;                                   }
 {    List := SetPerson.Where(u.Age = 30).ToList;                            }
 {                                                                           }
 {***************************************************************************}

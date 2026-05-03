@@ -370,6 +370,7 @@ var
   Stream: TStream;
   Bytes: TBytes;
   Span: TByteSpan;
+  Value: TValue;
 begin
   // Only for Records for now
   if PTypeInfo(System.TypeInfo(T)).Kind = tkRecord then
@@ -407,7 +408,7 @@ begin
   end;
 
   // Fallback for Classes/Other types (Legacy)
-  var Value := BindBody(TypeInfo(T), Context);
+  Value := BindBody(TypeInfo(T), Context);
   Result := Value.AsType<T>;
 end;
 
@@ -499,8 +500,10 @@ begin
 end;
 
 function TModelBinder.BindQuery<T>(Context: IHttpContext): T;
+var
+  Value: TValue;
 begin
-  var Value := BindQuery(TypeInfo(T), Context);
+  Value := BindQuery(TypeInfo(T), Context);
   Result := Value.AsType<T>;
 end;
 
@@ -563,8 +566,10 @@ begin
 end;
 
 function TModelBinder.BindRoute<T>(Context: IHttpContext): T;
+var
+  Value: TValue;
 begin
-  var Value := BindRoute(TypeInfo(T), Context);
+  Value := BindRoute(TypeInfo(T), Context);
   Result := Value.AsType<T>;
 end;
 
@@ -575,6 +580,7 @@ var
   Field: TRttiField;
   FieldName: string;
   FieldValue: string;
+  Val: TValue;
   SourceProvider: TBindingSourceProvider;
 begin
   if AType.Kind <> tkRecord then
@@ -598,7 +604,7 @@ begin
       begin
         // USE ROBUST CONVERSION
         try
-          var Val := TReflection.CastFromString(FieldValue, Field.FieldType.Handle);
+          Val := TReflection.CastFromString(FieldValue, Field.FieldType.Handle);
           Field.SetValue(Result.GetReferenceToRawData, Val);
         except
           on E: Exception do
@@ -631,7 +637,15 @@ function TModelBinder.BindParameter(AParam: TRttiParameter;
   AContext: IHttpContext): TValue;
 var
   Attr: TCustomAttribute;
+  A: TCustomAttribute;
   ParamName: string;
+  QueryParams: IStringDictionary;
+  QueryValue: string;
+  RouteParams: TRouteValueDictionary;
+  RouteValue: string;
+  HeaderValue: string;
+  FoundDefault: Boolean;
+  IsService: Boolean;
 begin
   // 1. IHttpContext
   if AParam.ParamType.Handle = TypeInfo(IHttpContext) then
@@ -648,15 +662,14 @@ begin
       ParamName := FromQueryAttribute(Attr).Name;
       if ParamName = '' then ParamName := AParam.Name;
 
-      var QueryParams := AContext.Request.Query;
-      var QueryValue: string;
+      QueryParams := AContext.Request.Query;
       if QueryParams.TryGetValue(ParamName, QueryValue) then
         Result := TReflection.CastFromString(QueryValue, AParam.ParamType.Handle)
       else
       begin
         // 1. Try DefaultValueAttribute
-        var FoundDefault := False;
-        for var A in AParam.GetAttributes do
+        FoundDefault := False;
+        for A in AParam.GetAttributes do
           if A is DefaultValueAttribute then
           begin
              Result := TValue.FromVariant(DefaultValueAttribute(A).Value);
@@ -675,8 +688,7 @@ begin
       ParamName := FromRouteAttribute(Attr).Name;
       if ParamName = '' then ParamName := AParam.Name;
 
-      var RouteParams := AContext.Request.RouteParams;
-      var RouteValue: string;
+      RouteParams := AContext.Request.RouteParams;
       if RouteParams.TryGetValue(ParamName, RouteValue) then
         Result := TReflection.CastFromString(RouteValue, AParam.ParamType.Handle)
       else
@@ -698,13 +710,13 @@ begin
       ParamName := FromHeaderAttribute(Attr).Name;
       if ParamName = '' then ParamName := AParam.Name;
 
-      var HeaderValue := AContext.Request.GetHeader(ParamName);
+      HeaderValue := AContext.Request.GetHeader(ParamName);
       if HeaderValue <> '' then
         Result := TReflection.CastFromString(HeaderValue, AParam.ParamType.Handle)
       else
       begin
-        var FoundDefault := False;
-        for var A in AParam.GetAttributes do
+        FoundDefault := False;
+        for A in AParam.GetAttributes do
           if A is DefaultValueAttribute then
           begin
              Result := TValue.FromVariant(DefaultValueAttribute(A).Value);
@@ -727,7 +739,7 @@ begin
   else if (AParam.ParamType.TypeKind = tkClass) then
   begin
      // 1. Try Service Injection First
-     var IsService := False;
+     IsService := False;
      try
        Result := BindServices(AParam.ParamType.Handle, AContext);
        if not Result.IsEmpty and not Result.AsObject.Equals(nil) then
@@ -752,8 +764,7 @@ begin
   begin
     // Primitives: Route -> Query
     ParamName := AParam.Name;
-    var RouteParams := AContext.Request.RouteParams;
-    var RouteValue: string;
+    RouteParams := AContext.Request.RouteParams;
     
     if RouteParams.TryGetValue(ParamName, RouteValue) then
     begin
@@ -761,14 +772,13 @@ begin
     end
     else
     begin
-      var QueryParams := AContext.Request.Query;
-      var QueryValue: string;
+      QueryParams := AContext.Request.Query;
       if QueryParams.TryGetValue(ParamName, QueryValue) then
         Result := TReflection.CastFromString(QueryValue, AParam.ParamType.Handle)
       else
       begin
-        var FoundDefault := False;
-        for var A in AParam.GetAttributes do
+        FoundDefault := False;
+        for A in AParam.GetAttributes do
           if A is DefaultValueAttribute then
           begin
              Result := TValue.FromVariant(DefaultValueAttribute(A).Value);
@@ -789,46 +799,50 @@ var
   Field: TRttiField;
   ServiceInstance: TValue;
   ServiceType: TServiceType;
+  Attr: TCustomAttribute;
+  HasServicesAttr: Boolean;
+  InterfaceInstance: IInterface;
+  ClassType: TClass;
+  ClassInstance: TObject;
+  InterfaceType: TRttiInterfaceType;
 begin
   if (AType.Kind <> tkRecord) and (AType.Kind <> tkInterface) and (AType.Kind <> tkClass) then
     raise EBindingException.Create('BindServices currently only supports records, classes or interfaces');
 
   RttiType := TReflection.Context.GetType(AType);
   Services := Context.GetServices;
+  
+  // Class Support (Root Level)
+  if AType.Kind = tkClass then
+  begin
+     ClassType := (RttiType as TRttiInstanceType).MetaclassType;
+     ServiceType := TServiceType.FromClass(ClassType);
+     ClassInstance := Services.GetService(ServiceType);
+     
+     if Assigned(ClassInstance) then
+     begin
+       Result := TValue.From(ClassInstance);
+       Exit;
+     end
+     else
+        raise EBindingException.CreateFmt('Service not found for class type: %s. Ensure it is registered in DI.', [String(AType.Name)]);
+  end;
 
-    Services := Context.GetServices;
+  // NEW: Direct support for interfaces
+  if AType.Kind = tkInterface then
+  begin
+    InterfaceType := RttiType as TRttiInterfaceType;
+    ServiceType := TServiceType.FromInterface(InterfaceType.GUID);
+    InterfaceInstance := Services.GetServiceAsInterface(ServiceType);
     
-    // Class Support (Root Level)
-    if AType.Kind = tkClass then
+    if Assigned(InterfaceInstance) then
     begin
-       var ClassType := (RttiType as TRttiInstanceType).MetaclassType;
-       ServiceType := TServiceType.FromClass(ClassType);
-       var ClassInstance := Services.GetService(ServiceType);
-       
-       if Assigned(ClassInstance) then
-       begin
-         Result := TValue.From(ClassInstance);
-         Exit;
-       end
-       else
-          raise EBindingException.CreateFmt('Service not found for class type: %s. Ensure it is registered in DI.', [String(AType.Name)]);
-    end;
-
-    // NEW: Direct support for interfaces
-    if AType.Kind = tkInterface then
-    begin
-      var InterfaceType := RttiType as TRttiInterfaceType;
-      ServiceType := TServiceType.FromInterface(InterfaceType.GUID);
-      var InterfaceInstance := Services.GetServiceAsInterface(ServiceType);
-      
-      if Assigned(InterfaceInstance) then
-      begin
-        TValue.Make(@InterfaceInstance, AType, Result);
-        Exit;
-      end
-      else
-        raise EBindingException.CreateFmt('Service not found for interface: %s', [InterfaceType.Name]);
-    end;
+      TValue.Make(@InterfaceInstance, AType, Result);
+      Exit;
+    end
+    else
+      raise EBindingException.CreateFmt('Service not found for interface: %s', [InterfaceType.Name]);
+  end;
 
     TValue.Make(nil, AType, Result);
     // Services already initialized above
@@ -836,8 +850,8 @@ begin
     for Field in RttiType.GetFields do
     begin
       // Check if field has [FromServices] attribute
-      var HasServicesAttr := False;
-      for var Attr in Field.GetAttributes do
+      HasServicesAttr := False;
+      for Attr in Field.GetAttributes do
       begin
         if Attr is FromServicesAttribute then
         begin
@@ -853,11 +867,11 @@ begin
             tkInterface:
               begin
                 // For interfaces, use GUID
-                var InterfaceType := Field.FieldType as TRttiInterfaceType;
+                InterfaceType := Field.FieldType as TRttiInterfaceType;
                 ServiceType := TServiceType.FromInterface(InterfaceType.GUID);
 
                 // Get service from DI container as interface
-                var InterfaceInstance := Services.GetServiceAsInterface(ServiceType);
+                InterfaceInstance := Services.GetServiceAsInterface(ServiceType);
                 if Assigned(InterfaceInstance) then
                 begin
                   // FIX: Create TValue of specific interface type
@@ -874,10 +888,10 @@ begin
             tkClass:
               begin
                 // FIX: Use RTTI to get class correctly
-                var ClassType := (Field.FieldType as TRttiInstanceType).MetaclassType;
+                ClassType := (Field.FieldType as TRttiInstanceType).MetaclassType;
                 ServiceType := TServiceType.FromClass(ClassType);
 
-                var ClassInstance := Services.GetService(ServiceType);
+                ClassInstance := Services.GetService(ServiceType);
                 if Assigned(ClassInstance) then
                 begin
                   ServiceInstance := TValue.From(ClassInstance);
@@ -913,8 +927,23 @@ var
   Headers: IStringDictionary;
   RouteParams: TRouteValueDictionary;
   QueryParams: IStringDictionary;
-  HeaderVal, RouteVal, QueryVal: string;
+  RouteVal, QueryVal: string;
   BodyJsonObj: IDextJsonObject;
+  LMethod, LContentType: string;
+  LIsPostLike, LIsJson: Boolean;
+  BodyJsonStr: string;
+  JsonNode: IDextJsonNode;
+  FoundInBody, FieldFound: Boolean;
+  JsonFieldName: string;
+  HeaderVal: string;
+  IntVal: Integer;
+  Int64Val: Int64;
+  CurrVal: Currency;
+  DateStr: string;
+  FloatVal: Double;
+  BoolVal: Boolean;
+  EnumStr: string;
+  StrVal: string;
 begin
   if AType.Kind <> tkRecord then
     raise EBindingException.Create('BindRecordHybrid only supports records');
@@ -925,18 +954,18 @@ begin
   ContextRtti := TReflection.Context;
   try
     RttiType := ContextRtti.GetType(AType);
-    SourceProvider := TBindingSourceProvider.Create;
-    try
-      // Get request data sources
-      Headers := Context.Request.Headers;
-      RouteParams := Context.Request.RouteParams;
-      QueryParams := Context.Request.Query;
+  SourceProvider := TBindingSourceProvider.Create;
+  try
+    // Get request data sources
+    Headers := Context.Request.Headers;
+    RouteParams := Context.Request.RouteParams;
+    QueryParams := Context.Request.Query;
 
       // Pre-load body JSON once if it's a POST/PUT/PATCH and likely contains JSON
-      var LMethod := Context.Request.Method;
-      var LIsPostLike := (LMethod = 'POST') or (LMethod = 'PUT') or (LMethod = 'PATCH');
-      var LContentType := Context.Request.GetHeader('Content-Type').ToLower;
-      var LIsJson := LContentType.Contains('application/json');
+      LMethod := Context.Request.Method;
+      LIsPostLike := (LMethod = 'POST') or (LMethod = 'PUT') or (LMethod = 'PATCH');
+      LContentType := Context.Request.GetHeader('Content-Type').ToLower;
+      LIsJson := LContentType.Contains('application/json');
 
       Stream := Context.Request.Body;
       if (Stream <> nil) and (Stream.Size > 0) and (LIsPostLike or LIsJson) then
@@ -951,12 +980,12 @@ begin
             Stream.ReadBuffer(BodyBytes[0], Stream.Size);
         end;
         
-        var BodyJsonStr := TEncoding.UTF8.GetString(BodyBytes);
+        BodyJsonStr := TEncoding.UTF8.GetString(BodyBytes);
 
         if BodyJsonStr <> '' then
         begin
           try
-            var JsonNode := TDextJson.Provider.Parse(BodyJsonStr);
+            JsonNode := TDextJson.Provider.Parse(BodyJsonStr);
             if (JsonNode <> nil) and (JsonNode.GetNodeType = jntObject) then
               BodyJsonObj := JsonNode as IDextJsonObject;
           except
@@ -1009,14 +1038,14 @@ begin
 
             bsBody:
               begin
-                var FoundInBody := False;
+                FoundInBody := False;
                 
                 // First, try to find in JSON body
                 if (BodyJsonObj <> nil) then
                 begin
                   // Try to find the field (case-insensitive)
-                  var JsonFieldName := FieldName;
-                  var FieldFound := BodyJsonObj.Contains(JsonFieldName);
+                  JsonFieldName := FieldName;
+                  FieldFound := BodyJsonObj.Contains(JsonFieldName);
                   
                   // Try lowercase if not found
                   if not FieldFound then
@@ -1042,31 +1071,31 @@ begin
                     case Field.FieldType.TypeKind of
                       tkInteger:
                         begin
-                          var IntVal := BodyJsonObj.GetInteger(JsonFieldName);
+                          IntVal := BodyJsonObj.GetInteger(JsonFieldName);
                           FieldValue := TValue.From<Integer>(IntVal);
                         end;
                       tkInt64:
                         begin
-                          var Int64Val := BodyJsonObj.GetInt64(JsonFieldName);
+                          Int64Val := BodyJsonObj.GetInt64(JsonFieldName);
                           FieldValue := TValue.From<Int64>(Int64Val);
                         end;
                       tkFloat:
                         begin
                           if (Field.FieldType.Handle = TypeInfo(Currency)) then
                           begin
-                            var CurrVal := Currency(BodyJsonObj.GetDouble(JsonFieldName));
+                            CurrVal := Currency(BodyJsonObj.GetDouble(JsonFieldName));
                             FieldValue := TValue.From<Currency>(CurrVal);
                           end
                           else if (Field.FieldType.Handle = TypeInfo(TDateTime)) or 
                                   (Field.FieldType.Handle = TypeInfo(TDate)) or 
                                   (Field.FieldType.Handle = TypeInfo(TTime)) then
                           begin                            
-                            var DateStr := BodyJsonObj.GetString(JsonFieldName);
+                            DateStr := BodyJsonObj.GetString(JsonFieldName);
                             FieldValue := TReflection.CastFromString(DateStr, Field.FieldType.Handle);
                           end
                           else
                           begin
-                            var FloatVal := BodyJsonObj.GetDouble(JsonFieldName);
+                            FloatVal := BodyJsonObj.GetDouble(JsonFieldName);
                             FieldValue := TValue.From<Double>(FloatVal);
                           end;
                         end;
@@ -1074,18 +1103,18 @@ begin
                         begin
                           if Field.FieldType.Handle = TypeInfo(Boolean) then
                           begin
-                            var BoolVal := BodyJsonObj.GetBoolean(JsonFieldName);
+                            BoolVal := BodyJsonObj.GetBoolean(JsonFieldName);
                             FieldValue := TValue.From<Boolean>(BoolVal);
                           end
                           else
                           begin
-                            var EnumStr := BodyJsonObj.GetString(JsonFieldName);
+                            EnumStr := BodyJsonObj.GetString(JsonFieldName);
                             FieldValue := TReflection.CastFromString(EnumStr, Field.FieldType.Handle);
                           end;
                         end;
                     else
                       // String and other types
-                      var StrVal := BodyJsonObj.GetString(JsonFieldName);
+                      StrVal := BodyJsonObj.GetString(JsonFieldName);
                       FieldValue := TReflection.CastFromString(StrVal, Field.FieldType.Handle);
                     end;
                   end;
@@ -1148,14 +1177,18 @@ end;
 { TModelBinderHelper }
 
 class function TModelBinderHelper.BindQuery<T>(ABinder: IModelBinder; Context: IHttpContext): T;
+var
+  Value: TValue;
 begin
-  var Value := ABinder.BindQuery(TypeInfo(T), Context);
+  Value := ABinder.BindQuery(TypeInfo(T), Context);
   Result := Value.AsType<T>;
 end;
 
 class function TModelBinderHelper.BindBody<T>(ABinder: IModelBinder; Context: IHttpContext): T;
+var
+  Value: TValue;
 begin
-  var Value := ABinder.BindBody(TypeInfo(T), Context);
+  Value := ABinder.BindBody(TypeInfo(T), Context);
   Result := Value.AsType<T>;
 end;
 

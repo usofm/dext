@@ -38,6 +38,10 @@ var
   Options: TDbContextOptions;
   ConnString: string;
   Driver: string;
+  i: Integer;
+  DbFile: string;
+  Parts: TArray<string>;
+  P: string;
 begin
   // Build Configuration
   Builder := TConfigurationBuilder.Create;
@@ -48,7 +52,7 @@ begin
   Options := TDbContextOptions.Create;
   try
     // Check Command Line for overrides
-    for var i := 1 to ParamCount do
+    for i := 1 to ParamCount do
     begin
       if SameText(ParamStr(i), '--connection') or SameText(ParamStr(i), '-c') then
         if i < ParamCount then ConnString := ParamStr(i+1);
@@ -76,11 +80,11 @@ begin
     else
     begin
        // SQLite logic
-       var DbFile := 'dext_cli.db';
+       DbFile := 'dext_cli.db';
        if ConnString.Contains('Data Source=') then
        begin
-         var Parts := ConnString.Split([';']);
-         for var P in Parts do
+         Parts := ConnString.Split([';']);
+         for P in Parts do
            if P.Trim.StartsWith('Data Source=') then
              DbFile := P.Trim.Substring(12);
        end;

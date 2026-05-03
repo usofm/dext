@@ -32,11 +32,13 @@ uses
   Auth.Dto in 'Features\Auth\Auth.Dto.pas',
   Settings.Dto in 'Features\Settings\Settings.Dto.pas';
 
+var
+  App: IWebApplication;
 begin
   try
     SetConsoleCharSet;
     // 1. Initialize Application
-    var App: IWebApplication := TDextApplication.Create;
+    App := TDextApplication.Create;
     
     // 2. Configure Configuration Source
     // (Defaults handled by TDextApplication)

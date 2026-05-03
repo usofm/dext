@@ -97,8 +97,10 @@ begin
       end)
     .MapGet<TAppDbContext, TSearchDTO, IResult>('/customers/search',
       function(Db: TAppDbContext; Query: TSearchDTO): IResult
+      var
+        c: TCustomer;
       begin
-        var c := Prototype.Entity<TCustomer>;
+        c := Prototype.Entity<TCustomer>;
         Result := Results.View<TCustomer>('customers_list',
           Db.Customers.Where((c.Name.Contains(Query.SearchTerm)) or (c.Email.Contains(Query.SearchTerm)))
         );
@@ -110,8 +112,10 @@ var
   DB: TAppDbContext;
 
   procedure AddCustomer(const Name, Email: string);
+  var
+    C: TCustomer;
   begin
-    var C := TCustomer.Create;
+    C := TCustomer.Create;
     C.Name := Name;
     C.Email := Email;
     DB.Customers.Add(C);

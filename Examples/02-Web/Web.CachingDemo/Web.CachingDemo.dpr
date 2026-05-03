@@ -6,19 +6,22 @@ uses
   Dext.MM,
   System.SysUtils,
   Dext,
+  Dext.Utils,
   Dext.Web;
 
 var
   App: IWebApplication;
   RequestCount: Integer = 0;
+  Builder: TAppBuilder;
 begin
+  SetConsoleCharSet;
   try
     WriteLn('💾 Dext Response Caching Demo');
     WriteLn('==============================');
-    
+
     // Create App
     App := TDextApplication.Create;
-    var Builder := App.Builder;
+    Builder := App.Builder;
 
     // 1. Configure Response Caching
     WriteLn('📦 Configuring Response Caching...');
@@ -28,28 +31,32 @@ begin
           .DefaultDuration(30)
           .MaxSize(100)
           .VaryByQueryString);
-      
+
     // 2. Map Endpoints
-    
+
     // Endpoint to demonstrate caching (returns generic IResult / JSON string)
     Builder.MapGet('/api/time',
       procedure(Ctx: IHttpContext)
+      var
+        Json: string;
       begin
         Inc(RequestCount);
         WriteLn(Format('[%d] Generating fresh response at %s', [RequestCount, FormatDateTime('hh:nn:ss', Now)]));
-        
-        var Json := Format(
+
+        Json := Format(
           '{"timestamp":"%s","request_count":%d,"message":"This response is cached for 30 seconds"}',
           [FormatDateTime('yyyy-mm-dd hh:nn:ss', Now), RequestCount]);
-          
+
         Ctx.Response.Json(Json);
       end);
 
     // Endpoint with vary by query
     Builder.MapGet('/api/data',
       procedure(Ctx: IHttpContext)
+      var
+        Json: string;
       begin
-        var Json := Format(
+        Json := Format(
           '{"data":"Sample data","generated_at":"%s"}',
           [FormatDateTime('hh:nn:ss', Now)]);
         Ctx.Response.Json(Json);
@@ -64,9 +71,9 @@ begin
 
     WriteLn('✅ Endpoints configured');
     WriteLn('🌐 Server running on http://localhost:8080');
-    
+
     App.Run(8080);
-    
+
   except
     on E: Exception do
       WriteLn('❌ Error: ', E.Message);

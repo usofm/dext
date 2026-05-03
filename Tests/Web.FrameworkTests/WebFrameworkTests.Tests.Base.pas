@@ -1,14 +1,14 @@
-unit WebFrameworkTests.Tests.Base;
+﻿unit WebFrameworkTests.Tests.Base;
 
 interface
 
 uses
   System.SysUtils,
   System.Classes,
+  System.Net.HttpClient,
   Dext.WebHost,
   Dext.DI.Interfaces,
-  Dext.Web.Interfaces,
-  System.Net.HttpClient;
+  Dext.Web.Interfaces;
 
 type
   TBaseTest = class
@@ -65,6 +65,9 @@ procedure TBaseTest.Setup;
 var
   Builder: IWebHostBuilder;
   HostRef: IWebHost; // Explicitly capture FHost for thread safety
+  Retries: Integer;
+  Success: Boolean;
+  Resp: System.Net.HttpClient.IHTTPResponse;
 begin
   WriteLn('🔧 Setting up test...');
   Builder := TDextWebHost.CreateDefaultBuilder
@@ -104,13 +107,13 @@ begin
     FPort := FHost.Port;
 
   // Robust wait for server to start
-  var Retries := 0;
-  var Success := False;
+  Retries := 0;
+  Success := False;
   while (Retries < 50) and (not Success) and (FServerError = '') do
   begin
     try
       // Try to connect to the base URL
-      var Resp := FClient.Get(GetBaseUrl + '/');
+      Resp := FClient.Get(GetBaseUrl + '/');
       if Resp <> nil then
       begin
         Success := True;

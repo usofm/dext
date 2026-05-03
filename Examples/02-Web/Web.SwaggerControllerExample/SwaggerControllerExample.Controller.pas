@@ -1,4 +1,4 @@
-﻿unit SwaggerControllerExample.Controller;
+unit SwaggerControllerExample.Controller;
 
 {
   Controller demonstrating Swagger/OpenAPI documentation with MVC Controllers.
@@ -54,8 +54,10 @@ type
     ///   Note: In production, add [Authorize('bearerAuth')] to require authentication.
     /// </summary>
     [HttpPost('')]
+    [Authorize]
     [SwaggerOperation('Create a new book', 'Creates a new book entry')]
     [SwaggerResponse(201, 'Book created', 'application/json')]
+    [SwaggerResponse(401, 'Unauthorized')]
     [SwaggerResponse(400, 'Invalid request')]
     procedure Create(Ctx: IHttpContext; const Request: TCreateBookRequest); virtual;
 
@@ -74,8 +76,10 @@ type
     ///   Note: In production, add [Authorize('bearerAuth')] to require authentication.
     /// </summary>
     [HttpDelete('/{id}')]
+    [Authorize]
     [SwaggerOperation('Delete a book', 'Removes a book from the catalog')]
     [SwaggerResponse(204, 'Book deleted')]
+    [SwaggerResponse(401, 'Unauthorized')]
     [SwaggerResponse(404, 'Book not found')]
     procedure Delete(Ctx: IHttpContext; [FromRoute] Id: Integer); virtual;
   end;

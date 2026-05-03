@@ -92,10 +92,11 @@ function TEntityIdResolverTests.CreateSimpleMap(APKType: PTypeInfo): TEntityMap;
 var
   Prop: TRttiProperty;
   Ctx: TRttiContext;
+  PMap: TPropertyMap;
 begin
   Result := TEntityMap.Create(nil); 
   Prop := Ctx.GetType(APKType).GetProperty('Id');
-  var PMap := TPropertyMap.Create(Prop.Name);
+  PMap := TPropertyMap.Create(Prop.Name);
   PMap.Prop := Prop;
   PMap.IsPK := True;
   Result.Properties.Add(Prop.Name, PMap);
@@ -107,19 +108,20 @@ var
   Ctx: TRttiContext;
   T: TRttiType;
   Prop: TRttiProperty;
+  PMap1, PMap2: TPropertyMap;
 begin
   Result := TEntityMap.Create(nil);
   T := Ctx.GetType(TCompositeEntity);
   
   Prop := T.GetProperty('OrderId');
-  var PMap1 := TPropertyMap.Create(Prop.Name);
+  PMap1 := TPropertyMap.Create(Prop.Name);
   PMap1.Prop := Prop;
   PMap1.IsPK := True;
   Result.Properties.Add(Prop.Name, PMap1);
   Result.Keys.Add(Prop.Name);
 
   Prop := T.GetProperty('ItemNo');
-  var PMap2 := TPropertyMap.Create(Prop.Name);
+  PMap2 := TPropertyMap.Create(Prop.Name);
   PMap2.Prop := Prop;
   PMap2.IsPK := True;
   Result.Properties.Add(Prop.Name, PMap2);

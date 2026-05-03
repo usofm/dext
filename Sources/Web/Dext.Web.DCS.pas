@@ -329,13 +329,14 @@ procedure TDextDCSRequest.BuildFiles;
 var
   I: Integer;
   MultiPart: THttpMultiPartFormData;
+  Field: TFormField;
 begin
   if FRequest.BodyType = btMultiPart then
   begin
     MultiPart := FRequest.Body as THttpMultiPartFormData;
     for I := 0 to MultiPart.Count - 1 do
     begin
-      var Field := MultiPart.Items[I];
+      Field := MultiPart.Items[I];
       if Field.FileName <> '' then // only actual file uploads
         FFiles.Add(TDextDCSFormFile.Create(Field));
     end;
@@ -383,6 +384,7 @@ var
   Bytes: TBytes;
   Params: THttpUrlParams;
   Encoded: string;
+  EncodedBytes: TBytes;
 begin
   if FBody = nil then
   begin
@@ -398,7 +400,7 @@ begin
           Params := FRequest.Body as THttpUrlParams;
           Encoded := Params.Encode;
           FBody := TMemoryStream.Create;
-          var EncodedBytes := TEncoding.UTF8.GetBytes(Encoded);
+          EncodedBytes := TEncoding.UTF8.GetBytes(Encoded);
           if Length(EncodedBytes) > 0 then
             FBody.WriteBuffer(EncodedBytes[0], Length(EncodedBytes));
           FBody.Position := 0;

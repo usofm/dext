@@ -13,7 +13,9 @@ uses
   Dext.Entity.Mapping;
 
 type
-  /// <summary>Exception thrown when an entity fails validation rules.</summary>
+  /// <summary>
+  ///   Exception thrown when an entity fails validation rules.
+  /// </summary>
   EValidationException = class(Exception);
 
   /// <summary>
@@ -22,7 +24,9 @@ type
   /// </summary>
   TEntityValidator = class
   public
-    /// <summary>Validates the given entity against its defined rules.</summary>
+    /// <summary>
+    ///   Validates the given entity against its defined rules.
+    /// </summary>
     class procedure Validate(const AEntity: TObject; const AMap: TEntityMap = nil);
   end;
 

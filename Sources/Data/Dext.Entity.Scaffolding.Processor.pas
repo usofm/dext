@@ -32,6 +32,9 @@ uses
   Dext.Scaffolding.Models;
 
 type
+  /// <summary>
+  ///   Processes raw database metadata into scaffolding view models.
+  /// </summary>
   TScaffoldingMetadataProcessor = class
   private
     FModels: TScaffoldViewModel;
@@ -52,14 +55,19 @@ begin
 end;
 
 function TScaffoldingMetadataProcessor.FindTableViewModel(const ATableName: string): TTableViewModel;
+var
+  Table: TTableViewModel;
 begin
-  for var Table in FModels.Tables do
+  for Table in FModels.Tables do
     if SameText(Table.Name, ATableName) then
       Exit(Table);
   Result := nil;
 end;
 
 function TScaffoldingMetadataProcessor.IsPureJoinTable(const AMeta: TMetaTable): Boolean;
+var
+  FK1, FK2: Boolean;
+  FK: TMetaForeignKey;
 begin
   Result := (Length(AMeta.Columns) = 2) and (Length(AMeta.ForeignKeys) = 2) and
             (AMeta.Columns[0].IsPrimaryKey) and (AMeta.Columns[1].IsPrimaryKey);
@@ -67,9 +75,9 @@ begin
   if Result then
   begin
     // Double check both cols are FKs
-    var FK1 := False;
-    var FK2 := False;
-    for var FK in AMeta.ForeignKeys do
+    FK1 := False;
+    FK2 := False;
+    for FK in AMeta.ForeignKeys do
     begin
       if SameText(FK.ColumnName, AMeta.Columns[0].Name) then FK1 := True;
       if SameText(FK.ColumnName, AMeta.Columns[1].Name) then FK2 := True;
@@ -79,27 +87,34 @@ begin
 end;
 
 procedure TScaffoldingMetadataProcessor.Process(const AMeta: TArray<TMetaTable>);
+var
+  TableMeta: TMetaTable;
+  TableVM: TTableViewModel;
+  FK1, FK2: TMetaForeignKey;
+  VM1, VM2: TTableViewModel;
+  M2M1, M2M2: TManyToManyViewModel;
+  BaseName: string;
 begin
-  for var TableMeta in AMeta do
+  for TableMeta in AMeta do
   begin
-    var TableVM := FindTableViewModel(TableMeta.Name);
+    TableVM := FindTableViewModel(TableMeta.Name);
     if IsPureJoinTable(TableMeta) then
     begin
       if TableVM <> nil then
         TableVM.IsJoinTable := True;
 
       // Identify the two sides of the relationship
-      var FK1 := TableMeta.ForeignKeys[0];
-      var FK2 := TableMeta.ForeignKeys[1];
+      FK1 := TableMeta.ForeignKeys[0];
+      FK2 := TableMeta.ForeignKeys[1];
 
-      var VM1 := FindTableViewModel(FK1.ReferencedTable);
-      var VM2 := FindTableViewModel(FK2.ReferencedTable);
+      VM1 := FindTableViewModel(FK1.ReferencedTable);
+      VM2 := FindTableViewModel(FK2.ReferencedTable);
 
       if (VM1 <> nil) and (VM2 <> nil) then
       begin
         // Add M2M to VM1
-        var M2M1 := TManyToManyViewModel.Create;
-        var BaseName := VM2.DelphiClassName.Substring(1);
+        M2M1 := TManyToManyViewModel.Create;
+        BaseName := VM2.DelphiClassName.Substring(1);
         M2M1.PropertyName := BaseName;
         if not M2M1.PropertyName.EndsWith('s', True) then
           M2M1.PropertyName := M2M1.PropertyName + 's';
@@ -114,7 +129,7 @@ begin
         VM1.ManyToMany.Add(M2M1);
 
         // Add M2M to VM2 (Bidirectional)
-        var M2M2 := TManyToManyViewModel.Create;
+        M2M2 := TManyToManyViewModel.Create;
         BaseName := VM1.DelphiClassName.Substring(1);
         M2M2.PropertyName := BaseName;
         if not M2M2.PropertyName.EndsWith('s', True) then

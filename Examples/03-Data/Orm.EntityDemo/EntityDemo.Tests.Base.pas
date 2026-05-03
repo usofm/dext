@@ -36,7 +36,7 @@ uses
 
 type
   TBaseTestClass = class of TBaseTest;
-  
+
   // Define a specific context for tests to register entities automatically
   TEntityDemoContext = class(TDbContext)
   protected
@@ -52,7 +52,7 @@ type
   protected
     FConn: TFDConnection;
     FContext: TDbContext;
-    
+
     procedure Log(const Msg: string);
     procedure LogSuccess(const Msg: string);
     procedure LogError(const Msg: string);
@@ -112,8 +112,12 @@ var
   DbConnection: IDbConnection;
   Dialect: ISQLDialect;
   Tables: TStringList;
-  
+
   procedure DropTableIfExists(const ATableName: string);
+  var
+    FoundIdx: Integer;
+    i: Integer;
+    CurrentTable: string;
   begin
     try
       case TDbConfig.GetProvider of
@@ -128,21 +132,21 @@ var
           // SQLite and PostgreSQL support DROP TABLE IF EXISTS
           FConn.ExecSQL('DROP TABLE IF EXISTS ' + ATableName + ' CASCADE');
         end;
-        
+
         dpFirebird:
         begin
           // Firebird: Check if table exists first (case-insensitive search in list)
           Tables := TStringList.Create;
           try
             FConn.GetTableNames('', '', '', Tables, [osMy], [tkTable], True);
-            
-            var FoundIdx: Integer := -1;
-            for var i := 0 to Tables.Count - 1 do
+
+            FoundIdx := -1;
+            for i := 0 to Tables.Count - 1 do
             begin
-              // Firebird stores names in UPPERCASE unless quoted. 
+              // Firebird stores names in UPPERCASE unless quoted.
               // FireDAC GetTableNames returns them with quotes if they were created with quotes.
               // We check both quoted and unquoted case-insensitively.
-              var CurrentTable := Tables[i].Replace('"', '');
+              CurrentTable := Tables[i].Replace('"', '');
               if SameText(CurrentTable, ATableName) then
               begin
                 FoundIdx := i;
@@ -166,7 +170,7 @@ var
           // SQL Server 2016+ supports DROP TABLE IF EXISTS
           FConn.ExecSQL('DROP TABLE IF EXISTS [' + ATableName + ']');
         end;
-        
+
         dpMySQL:
         begin
           // MySQL/MariaDB supports DROP TABLE IF EXISTS with backticks
@@ -178,17 +182,17 @@ var
         WriteLn('  ⚠️  Warning dropping ' + ATableName + ': ' + E.Message);
     end;
   end;
-  
+
 begin
   WriteLn('🔧 Setting up test with: ' + TDbConfig.GetProviderName);
-  
+
   // 0. Reset Database (Delete file if exists)
   TDbConfig.ResetDatabase;
 
   // 1. Create connection using TDbConfig
   DbConnection := TDbConfig.CreateConnection;
   Dialect := TDbConfig.CreateDialect;
-  
+
   // Get the underlying TFDConnection for raw SQL operations
   FConn := (DbConnection as TFireDACConnection).Connection;
 
@@ -234,7 +238,7 @@ begin
   FContext.Entities<TUserWithProfile>;
   FContext.Entities<TTask>;
   FContext.Entities<TConverterTestEntity>;  // TypeConverter example
-  
+
   WriteLn('🏗️  Creating schema...');
   FContext.EnsureCreated;
   WriteLn('✅ Setup complete!');

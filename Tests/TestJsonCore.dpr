@@ -64,6 +64,7 @@ var
   Entity, Deserialized: TEntityWithGuid;
   Json: string;
   NewGuid: TGUID;
+  RawDeserialized: TGUID;
 begin
   Writeln('----------------------------------------');
   Writeln('Testing TGUID Serialization...');
@@ -113,7 +114,7 @@ begin
     Writeln('[FAIL] Raw GUID serialization failed');
     
   Writeln('Testing Raw TGUID Deserialization...');
-  var RawDeserialized := TDextJson.Deserialize<TGUID>(Json);
+  RawDeserialized := TDextJson.Deserialize<TGUID>(Json);
   if IsEqualGUID(RawDeserialized, NewGuid) then
     Writeln('[PASS] Raw GUID deserialized correctly')
   else

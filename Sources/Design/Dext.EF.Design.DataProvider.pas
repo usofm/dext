@@ -136,6 +136,7 @@ var
   EntityMap: TEntityMap;
   Metadata: TEntityClassMetadata;
   Columns: IList<string>;
+  PropMap: TPropertyMap;
 begin
   Columns := TCollections.CreateList<string>;
 
@@ -143,7 +144,7 @@ begin
   begin
     EntityMap := BuildEntityMap(AClass);
     try
-      for var PropMap in EntityMap.Properties.Values do
+      for PropMap in EntityMap.Properties.Values do
       begin
         if PropMap.IsIgnored or PropMap.IsNavigation or PropMap.IsShadow then
           Continue;
@@ -162,7 +163,7 @@ begin
     Metadata := GetEntityMetadata(AClassName);
     if Metadata <> nil then
     begin
-      for var Member in Metadata.Members do
+      for Member in Metadata.Members do
         Columns.Add(Member.Name);
     end;
   end;
@@ -282,6 +283,8 @@ var
   Obj: TObject;
   PropMap: TPropertyMap;
   FieldValue: TValue;
+  CurrentPropMap: TPropertyMap;
+  I: Integer;
 begin
   Result := nil;
 
@@ -299,7 +302,7 @@ begin
   EntityMap := BuildEntityMap(EntityClass);
   try
     ColumnMap := TCollections.CreateDictionaryIgnoreCase<string, TPropertyMap>;
-    for var CurrentPropMap in EntityMap.Properties.Values do
+    for CurrentPropMap in EntityMap.Properties.Values do
     begin
       if CurrentPropMap.IsIgnored or CurrentPropMap.IsNavigation or CurrentPropMap.IsShadow then
         Continue;
@@ -326,7 +329,7 @@ begin
         Obj := TReflection.CreateInstance(EntityClass);
         if Obj <> nil then
         begin
-          for var I := 0 to Query.Fields.Count - 1 do
+          for I := 0 to Query.Fields.Count - 1 do
           begin
             if not ColumnMap.TryGetValue(Query.Fields[I].FieldName, PropMap) then
               Continue;

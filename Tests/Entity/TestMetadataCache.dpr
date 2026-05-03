@@ -1,10 +1,11 @@
-﻿program TestMetadataCache;
+program TestMetadataCache;
 
 {$APPTYPE CONSOLE}
 
 uses
   System.SysUtils,
   System.TypInfo,
+  Dext.Utils,
   Dext.Entity.Mapping,
   Dext.Entity.Attributes;
 
@@ -21,6 +22,7 @@ type
 procedure TestCache;
 var
   Map1, Map2: TEntityMap;
+  Prop: TPropertyMap;
 begin
   WriteLn('Testing Metadata Cache...');
   
@@ -44,7 +46,7 @@ begin
   WriteLn('  ✓ Table Name: ', Map1.TableName);
   
   // 3. Verify Properties are cached
-  var Prop := Map1.Properties['Name'];
+  Prop := Map1.Properties['Name'];
   if Prop = nil then
     raise Exception.Create('Property Name not cached');
     
@@ -52,6 +54,7 @@ begin
 end;
 
 begin
+  SetConsoleCharSet(65001);
   try
     TestCache;
     WriteLn;
@@ -63,4 +66,5 @@ begin
       ExitCode := 1;
     end;
   end;
+  ConsolePause;
 end.

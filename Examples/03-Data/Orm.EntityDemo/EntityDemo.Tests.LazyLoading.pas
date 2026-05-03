@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.LazyLoading;
+unit EntityDemo.Tests.LazyLoading;
 
 interface
 
@@ -44,6 +44,7 @@ var
   LoadedUser: TUserWithProfile;
   SavedUserId: Integer;
   SavedProfileId: Integer;
+  LoadedProfile: TUserProfile;
 begin
   Log('📝 Test 1: Lazy Load Reference (1:1)');
   
@@ -79,7 +80,7 @@ begin
     AssertTrue(LoadedUser.Name = 'John Doe', 'User name correct', 'User name incorrect');
     
     // Now access profile - should lazy load
-    var LoadedProfile := LoadedUser.Profile;
+    LoadedProfile := LoadedUser.Profile;
     
     AssertTrue(LoadedProfile <> nil, 'Profile lazy loaded', 'Profile not loaded');
     
@@ -100,6 +101,7 @@ var
   TestData: TBytes;
   i: Integer;
   SavedDocId: Integer;
+  ContentSize: Integer;
 begin
   Log('📄 Test 2: Lazy Load BLOB (TBytes)');
   
@@ -135,7 +137,7 @@ begin
     LogSuccess('Document metadata loaded');
     
     // Access Content - should load BLOB
-    var ContentSize := Length(LoadedDoc.Content);
+    ContentSize := Length(LoadedDoc.Content);
     AssertTrue(ContentSize = Length(TestData), 'BLOB loaded correctly', Format('BLOB size mismatch: %d vs %d', [ContentSize, Length(TestData)]));
     
     // Verify first and last bytes
@@ -158,6 +160,10 @@ var
   LargeText: string;
   i: Integer;
   SavedArticleId: Integer;
+  NormalizedExpected: string;
+  NormalizedBody: string;
+  BodyLength: Integer;
+  ExpectedLength: Integer;
 begin
   Log('📰 Test 3: Lazy Load Large Text (TEXT/CLOB)');
   
@@ -178,7 +184,7 @@ begin
   FContext.SaveChanges;
   SavedArticleId := Article.Id;
 
-  var NormalizedExpected := Article.Body.Text;
+  NormalizedExpected := Article.Body.Text;
   // Clear context
   FContext.Clear;
   
@@ -195,9 +201,9 @@ begin
     
     LogSuccess('Article metadata loaded without large body');
 
-    var NormalizedBody := LoadedArticle.Body.Text;
-    var BodyLength := Length(NormalizedBody);
-    var ExpectedLength := Length(NormalizedExpected);
+    NormalizedBody := LoadedArticle.Body.Text;
+    BodyLength := Length(NormalizedBody);
+    ExpectedLength := Length(NormalizedExpected);
 
     if BodyLength <> ExpectedLength then
     begin
@@ -223,6 +229,7 @@ var
   LoadedUser: TUserWithProfile;
   SavedUserId: Integer;
   SavedProfileId: Integer;
+  LoadedProfile: TUserProfile;
 begin
   Log('🧹 Test 4: Memory Management');
   
@@ -250,7 +257,7 @@ begin
   
   if LoadedUser <> nil then
   begin
-    var LoadedProfile := LoadedUser.Profile;
+    LoadedProfile := LoadedUser.Profile;
     AssertTrue(LoadedProfile <> nil, 'Profile loaded', 'Profile not loaded');
     
     // Profile should be managed by context

@@ -36,19 +36,22 @@ uses
   SwaggerControllerExample.Models in 'SwaggerControllerExample.Models.pas',
   SwaggerControllerExample.Controller in 'SwaggerControllerExample.Controller.pas';
 
+var
+  App: IWebApplication;
+  Options: TOpenAPIOptions;
 begin
   SetConsoleCharSet(65001);
   try
     WriteLn('🚀 Starting Dext Swagger Controllers Example...');
     WriteLn('');
 
-    var App: IWebApplication := TDextApplication.Create;
+    App := TDextApplication.Create;
 
     // 1. Register Controllers
     App.Services.AddControllers;
 
     // 2. Configure Swagger/OpenAPI options
-    var Options := TOpenAPIOptions.Default;
+    Options := TOpenAPIOptions.Default;
     Options.Title := 'Library API';
     Options.Description := 'A sample API demonstrating Swagger with MVC Controllers in Dext Framework';
     Options.Version := '1.0.0';

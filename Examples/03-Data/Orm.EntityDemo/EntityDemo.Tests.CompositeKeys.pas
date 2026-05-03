@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.CompositeKeys;
+unit EntityDemo.Tests.CompositeKeys;
 
 interface
 
@@ -19,11 +19,15 @@ implementation
 { TCompositeKeyTest }
 
 procedure TCompositeKeyTest.Run;
+var
+  OrderItem: TOrderItem;
+  FoundItem: TOrderItem;
+  DeletedItem: TOrderItem;
 begin
   Log('🔑 Running Composite Key Tests...');
   Log('===============================');
 
-  var OrderItem := TOrderItem.Create;
+  OrderItem := TOrderItem.Create;
   OrderItem.OrderId := 100;
   OrderItem.ProductId := 50;
   OrderItem.Quantity := 2;
@@ -34,7 +38,7 @@ begin
   LogSuccess('OrderItem (100, 50) added.');
 
   // Find using Composite Key
-  var FoundItem := FContext.Entities<TOrderItem>.Find([100, 50]);
+  FoundItem := FContext.Entities<TOrderItem>.Find([100, 50]);
 
   AssertTrue(FoundItem <> nil, 'Found OrderItem by Composite Key.', 'Failed to find OrderItem.');
 
@@ -53,7 +57,7 @@ begin
     FContext.SaveChanges;
 
     // Verify Remove
-    var DeletedItem := FContext.Entities<TOrderItem>.Find(VarArrayOf([100, 50]));
+    DeletedItem := FContext.Entities<TOrderItem>.Find(VarArrayOf([100, 50]));
     AssertTrue(DeletedItem = nil, 'Composite Key Remove Verified.', 'Composite Key Remove Failed.');
   end;
 

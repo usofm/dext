@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -92,12 +92,16 @@ var
   CurrentDextWriter : IDextWriter;
 
 function IsConsoleAvailable: Boolean;
+{$IFDEF MSWINDOWS}
+var
+  Handle: THandle;
+{$ENDIF}
 begin
   if not ConsoleChecked then
   begin
     ConsoleChecked := True;
     {$IFDEF MSWINDOWS}
-      var Handle := GetStdHandle(STD_OUTPUT_HANDLE);
+      Handle := GetStdHandle(STD_OUTPUT_HANDLE);
       ConsoleAvailable := (Handle <> 0) and (Handle <> INVALID_HANDLE_VALUE);
     {$ELSE}
       {$IFDEF CONSOLE}
@@ -197,6 +201,11 @@ begin
 end;
 
 procedure SetConsoleCharSet(CharSet: Cardinal);
+{$IFDEF MSWINDOWS}
+var
+  Handle: THandle;
+  Mode: DWORD;
+{$ENDIF}
 begin
   {$IFDEF MSWINDOWS}
   // Setup both Output and Input to specified Charset (UTF-8 = 65001)
@@ -204,8 +213,7 @@ begin
   SetConsoleCP(CharSet);
   
   // Enable Virtual Terminal Processing (for emojis and colors in modern terminals)
-  var Handle := GetStdHandle(STD_OUTPUT_HANDLE);
-  var Mode: DWORD;
+  Handle := GetStdHandle(STD_OUTPUT_HANDLE);
   if (Handle <> 0) and (Handle <> INVALID_HANDLE_VALUE) then
   begin
     if GetConsoleMode(Handle, Mode) then
@@ -245,10 +253,12 @@ begin
 end;
 
 procedure DiagnosticLog(const AMessage: string);
+var
+  LogFile: string;
+  F: TextFile;
 begin
   try
-    var LogFile := ChangeFileExt(ParamStr(0), '.diag.log');
-    var F: TextFile;
+    LogFile := ChangeFileExt(ParamStr(0), '.diag.log');
     AssignFile(F, LogFile);
     if FileExists(LogFile) then
       Append(F)
@@ -317,9 +327,13 @@ end;
 {$ENDIF}
 
 procedure HideConsole;
+{$IFDEF MSWINDOWS}
+var
+  ConsoleWnd: HWND;
+{$ENDIF}
 begin
   {$IFDEF MSWINDOWS}
-  var ConsoleWnd := GetConsoleWindow;
+  ConsoleWnd := GetConsoleWindow;
   if ConsoleWnd <> 0 then
     ShowWindow(ConsoleWnd, SW_HIDE);
   {$ENDIF}

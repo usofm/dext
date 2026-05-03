@@ -170,7 +170,7 @@ var
   ASTUnit: TExtractedUnit;
   TargetUnit: TExtractedUnit;
   I: Integer;
-  C: string;
+  C, T: string;
 begin
   ASTGen := TFacadeGenerator.Create(FSourcePath, '*.pas', FExcludedUnits.ToArray);
   try
@@ -195,7 +195,7 @@ begin
       end;
 
       // Merge Types (Recover types missed by RTTI due to stripping or generics)
-      for var T in ASTUnit.Types do
+      for T in ASTUnit.Types do
       begin
         if TargetUnit.Types.IndexOf(T) = -1 then
         begin

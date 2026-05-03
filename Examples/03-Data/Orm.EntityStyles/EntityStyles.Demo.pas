@@ -1,4 +1,4 @@
-﻿unit EntityStyles.Demo;
+unit EntityStyles.Demo;
 
 // ============================================================================
 //  Orm.EntityStyles - Comparing Two Entity Definition Approaches
@@ -101,6 +101,7 @@ var
   Set_: IDbSet<TClassicPerson>;
   Person: TClassicPerson;
   All: IList<TClassicPerson>;
+  P: TClassicPerson;
 begin
   WriteLn('');
   WriteLn('╔════════════════════════════════════════════════════════════╗');
@@ -127,7 +128,7 @@ begin
   All := Set_.ToList;
   WriteLn('   Found: ', All.Count, ' record(s)');
 
-  for var P in All do
+  for P in All do
     WriteLn('   - ', P.Name, ' (Age: ', P.Age, ')');
 
   WriteLn('');
@@ -141,6 +142,12 @@ var
   DbSet: IDbSet<TSmartPerson>;
   p: TSmartPerson;
   Adults, Johns: IList<TSmartPerson>;
+  Alice: TSmartPerson;
+  Bob: TSmartPerson;
+  John: TSmartPerson;
+  A: TSmartPerson;
+  MidAge: IList<TSmartPerson>;
+  M: TSmartPerson;
 begin
   WriteLn('');
   WriteLn('╔════════════════════════════════════════════════════════════╗');
@@ -156,19 +163,19 @@ begin
   // Create multiple persons
   WriteLn('📝 Creating smart entities...');
 
-  var Alice := TSmartPerson.Create;
+  Alice := TSmartPerson.Create;
   Alice.Name := 'Alice Smart';
   Alice.Age := 25;
   Alice.Email := 'alice@smart.com';
   DbSet.Add(Alice);
 
-  var Bob := TSmartPerson.Create;
+  Bob := TSmartPerson.Create;
   Bob.Name := 'Bob Smart';
   Bob.Age := 35;
   Bob.Email := 'bob@smart.com';
   DbSet.Add(Bob);
 
-  var John := TSmartPerson.Create;
+  John := TSmartPerson.Create;
   John.Name := 'John Smart';
   John.Age := 17;
   John.Email := 'john@smart.com';
@@ -182,7 +189,7 @@ begin
   WriteLn('🔍 Query: Adults (Age >= 18)');
   Adults := DbSet.Where(p.Age >= 18).ToList;
   WriteLn('   Found: ', Adults.Count, ' adult(s)');
-  for var A in Adults do
+  for A in Adults do
     WriteLn('   - ', string(A.Name), ' (Age: ', Integer(A.Age), ')');
 
   // Typed Query 2: Name filter
@@ -195,9 +202,9 @@ begin
   // Chained Query
   WriteLn('');
   WriteLn('🔍 Chained Query: Age > 20 AND Age < 40');
-  var MidAge := DbSet.Where(p.Age > 20).Where(p.Age < 40).ToList;
+  MidAge := DbSet.Where(p.Age > 20).Where(p.Age < 40).ToList;
   WriteLn('   Found: ', MidAge.Count, ' in range');
-  for var M in MidAge do
+  for M in MidAge do
     WriteLn('   - ', string(M.Name), ' (Age: ', Integer(M.Age), ')');
   DbSet := nil;
   WriteLn('');

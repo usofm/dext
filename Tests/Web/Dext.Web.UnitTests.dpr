@@ -21,6 +21,8 @@ uses
   Dext.Web.DataApi.Utils.Tests in 'Dext.Web.DataApi.Utils.Tests.pas',
   Dext.Web.Hosting.Tests in 'Dext.Web.Hosting.Tests.pas';
 
+var
+  TestResult: Boolean;
 begin
   SetConsoleCharSet();
   try
@@ -29,7 +31,7 @@ begin
     SafeWriteLn('======================');
     SafeWriteLn;
 
-    var TestResult := TTest
+    TestResult := TTest
       .Configure
       .Verbose
       {$IFDEF TESTINSIGHT}

@@ -179,8 +179,8 @@ var
   Root, IntfNode, SectionNode, DeclNode: TSyntaxNode;
   UnitName: string;
   UnitDecl: TExtractedUnit;
-  TypeName: string;
-  GenericParams: string;
+   GenericParams: string;
+  ConstName: string;
   
   function IsValidType(Name: string): Boolean;
   begin
@@ -284,7 +284,7 @@ begin
            begin
              if DeclNode.Typ = ntConstant then
              begin
-               var ConstName := DeclNode.GetAttribute(anName);
+               ConstName := DeclNode.GetAttribute(anName);
                
                // Global Deduplication for constants too
                if FGlobalTypeNames.Contains(ConstName) then Continue;
@@ -316,6 +316,7 @@ var
   NewLines: TStringList;
   I: Integer;
   InAliasesBlock, InUsesBlock: Boolean;
+  Trimmed: string;
   
   // Local logic
   procedure AddAliases;
@@ -425,7 +426,7 @@ begin
     
     for I := 0 to Lines.Count - 1 do
     begin
-      var Trimmed := Trim(Lines[I]);
+      Trimmed := Trim(Lines[I]);
       
       if Trimmed.StartsWith('// {BEGIN_DEXT_ALIASES}') then
       begin

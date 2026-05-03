@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.Collections;
+unit EntityDemo.Tests.Collections;
 
 interface
 
@@ -89,6 +89,7 @@ var
   LList: IList<TPerson>;
   LFiltered: IList<TPerson>;
   P: TPerson;
+  Expr: IExpression;
 begin
   Log('🧠 Testing Expression Evaluation...');
 
@@ -125,7 +126,7 @@ begin
   // Equality returns TPropExpression.TExpression.
   // We need to make sure `and` works on two TExpressions.
 
-  var Expr := (Prop('City') = 'London') and (Prop('Age') > 30);
+  Expr := (Prop('City') = 'London') and (Prop('Age') > 30);
   LFiltered := LList.Where(Expr);
 
   AssertTrue(LFiltered.Count = 1, 'Found 1 (Alice)', 'Complex expression mismatch');

@@ -1,4 +1,4 @@
-﻿unit DextStore.Models;
+unit DextStore.Models;
 
 interface
 
@@ -151,8 +151,10 @@ end;
 { TOrder }
 
 destructor TOrder.Destroy;
+var
+  Item: TCartItem;
 begin
-  for var Item in FItems do
+  for Item in FItems do
     if Assigned(Item) then
       Item.Free;
   inherited;

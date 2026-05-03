@@ -1,4 +1,4 @@
-﻿unit TaskFlow.API.Examples;
+unit TaskFlow.API.Examples;
 
 interface
 
@@ -14,27 +14,33 @@ uses
   TaskFlow.Domain;
 
 procedure RunQuickTests;
+var
+  Filter: TTaskFilter;
+  Status: TTaskStatus;
+  Priority: TTaskPriority;
+  Repo: ITaskRepository;
+  Stats: TTaskStats;
 begin
   WriteLn('🧪 RUNNING QUICK TESTS...');
 
   // Teste 1: Domain Models
-  var Filter := TTaskFilter.CreateDefault;
+  Filter := TTaskFilter.CreateDefault;
   WriteLn('✅ TTaskFilter created: Page=', Filter.Page, ', PageSize=', Filter.PageSize);
 
   // Teste 2: Enum Helpers
-  var Status := TTaskStatus.tsInProgress;
+  Status := TTaskStatus.tsInProgress;
   WriteLn('✅ TTaskStatus: ', Status.ToString, ' -> ', Status.ToDisplayText);
 
   // Teste 3: Priority with color
-  var Priority := TTaskPriority.tpCritical;
+  Priority := TTaskPriority.tpCritical;
   WriteLn('✅ TTaskPriority: ', Priority.ToString, ' -> ', Priority.ToDisplayText, ' (', Priority.ToColor, ')');
 
   // Teste 4: Repository
-  var Repo: ITaskRepository := TTaskRepositoryMock.Create;
+  Repo := TTaskRepositoryMock.Create;
   WriteLn('✅ Repository created with ', Repo.GetTaskCount, ' sample tasks');
 
   // Teste 5: Stats
-  var Stats := Repo.GetTasksStats;
+  Stats := Repo.GetTasksStats;
   WriteLn('✅ Stats: Total=', Stats.TotalTasks, ', Completed=', Stats.CompletedCount, ', Completion Rate=', Stats.GetCompletionRate:0:1, '%');
 
   WriteLn('');
@@ -45,6 +51,7 @@ end;
 procedure RegisterExampleData;
 var
   Repo: ITaskRepository;
+  Task: TTask;
 begin
   // Criar repositório e adicionar dados de exemplo adicionais
   Repo := TTaskRepositoryMock.Create as ITaskRepository;
@@ -57,7 +64,7 @@ begin
   Repo.CreateTask(TTask.Create('Configurar CI/CD', 'Implementar pipeline no GitHub Actions', tpMedium, Now + 7));
 
   // Marcar algumas como completas para demonstrar estatísticas
-  var Task := Repo.GetById(6); // Assumindo que este é um ID existente
+  Task := Repo.GetById(6); // Assumindo que este é um ID existente
   Task.Status := tsCompleted;
   Repo.UpdateTask(Task.Id, Task);
 end;

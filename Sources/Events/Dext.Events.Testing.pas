@@ -30,7 +30,10 @@ unit Dext.Events.Testing;
 ///
 ///   Usage:
 ///   <code>
-///     var Tracker: TEventBusTracker;
+///     var 
+///       Tracker: TEventBusTracker;
+///       All: TArray&lt;TOrderCreatedEvent&gt;;
+///     begin
 ///     TEventBusTracker.Register(Services, Tracker)
 ///       .AddEventPublisher&lt;TOrderCreatedEvent&gt;
 ///       .AddTransient&lt;IMyService, TMyService&gt;;
@@ -38,7 +41,7 @@ unit Dext.Events.Testing;
 ///     CheckTrue(Tracker.HasPublished&lt;TOrderCreatedEvent&gt;);
 ///     CheckEquals(1, Tracker.PublishedCount&lt;TOrderCreatedEvent&gt;);
 ///     CheckEquals(42, Tracker.LastPublished&lt;TOrderCreatedEvent&gt;.OrderId);
-///     var All := Tracker.GetPublished&lt;TOrderCreatedEvent&gt;;
+///     All := Tracker.GetPublished&lt;TOrderCreatedEvent&gt;;
 ///   </code>
 /// </summary>
 

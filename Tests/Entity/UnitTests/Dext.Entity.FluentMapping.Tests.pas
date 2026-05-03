@@ -1,4 +1,4 @@
-unit Dext.Entity.FluentMapping.Tests;
+﻿unit Dext.Entity.FluentMapping.Tests;
 
 interface
 
@@ -124,6 +124,8 @@ end;
 procedure TFluentMappingTests.TestAutoProxyDetection;
 var
   Model: TModelBuilder;
+  Map: TEntityMap;
+  Prop: TPropertyMap;
 begin
   Model := TModelBuilder.Create;
   try
@@ -134,8 +136,7 @@ begin
     // But here we can't easily mock IDbContext perfectly without more code, 
     // so we verify the map flag which is the trigger.
     
-    var Map := TEntityMap(Model.GetMap(TypeInfo(TFluentOrder)));
-    var Prop: TPropertyMap;
+    Map := TEntityMap(Model.GetMap(TypeInfo(TFluentOrder)));
     Map.Properties.TryGetValue('Customer', Prop);
     
     Should(Prop.IsLazy).BeTrue;
@@ -170,6 +171,9 @@ var
   Options: TDbContextOptions;
   Ctx: TDbContext;
   Order: TFluentOrder;
+  Cust: TFluentCustomer;
+  Ord: TFluentOrder;
+  LoadedCustomer: TFluentCustomer;
 begin
   // Set up an in-memory context with the configuration
   Options := TDbContextOptions.Create;
@@ -185,12 +189,12 @@ begin
       Ctx.EnsureCreated;
       
       // 2. Seed data
-      var Cust := TFluentCustomer.Create;
+      Cust := TFluentCustomer.Create;
       Cust.Id := 10;
       Cust.Name := 'Cesar';
       Ctx.Entities<TFluentCustomer>.Add(Cust);
 
-      var Ord := TFluentOrder.Create;
+      Ord := TFluentOrder.Create;
       Ord.Id := 1;
       Ord.CustomerId := 10;
       Ord.Description := 'Test Auto Proxy';
@@ -210,7 +214,7 @@ begin
       Should(Order).BeOfType<TFluentOrder>;
       
       // Act: Access the virtual property
-      var LoadedCustomer := Order.Customer;
+      LoadedCustomer := Order.Customer;
       
       // Assert
       Should(LoadedCustomer).NotBeNull;

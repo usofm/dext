@@ -48,7 +48,7 @@ type
   end;
 
   /// <summary>
-  ///   Marks a TArray<T> property as database array column.
+  ///   Marks a TArray&lt;T&gt; property as database array column.
   /// </summary>
   ArrayColumnAttribute = class(TCustomAttribute)
   end;
@@ -67,21 +67,26 @@ type
   /// <summary>
   ///   Interface for type converters that handle database-specific type mappings.
   /// </summary>
-  /// <summary>
-  ///   Interface for type converters that handle database-specific mappings.
-  /// </summary>
   ITypeConverter = interface
     ['{A1B2C3D4-E5F6-7890-1234-567890ABCDEF}']
-    /// <summary>Returns true if this converter can handle the given type.</summary>
+    /// <summary>
+    ///   Returns true if this converter can handle the given type.
+    /// </summary>
     function CanConvert(ATypeInfo: PTypeInfo): Boolean;
     
-    /// <summary>Converts a Delphi value to database representation.</summary>
+    /// <summary>
+    ///   Converts a Delphi value to database representation.
+    /// </summary>
     function ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue;
     
-    /// <summary>Converts a database value to Delphi representation.</summary>
+    /// <summary>
+    ///   Converts a database value to Delphi representation.
+    /// </summary>
     function FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue;
     
-    /// <summary>Returns SQL cast expression for the given parameter.</summary>
+    /// <summary>
+    ///   Returns SQL cast expression for the given parameter.
+    /// </summary>
     function GetSQLCast(const AParamName: string; ADialect: TDatabaseDialect): string;
   end;
 
@@ -137,9 +142,6 @@ type
 
   /// <summary>
   ///   Converter for JSON/JSONB types (stores objects as JSON strings).
-  /// </summary>
-  /// <summary>
-  ///   Conversor para tipos JSON/JSONB (armazena objetos, records ou arrays como strings JSON).
   /// </summary>
   TJsonConverter = class(TTypeConverterBase)
   private
@@ -207,7 +209,7 @@ type
   end;
 
   /// <summary>
-  ///   Converter for Prop<T> types.
+  ///   Converter for Prop&lt;T&gt; types.
   /// </summary>
   TPropConverter = class(TTypeConverterBase)
   public
@@ -229,9 +231,6 @@ type
   /// <summary>
   ///   Registry for type converters.
   /// </summary>
-  /// <summary>
-  ///   Registro global e thread-safe para conversores de tipo do ORM.
-  /// </summary>
   TTypeConverterRegistry = class
   private
     class var FInstance: TTypeConverterRegistry;
@@ -244,16 +243,24 @@ type
     constructor Create;
     destructor Destroy; override;
     
-    /// <summary>Registers a global type converter.</summary>
+    /// <summary>
+    ///   Registers a global type converter.
+    /// </summary>
     procedure RegisterConverter(AConverter: ITypeConverter);
     
-    /// <summary>Registers a converter for a specific type (overrides global).</summary>
+    /// <summary>
+    ///   Registers a converter for a specific type (overrides global).
+    /// </summary>
     procedure RegisterConverterForType(ATypeInfo: PTypeInfo; AConverter: ITypeConverter);
     
-    /// <summary>Gets the appropriate converter for a type.</summary>
+    /// <summary>
+    ///   Gets the appropriate converter for a type.
+    /// </summary>
     function GetConverter(ATypeInfo: PTypeInfo): ITypeConverter;
     
-    /// <summary>Clears all custom converters (useful for testing).</summary>
+    /// <summary>
+    ///   Clears all custom converters (useful for testing).
+    /// </summary>
     procedure ClearCustomConverters;
     
     class property Instance: TTypeConverterRegistry read FInstance;
@@ -265,7 +272,8 @@ uses
   System.Variants,
   Dext.Core.Reflection,
   Dext.Core.ValueConverters,
-  Dext.Json;
+  Dext.Json,
+  Dext.Utils;
 
 { ColumnTypeAttribute }
 
@@ -539,9 +547,11 @@ begin
   JsonStr := AValue.AsString;
   if JsonStr.Trim.IsEmpty then
     Exit(TValue.Empty);
-    
+
   if ATypeInfo.Kind in [tkClass, tkRecord, tkDynArray] then
-    Result := TDextJson.Deserialize(ATypeInfo, JsonStr)
+  begin
+    Result := TDextJson.Deserialize(ATypeInfo, JsonStr);
+  end
   else
     Result := AValue;
 end;

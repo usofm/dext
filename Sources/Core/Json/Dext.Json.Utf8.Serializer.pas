@@ -41,10 +41,19 @@ uses
   Dext.Core.Reflection;
 
 type
+  /// <summary>
+  ///   Exception type for UTF-8 JSON serialization errors.
+  /// </summary>
   EUtf8SerializationException = class(Exception);
 
+  /// <summary>
+  ///   Pointer to a TUUID record.
+  /// </summary>
   PTUUID = ^TUUID;
 
+  /// <summary>
+  ///   Holds reflection and offset information for a JSON serializable field.
+  /// </summary>
   TJsonFieldInfo = record
     NameBytes: TBytes;
     Offset: Integer;
@@ -52,16 +61,25 @@ type
     TypeInfo: PTypeInfo;
   end;
 
+  /// <summary>
+  ///   Holds the mapping of all fields for a JSON serializable record.
+  /// </summary>
   TJsonRecordInfo = record
     Fields: TArray<TJsonFieldInfo>;
   end;
 
+  /// <summary>
+  ///   Global cache for UTF-8 JSON serialization metadata.
+  /// </summary>
   TUtf8JsonSerializerCache = class
   public class var
     Cache: IDictionary<PTypeInfo, TJsonRecordInfo>;
     class constructor Create;
   end;
 
+  /// <summary>
+  ///   High-performance, zero-allocation UTF-8 JSON serializer for records.
+  /// </summary>
   TUtf8JsonSerializer = record
   private
     class function GetRecordInfo(AType: PTypeInfo): TJsonRecordInfo; static;
@@ -186,6 +204,10 @@ end;
 class procedure TUtf8JsonSerializer.DeserializeFieldDirect(var AReader: TUtf8JsonReader; const FieldInfo: TJsonFieldInfo; Instance: Pointer);
 var
   P: Pointer;
+  DateStr: string;
+  Dt: TDateTime;
+  GuidStr: string;
+  G: TGUID;
 begin
   P := Pointer(NativeUInt(Instance) + NativeUInt(FieldInfo.Offset));
   case FieldInfo.TypeKind of
@@ -200,8 +222,7 @@ begin
          (FieldInfo.TypeInfo = TypeInfo(TDate)) or
          (FieldInfo.TypeInfo = TypeInfo(TTime)) then
       begin
-         var DateStr := AReader.GetString;
-         var Dt: TDateTime;
+         DateStr := AReader.GetString;
          if TryParseCommonDate(DateStr, Dt) then
            PDateTime(P)^ := Dt
          else
@@ -229,8 +250,7 @@ begin
       begin
         if FieldInfo.TypeInfo = TypeInfo(TGUID) then
         begin
-          var GuidStr := AReader.GetString;
-          var G: TGUID;
+          GuidStr := AReader.GetString;
           
           if GuidStr.Trim = '' then
             G := TGUID.Empty
@@ -245,7 +265,7 @@ begin
         end
         else if FieldInfo.TypeInfo = TypeInfo(TUUID) then
         begin
-          var GuidStr := AReader.GetString;
+          GuidStr := AReader.GetString;
           if GuidStr.Trim = '' then
             PTUUID(P)^ := TUUID.Null
           else

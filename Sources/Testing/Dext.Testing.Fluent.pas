@@ -399,6 +399,8 @@ function TTestConfigurator.Run: Boolean;
 var
   Filter: TTestFilter;
   Cls: TClass;
+  I: Integer;
+  P: string;
 begin
   // Apply configuration
   TTestRunner.SetVerbosity(FVerbosity);
@@ -413,9 +415,9 @@ begin
   end;
 
   // Check for Overrides via Command Line
-  for var I := 1 to ParamCount do
+  for I := 1 to ParamCount do
   begin
-    var P := ParamStr(I);
+    P := ParamStr(I);
     if P.StartsWith('-junit:', True) or P.StartsWith('/junit:', True) then
       FJUnitFile := P.Substring(7).DeQuotedString('"')
     else if P.StartsWith('-html:', True) or P.StartsWith('/html:', True) then

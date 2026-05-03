@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -36,10 +36,19 @@ uses
   Dext.Collections.Dict;
 
 type
+  /// <summary>
+  ///   Exception type for YAML parsing and processing errors.
+  /// </summary>
   EYamlException = class(Exception);
 
+  /// <summary>
+  ///   Identifies the type of a YAML node (Scalar, Mapping, Sequence).
+  /// </summary>
   TYamlNodeType = (yntScalar, yntMapping, yntSequence);
 
+  /// <summary>
+  ///   Base abstract class for all YAML nodes in the document tree.
+  /// </summary>
   TYamlNode = class
   private
     FParent: TYamlNode;
@@ -49,6 +58,9 @@ type
     function ToYaml(Indent: Integer = 0): string; virtual; abstract;
   end;
 
+  /// <summary>
+  ///   Represents a scalar (primitive) value in a YAML document.
+  /// </summary>
   TYamlScalar = class(TYamlNode)
   private
     FValue: string;
@@ -59,6 +71,9 @@ type
     property Value: string read FValue write FValue;
   end;
 
+  /// <summary>
+  ///   Represents a YAML mapping (key-value collection / dictionary).
+  /// </summary>
   TYamlMapping = class(TYamlNode)
   private
     FChildren: IDictionary<string, TYamlNode>;
@@ -72,6 +87,9 @@ type
     property Children: IDictionary<string, TYamlNode> read FChildren;
   end;
 
+  /// <summary>
+  ///   Represents a YAML sequence (list/array of items).
+  /// </summary>
   TYamlSequence = class(TYamlNode)
   private
     FItems: IList<TYamlNode>;
@@ -84,6 +102,9 @@ type
     property Items: IList<TYamlNode> read FItems;
   end;
 
+  /// <summary>
+  ///   Represents a full YAML document, containing a root node.
+  /// </summary>
   TYamlDocument = class
   private
     FRoot: TYamlNode;
@@ -94,6 +115,9 @@ type
     procedure SaveToFile(const FileName: string);
   end;
 
+  /// <summary>
+  ///   Parser for reading YAML content and producing a TYamlDocument tree.
+  /// </summary>
   TYamlParser = class
   private
     FLines: TStringList;
@@ -158,6 +182,11 @@ function TYamlMapping.ToYaml(Indent: Integer = 0): string;
 var
   SB: TStringBuilder;
   Spaces: string;
+  Keys: IList<string>;
+  Pair: TPair<string, TYamlNode>;
+  I: Integer;
+  Key: string;
+  Node: TYamlNode;
 begin
   SB := TStringBuilder.Create;
   try
@@ -165,16 +194,16 @@ begin
     
     // Sort keys for deterministic output? Not required by YAML but nice.
     // TDictionary is unordered.
-    var Keys := TCollections.CreateList<string>;
+    Keys := TCollections.CreateList<string>;
     try
-      for var Pair in FChildren do
+      for Pair in FChildren do
         Keys.Add(Pair.Key);
       
       // Removed Keys.Sort for now since IList doesn't have it.
-      for var I := 0 to Keys.Count - 1 do
+      for I := 0 to Keys.Count - 1 do
       begin
-        var Key := Keys[I];
-        var Node := FChildren.GetItem(Key);
+        Key := Keys[I];
+        Node := FChildren.GetItem(Key);
         
         if I > 0 then
           SB.AppendLine;
@@ -241,6 +270,10 @@ var
   SB: TStringBuilder;
   Spaces: string;
   I: Integer;
+  Item: TYamlNode;
+  MapYaml: string;
+  Lines: TArray<string>;
+  L: Integer;
 begin
   SB := TStringBuilder.Create;
   try
@@ -250,7 +283,7 @@ begin
       if I > 0 then
         SB.AppendLine;
         
-      var Item := FItems.GetItem(I);
+      Item := FItems.GetItem(I);
       SB.Append(Spaces).Append('- ');
       
       if Item is TYamlScalar then
@@ -290,10 +323,10 @@ begin
          // - key1: val1
          //   key2: val2
          
-         var MapYaml := Item.ToYaml(0); // Generate with 0 indent to inspect
-         var Lines := MapYaml.Split([#10]);
+         MapYaml := Item.ToYaml(0); // Generate with 0 indent to inspect
+         Lines := MapYaml.Split([#10]);
          
-         for var L := 0 to Length(Lines) - 1 do
+         for L := 0 to Length(Lines) - 1 do
          begin
            if L = 0 then
               SB.Append(Lines[L])
@@ -408,6 +441,8 @@ end;
 function TYamlParser.Parse(const YamlContent: string): TYamlDocument;
 var
   Root: TYamlNode;
+  Line: string;
+  Trimmed: string;
 begin
   FLines.Text := YamlContent;
   FCurrentLine := 0;
@@ -415,10 +450,10 @@ begin
   // Skip empty lines at start
   while not IsEOF and (TrimComment(PeekLine).Trim.IsEmpty) do
     ConsumeLine;
-
+ 
   if IsEOF then
     Exit(TYamlDocument.Create(nil));
-
+ 
   // Determine root type.
   // We assume standard block scalars or mappings.
   // Since multiple documents in one file are not supported yet, we parse the first block.
@@ -428,8 +463,8 @@ begin
   // If line matches "key: ...", it's a mapping.
   // Else scalar.
   
-  var Line := TrimComment(PeekLine);
-  var Trimmed := Line.Trim;
+  Line := TrimComment(PeekLine);
+  Trimmed := Line.Trim;
   
   if (Trimmed.StartsWith('- ') or (Trimmed = '-')) then
     Root := ParseSequence(0, Line)
@@ -437,7 +472,7 @@ begin
     Root := ParseMapping(0, Line)
   else
     Root := TYamlScalar.Create(Trimmed);
-
+ 
   Result := TYamlDocument.Create(Root);
 end;
 
@@ -527,18 +562,18 @@ begin
         // Check next line indent
         if not IsEOF then
         begin
-          var NextLine := TrimComment(PeekLine);
-          var NextIndent := ParseIndent(NextLine);
+          Line := TrimComment(PeekLine);
+          CurrentIndent := ParseIndent(Line);
           
-          if NextIndent > Indent then
+          if CurrentIndent > Indent then
           begin
             // It is a nested object/sequence
              // Recursive call based on lookahead
-             var NextContent := NextLine.Trim;
-             if (NextContent.StartsWith('- ') or (NextContent = '-')) then
-               Mapping.Add(Key, ParseSequence(NextIndent, NextLine))
+             Trimmed := Line.Trim;
+             if (Trimmed.StartsWith('- ') or (Trimmed = '-')) then
+               Mapping.Add(Key, ParseSequence(CurrentIndent, Line))
              else
-               Mapping.Add(Key, ParseMapping(NextIndent, NextLine));
+               Mapping.Add(Key, ParseMapping(CurrentIndent, Line));
           end
           else
             Mapping.Add(Key, TYamlScalar.Create('')); // Empty value
@@ -607,10 +642,10 @@ begin
          // Nested object in list item?
          if not IsEOF then
          begin
-           var NextLine := TrimComment(PeekLine);
-           var NextIndent := ParseIndent(NextLine);
-           if NextIndent > Indent then
-             Seq.Add(ParseMapping(NextIndent, NextLine))
+           Line := TrimComment(PeekLine);
+           CurrentIndent := ParseIndent(Line);
+           if CurrentIndent > Indent then
+             Seq.Add(ParseMapping(CurrentIndent, Line))
            else
              Seq.Add(TYamlScalar.Create(''));
          end;

@@ -88,6 +88,14 @@ var
   LogStrings: TStringList;
   IsLogEnabled: Boolean;
   ParentProcess: string;
+  P: string;
+  {$IFDEF DEXT_TESTINSIGHT}
+  Listener: ITestListener;
+  Selected: TArray<string>;
+  StartTime: DWORD;
+  ListenerObj: TTestInsightListener;
+  InsightOptions: TTestInsightOptions;
+  {$ENDIF}
 begin
   ParentProcess := GetParentProcessName;
   
@@ -98,7 +106,7 @@ begin
   
   for Index := 1 to ParamCount do
   begin
-    var P := ParamStr(Index);
+    P := ParamStr(Index);
     // Detect Log
     if (CompareText(P, '/log') = 0) or (CompareText(P, '-log') = 0) then
     begin
@@ -141,8 +149,8 @@ begin
     {$IFDEF DEXT_TESTINSIGHT}
     if IsUI then
     begin
-      var ListenerObj := TTestInsightListener.Create;
-      var Listener: ITestListener := ListenerObj; 
+      ListenerObj := TTestInsightListener.Create;
+      Listener := ListenerObj; 
       TTestRunner.RegisterListener(Listener);
       
       if not ListenerObj.Enabled then
@@ -153,7 +161,7 @@ begin
       end
       else
       begin
-        var InsightOptions := ListenerObj.GetOptions;
+        InsightOptions := ListenerObj.GetOptions;
         if not InsightOptions.ExecuteTests then
         begin
           TTestRunner.SetDiscoveryMode(True);
@@ -161,7 +169,7 @@ begin
         end
         else
         begin
-          var Selected := ListenerObj.GetSelectedTests;
+          Selected := ListenerObj.GetSelectedTests;
           if (Length(Selected) > 0) then
           begin
             TTestRunner.SetSelectedTests(Selected);
@@ -174,7 +182,7 @@ begin
         end;
 
         // Wait for completion
-        var StartTime := GetTickCount;
+        StartTime := GetTickCount;
         while (ListenerObj.WaitForCompletion(100) = wrTimeout) and (GetTickCount - StartTime < 30000) do
           Sleep(10); 
       end;

@@ -281,11 +281,12 @@ begin
 end;
 
 function TRestResponse.GetContentString: string;
+var
+  LBytes: TBytes;
 begin
   if FContentStream.Size = 0 then Exit('');
   
   FContentStream.Position := 0;
-  var LBytes: TBytes;
   SetLength(LBytes, FContentStream.Size);
   FContentStream.ReadBuffer(LBytes[0], FContentStream.Size);
   Result := TEncoding.UTF8.GetString(LBytes);
@@ -421,6 +422,8 @@ var
   Headers: TNetHeaders;
   Timeout: Integer;
   Auth: IAuthenticationProvider;
+  LHeadList: TList<TNetHeader>;
+  LPair: TPair<string, string>;
 begin
   Url := GetFullUrl(AEndpoint);
   Retries := FMaxRetries;
@@ -428,11 +431,11 @@ begin
   Auth := FAuthProvider;
   
   // Snapshot headers (Thread Safety)
-  var LHeadList := TList<TNetHeader>.Create;
+  LHeadList := TList<TNetHeader>.Create;
   try
     FLock.Enter;
     try
-      for var LPair in FHeaders do
+      for LPair in FHeaders do
         LHeadList.Add(TNetHeader.Create(LPair.Key, LPair.Value));
     finally
       FLock.Leave;
@@ -448,7 +451,7 @@ begin
 
     if Assigned(AHeaders) then
     begin
-      for var LPair in AHeaders do
+      for LPair in AHeaders do
         LHeadList.Add(TNetHeader.Create(LPair.Key, LPair.Value));
     end;
     
@@ -526,11 +529,13 @@ begin
 end;
 
 class function TRestClient.Create(const ABaseUrl: string): TRestClient;
+var
+  LNewPool: TConnectionPool;
 begin
   // Thread-safe pool initialization
   if not Assigned(FSharedPool) then
   begin
-    var LNewPool := TConnectionPool.Create;
+    LNewPool := TConnectionPool.Create;
     if TInterlocked.CompareExchange(Pointer(FSharedPool), Pointer(LNewPool), nil) <> nil then
       LNewPool.Free;
   end;

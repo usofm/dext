@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.Bulk;
+unit EntityDemo.Tests.Bulk;
 
 interface
 
@@ -29,6 +29,7 @@ var
   Count: Integer;
   Dialect: ISQLDialect;
   SQL: string;
+  U: TUser;
 begin
   Dialect := TDbConfig.CreateDialect;
   
@@ -41,7 +42,7 @@ begin
     Log('   Preparing 100 users...');
     for i := 1 to 100 do
     begin
-      var U := TUser.Create;
+      U := TUser.Create;
       U.Name := 'Bulk User ' + i.ToString;
       U.Age := 20;
       U.Email := 'bulk' + i.ToString + '@dext.com';
@@ -63,7 +64,7 @@ begin
 
     // 2. Bulk Update
     Log('   Updating 100 users...');
-    for var U in BulkUsers do
+    for U in BulkUsers do
     begin
       U.Age := 30;
       // Note: We need to call UpdateRange, but currently UpdateRange iterates and calls Update.

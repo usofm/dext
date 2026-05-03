@@ -89,6 +89,7 @@ var
   CatGenerator: TSQLGenerator<TCat>;
   SQL: string;
   Dialect: ISQLDialect;
+  Dog: TDog;
 begin
   try
     Writeln('Testing ORM Inheritance (TPH)...');
@@ -106,7 +107,7 @@ begin
       Writeln('Generating Dog Insert...');
       DogGenerator := TSQLGenerator<TDog>.Create(Dialect, ModelBuilder.GetMap(TypeInfo(TDog)));
       try
-        var Dog := TDog.Create;
+        Dog := TDog.Create;
         Dog.Id := 1;
         Dog.Name := 'Rex';
         Dog.Breed := 'German Shepherd';

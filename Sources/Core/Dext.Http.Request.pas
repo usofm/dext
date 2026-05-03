@@ -196,16 +196,20 @@ begin
 end;
 
 function THttpRequestCollection.FindByName(const AName: string): THttpRequestInfo;
+var
+  Request: THttpRequestInfo;
 begin
-  for var Request in FRequests do
+  for Request in FRequests do
     if SameText(Request.Name, AName) then
       Exit(Request);
   Result := nil;
 end;
 
 function THttpRequestCollection.GetVariable(const AName: string): string;
+var
+  Variable: THttpVariable;
 begin
-  for var Variable in FVariables do
+  for Variable in FVariables do
   begin
     if SameText(Variable.Name, AName) then
     begin

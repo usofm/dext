@@ -43,17 +43,17 @@ uses
 procedure TTicketEntityTests.SLA_High_Priority_Should_Be_24Hours;
 var
   Ticket: TTicket;
-  BaseDate: TDateTime;
+  BaseDate, DueDate, Expected: TDateTime;
 begin
   Ticket := TTicket.Create;
   try
     Ticket.Priority := tpHigh;
     BaseDate := EncodeDate(2023, 1, 1) + EncodeTime(10, 0, 0, 0); // 10 AM
     
-    var DueDate := Ticket.CalculateSLA(BaseDate);
+    DueDate := Ticket.CalculateSLA(BaseDate);
     
     // 24h later = Next day 10 AM
-    var Expected := IncHour(BaseDate, 24);
+    Expected := IncHour(BaseDate, 24);
     
     Should(DueDate).Be(Expected)
       .Because('High priority SLA must be 24 hours');
@@ -65,15 +65,15 @@ end;
 procedure TTicketEntityTests.SLA_Critical_Priority_Should_Be_4Hours;
 var
   Ticket: TTicket;
-  BaseDate: TDateTime;
+  BaseDate, DueDate, Expected: TDateTime;
 begin
   Ticket := TTicket.Create;
   try
     Ticket.Priority := tpCritical;
     BaseDate := EncodeDate(2023, 1, 1) + EncodeTime(10, 0, 0, 0);
     
-    var DueDate := Ticket.CalculateSLA(BaseDate);
-    var Expected := IncHour(BaseDate, 4);
+    DueDate := Ticket.CalculateSLA(BaseDate);
+    Expected := IncHour(BaseDate, 4);
     
     Should(DueDate).Be(Expected)
       .Because('Critical priority SLA must be 4 hours');

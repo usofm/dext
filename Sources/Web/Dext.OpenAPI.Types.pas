@@ -295,9 +295,13 @@ begin
 end;
 
 destructor TOpenAPISchema.Destroy;
+var
+  LPairs: TArray<TPair<string, TOpenAPISchema>>;
+  I: Integer;
 begin
-  for var Pair in FProperties do
-    Pair.Value.Free;
+  LPairs := FProperties.ToArray;
+  for I := 0 to High(LPairs) do
+    LPairs[I].Value.Free;
   // FProperties is ARC
   
   if Assigned(FItems) then
@@ -329,9 +333,13 @@ begin
 end;
 
 destructor TOpenAPIRequestBody.Destroy;
+var
+  LPairs: TArray<TPair<string, TOpenAPISchema>>;
+  I: Integer;
 begin
-  for var Pair in FContent do
-    Pair.Value.Free;
+  LPairs := FContent.ToArray;
+  for I := 0 to High(LPairs) do
+    LPairs[I].Value.Free;
   // FContent is ARC
   inherited;
 end;
@@ -345,9 +353,13 @@ begin
 end;
 
 destructor TOpenAPIResponse.Destroy;
+var
+  LPairs: TArray<TPair<string, TOpenAPISchema>>;
+  I: Integer;
 begin
-  for var Pair in FContent do
-    Pair.Value.Free;
+  LPairs := FContent.ToArray;
+  for I := 0 to High(LPairs) do
+    LPairs[I].Value.Free;
   // FContent is ARC
   inherited;
 end;
@@ -363,11 +375,15 @@ begin
 end;
 
 destructor TOpenAPIOperation.Destroy;
+var
+  LPairs: TArray<TPair<string, TOpenAPIResponse>>;
+  I: Integer;
 begin
   // FParameters is ARC
   
-  for var Pair in FResponses do
-    Pair.Value.Free;
+  LPairs := FResponses.ToArray;
+  for I := 0 to High(LPairs) do
+    LPairs[I].Value.Free;
   // FResponses is ARC
   
   // FSecurity items are freed by ARC since it's an object list
@@ -416,20 +432,28 @@ begin
 end;
 
 destructor TOpenAPIDocument.Destroy;
+var
+  LPathPairs: TArray<TPair<string, TOpenAPIPathItem>>;
+  LSchemaPairs: TArray<TPair<string, TOpenAPISchema>>;
+  LSecPairs: TArray<TPair<string, TOpenAPISecurityScheme>>;
+  I: Integer;
 begin
   FInfo.Free;
   // FServers is ARC
   
-  for var Pair in FPaths do
-    Pair.Value.Free;
+  LPathPairs := FPaths.ToArray;
+  for I := 0 to High(LPathPairs) do
+    LPathPairs[I].Value.Free;
   // FPaths is ARC
   
-  for var Pair in FSchemas do
-    Pair.Value.Free;
+  LSchemaPairs := FSchemas.ToArray;
+  for I := 0 to High(LSchemaPairs) do
+    LSchemaPairs[I].Value.Free;
   // FSchemas is ARC
   
-  for var Pair in FSecuritySchemes do
-    Pair.Value.Free;
+  LSecPairs := FSecuritySchemes.ToArray;
+  for I := 0 to High(LSecPairs) do
+    LSecPairs[I].Value.Free;
   // FSecuritySchemes is ARC
   
   inherited;

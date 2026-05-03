@@ -1,4 +1,4 @@
-﻿unit Dext.Hosting.CLI.Commands.MigrateList;
+unit Dext.Hosting.CLI.Commands.MigrateList;
 
 interface
 
@@ -52,6 +52,8 @@ var
   Available: TArray<IMigration>;
   Status: string;
   SourcePath: string;
+  Mig: IMigration;
+  CtxObj: TDbContext;
 begin
   SourcePath := Args.GetOption('source');
   if SourcePath = '' then
@@ -74,7 +76,7 @@ begin
       
       Applied := Migrator.GetAppliedMigrations;
 
-      for var Mig in Available do
+      for Mig in Available do
       begin
         if Applied.Contains(Mig.GetId) then
           Status := '[Applied]'
@@ -89,7 +91,7 @@ begin
   finally
     if Context is TDbContext then
     begin
-      var CtxObj := Context as TDbContext;
+      CtxObj := Context as TDbContext;
       Context := nil; 
       CtxObj.Free;
     end;

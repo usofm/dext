@@ -1,4 +1,4 @@
-﻿program EventBusDemo;
+program EventBusDemo;
 
 {***************************************************************************}
 {                                                                           }
@@ -162,6 +162,7 @@ var
   Provider: IServiceProvider;
   Bus: IEventBus;
   ValidEvt, InvalidEvt: TOrderPlacedEvent;
+  PayEvt: TPaymentProcessedEvent;
 begin
   Separator('Demo 4: Per-event behavior (TOrderValidationBehavior for TOrderPlacedEvent only)');
 
@@ -196,7 +197,6 @@ begin
 
   WriteLn;
   WriteLn('  >> Payment event (no validation behavior applies here):');
-  var PayEvt: TPaymentProcessedEvent;
   PayEvt.OrderId := 4; 
   PayEvt.Amount := 120.00; 
   PayEvt.PaymentMethod := 'CreditCard';
@@ -285,6 +285,7 @@ var
   Provider: IServiceProvider;
   Bus: IEventBus;
   Evt: TOrderPlacedEvent;
+  Err: string;
 begin
   Separator('Demo 7: Exception aggregation — all handlers run even when one fails');
 
@@ -310,7 +311,7 @@ begin
     begin
       WriteLn(Format('  EEventDispatchAggregate: %s', [E.Message]));
       WriteLn('  Individual errors:');
-      for var Err in E.Errors do
+      for Err in E.Errors do
         WriteLn('    - ' + Err);
     end;
   end;
@@ -332,6 +333,7 @@ end;
 
 begin
   try
+    SetConsoleCharSet(65001);
     WriteLn('');
     WriteLn('╔══════════════════════════════════════════════════════════════╗');
     WriteLn('║         Dext Framework — Event Bus Demo                      ║');

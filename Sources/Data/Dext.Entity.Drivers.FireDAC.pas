@@ -74,6 +74,9 @@ type
     procedure Rollback;
   end;
 
+  /// <summary>
+  ///   Implementation of IDbReader using FireDAC components for reading data.
+  /// </summary>
   TFireDACReader = class(TInterfacedObject, IDbReader)
   private
     FQuery: TFDQuery;
@@ -402,6 +405,8 @@ end;
 procedure TFireDACCommand.SetParamValueWithType(Param: TFDParam; const AValue: TValue; ADataType: TFieldType);
 var
   V: TValue;
+  Bytes: TBytes;
+  RawStr: RawByteString;
 begin
   V := AValue;
   TReflection.TryUnwrapProp(V, V);
@@ -453,8 +458,7 @@ begin
     begin
       if V.TypeInfo = TypeInfo(TBytes) then
       begin
-        var Bytes := V.AsType<TBytes>;
-        var RawStr: RawByteString;
+        Bytes := V.AsType<TBytes>;
         SetLength(RawStr, Length(Bytes));
         if Length(Bytes) > 0 then
           Move(Bytes[0], RawStr[1], Length(Bytes));
@@ -481,6 +485,13 @@ procedure TFireDACCommand.SetParamValue(Param: TFDParam; const AValue: TValue);
 var
   Converter: ITypeConverter;
   ConvertedValue: TValue;
+  TypeName: string;
+  IsByteArray: Boolean;
+  Bytes: TBytes;
+  RawStr: RawByteString;
+  Helper: TNullableHelper;
+  InnerVal: TValue;
+  Underlying: PTypeInfo;
 begin
   if AValue.IsEmpty then
   begin
@@ -488,7 +499,7 @@ begin
     // Set correct DataType for empty values - byte arrays need ftBlob!
     if AValue.TypeInfo <> nil then
     begin
-      var TypeName := string(AValue.TypeInfo.Name);
+      TypeName := string(AValue.TypeInfo.Name);
       if (TypeName = 'TBytes') or (TypeName = 'TArray<System.Byte>') or (TypeName = 'TArray<Byte>') then
         Param.DataType := ftBlob
       // Do not force ftString for unknown types, let FireDAC or the query handle it, 
@@ -597,10 +608,10 @@ begin
         begin
           // Check for byte arrays by name (TBytes / TArray<Byte> / TArray<System.Byte>)
           // TypeInfo(TBytes) may not match TArray<System.Byte> pointer
-          var IsByteArray := False;
+          IsByteArray := False;
           if ConvertedValue.TypeInfo <> nil then
           begin
-            var TypeName := string(ConvertedValue.TypeInfo.Name);
+            TypeName := string(ConvertedValue.TypeInfo.Name);
             IsByteArray := (TypeName = 'TBytes') or 
                            (TypeName = 'TArray<System.Byte>') or 
                            (TypeName = 'TArray<Byte>');
@@ -611,8 +622,7 @@ begin
           begin
              // Explicitly set ftBlob. FireDAC needs this for Postgres bytea.
              Param.DataType := ftBlob;
-             var Bytes := ConvertedValue.AsType<TBytes>;
-             var RawStr: RawByteString;
+             Bytes := ConvertedValue.AsType<TBytes>;
              SetLength(RawStr, Length(Bytes));
              if Length(Bytes) > 0 then
                Move(Bytes[0], RawStr[1], Length(Bytes));
@@ -686,10 +696,10 @@ begin
       tkDynArray:
       begin
         // Check for byte arrays by name (TBytes / TArray<Byte> / TArray<System.Byte>)
-        var IsByteArray := False;
+        IsByteArray := False;
         if AValue.TypeInfo <> nil then
         begin
-          var TypeName := string(AValue.TypeInfo.Name);
+          TypeName := string(AValue.TypeInfo.Name);
           IsByteArray := (TypeName = 'TBytes') or 
                          (TypeName = 'TArray<System.Byte>') or 
                          (TypeName = 'TArray<Byte>');
@@ -700,8 +710,7 @@ begin
         begin
            // Set ftBlob explicitly for PostgreSQL bytea compatibility
            Param.DataType := ftBlob;
-           var Bytes := AValue.AsType<TBytes>;
-           var RawStr: RawByteString;
+           Bytes := AValue.AsType<TBytes>;
            SetLength(RawStr, Length(Bytes));
            if Length(Bytes) > 0 then
              Move(Bytes[0], RawStr[1], Length(Bytes));
@@ -731,17 +740,17 @@ begin
       begin
         if IsNullable(AValue.TypeInfo) then
         begin
-           var Helper := TNullableHelper.Create(AValue.TypeInfo);
+           Helper := TNullableHelper.Create(AValue.TypeInfo);
            if Helper.HasValue(AValue.GetReferenceToRawData) then
            begin
-             var InnerVal := Helper.GetValue(AValue.GetReferenceToRawData);
+             InnerVal := Helper.GetValue(AValue.GetReferenceToRawData);
              SetParamValue(Param, InnerVal);
            end
            else
            begin
              Param.Clear;
              // Try to set type from underlying type
-             var Underlying := GetUnderlyingType(AValue.TypeInfo);
+             Underlying := GetUnderlyingType(AValue.TypeInfo);
              if Underlying <> nil then
              begin
                case Underlying.Kind of
@@ -900,12 +909,17 @@ procedure TFireDACCommand.SetParamArray(const AName: string; const AValues: TArr
 var
   Param: TFDParam;
   i: Integer;
+  Val: TValue;
+  Bytes: TBytes;
+  RawStr: RawByteString;
+  Helper: TNullableHelper;
+  InnerVal: TValue;
 begin
   Param := FQuery.ParamByName(AName);
   for i := 0 to High(AValues) do
   begin
     // Reuse logic similar to SetParamValue but for array index
-    var Val := AValues[i];
+    Val := AValues[i];
     
     if Val.IsEmpty then
     begin
@@ -963,8 +977,7 @@ begin
         begin
           if Val.TypeInfo = TypeInfo(TBytes) then
           begin
-            var Bytes := Val.AsType<TBytes>;
-            var RawStr: RawByteString;
+            Bytes := Val.AsType<TBytes>;
             SetLength(RawStr, Length(Bytes));
             if Length(Bytes) > 0 then
               Move(Bytes[0], RawStr[1], Length(Bytes));
@@ -990,10 +1003,10 @@ begin
         begin
           if IsNullable(Val.TypeInfo) then
           begin
-             var Helper := TNullableHelper.Create(Val.TypeInfo);
+             Helper := TNullableHelper.Create(Val.TypeInfo);
              if Helper.HasValue(Val.GetReferenceToRawData) then
              begin
-               var InnerVal := Helper.GetValue(Val.GetReferenceToRawData);
+               InnerVal := Helper.GetValue(Val.GetReferenceToRawData);
                // Recursive call for inner value? No, just handle it here or duplicate logic.
                // Duplicating logic for simplicity to avoid recursion with index passing
                case InnerVal.Kind of
@@ -1048,8 +1061,7 @@ begin
                   begin
                     if InnerVal.TypeInfo = TypeInfo(TBytes) then
                     begin
-                      var Bytes := InnerVal.AsType<TBytes>;
-                      var RawStr: RawByteString;
+                      Bytes := InnerVal.AsType<TBytes>;
                       SetLength(RawStr, Length(Bytes));
                       if Length(Bytes) > 0 then
                         Move(Bytes[0], RawStr[1], Length(Bytes));
@@ -1137,6 +1149,7 @@ procedure TFireDACConnection.DoAfterConnect(Sender: TObject);
 var
   LSchema: string;
   LDialect: ISQLDialect;
+  LSQL: string;
 begin
   // Set Search Path for PostgreSQL if schema is provided
   if GetDialect = ddPostgreSQL then
@@ -1155,7 +1168,7 @@ begin
        if LDialect <> nil then
        begin
          // Use the exact syntax that works in your console
-         var LSQL := Format('SET search_path = %s, public;', [LSchema]);
+         LSQL := Format('SET search_path = %s, public;', [LSchema]);
          if Assigned(FOnLog) then
            FOnLog('Applying schema: ' + LSQL);
          try
@@ -1223,6 +1236,7 @@ function TFireDACConnection.TableExists(const ATableName: string): Boolean;
 var
   List: TStringList;
   LSchema: string;
+  Table: string;
 begin
   List := TStringList.Create;
   try
@@ -1249,7 +1263,7 @@ begin
         Exit(True);
         
       // 4. Case insensitive match (fallback)
-      for var Table in List do
+      for Table in List do
       begin
         if SameText(Table, ATableName) or 
            SameText(Table, '"' + ATableName + '"') or

@@ -1,4 +1,4 @@
-program Dext.RouteParamsTest;
+﻿program Dext.RouteParamsTest;
 
 {$APPTYPE CONSOLE}
 
@@ -20,13 +20,16 @@ type
     Email: string;
   end;
 
+var
+  Host: IWebHost;
 begin
+  SetConsoleCharSet(65001);
   try
     WriteLn('🧪 Testing Route Parameters Support');
     WriteLn('=====================================');
     WriteLn;
 
-    var Host := TDextWebHost.CreateDefaultBuilder
+    Host := TDextWebHost.CreateDefaultBuilder
       .ConfigureServices(procedure(Services: IServiceCollection)
       begin
         // Nenhum serviço necessário para este teste

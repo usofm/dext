@@ -148,13 +148,15 @@ function TEventService.MapToResponse(Event: TEvent): TEventResponse;
 var
   SpeakerCount, ConfirmedCount: Integer;
   Venue: TVenue;
+  s: TSpeaker;
+  r: TRegistration;
 begin
   // Count speakers for this event
-  var s := TSpeaker.Props;
+  s := TSpeaker.Props;
   SpeakerCount := FDb.Speakers.Where(s.EventId = Event.Id.Value).Count;
 
   // Count confirmed registrations
-  var r := TRegistration.Props;
+  r := TRegistration.Props;
   ConfirmedCount := FDb.Registrations
     .Where((r.EventId = Event.Id.Value) and
            (r.Status = rsConfirmed))
@@ -186,9 +188,10 @@ function TEventService.GetAllPublished: IList<TEventResponse>;
 var
   Events: IList<TEvent>;
   Event: TEvent;
+  e: TEvent;
 begin
   Result := TCollections.CreateList<TEventResponse>;
-  var e := TEvent.Props;
+  e := TEvent.Props;
   Events := FDb.Events.Where(e.Status = esPublished).ToList;
   for Event in Events do
     Result.Add(MapToResponse(Event));
@@ -301,9 +304,12 @@ begin
 end;
 
 function TEventService.GetMetrics: TDashboardMetrics;
+var
+  e: TEvent;
+  r: TRegistration;
 begin
-  var e := TEvent.Props;
-  var r := TRegistration.Props;
+  e := TEvent.Props;
+  r := TRegistration.Props;
   Result.TotalEvents := FDb.Events.QueryAll.Count;
   Result.PublishedEvents := FDb.Events.Where(e.Status = esPublished).Count;
   Result.TotalAttendees := FDb.Attendees.QueryAll.Count;
@@ -329,9 +335,10 @@ var
   Speakers: IList<TSpeaker>;
   Speaker: TSpeaker;
   Resp: TSpeakerResponse;
+  s: TSpeaker;
 begin
   Result := TCollections.CreateList<TSpeakerResponse>;
-  var s := TSpeaker.Props;
+  s := TSpeaker.Props;
   Speakers := FDb.Speakers.Where(s.EventId = EventId).ToList;
   for Speaker in Speakers do
   begin
@@ -348,6 +355,7 @@ function TSpeakerService.AddSpeaker(const Req: TAddSpeakerRequest): TSpeakerResp
 var
   Event: TEvent;
   Speaker: TSpeaker;
+  s: TSpeaker;
 begin
   // Validate event exists
   Event := FDb.Events.Find(Req.EventId);
@@ -364,7 +372,7 @@ begin
   FDb.SaveChanges;
 
   // Refresh
-  var s := TSpeaker.Props;
+  s := TSpeaker.Props;
   Speaker := FDb.Speakers.Where(
     (s.EventId = Req.EventId) and
     (s.Email = Req.Email)
@@ -391,9 +399,11 @@ function TAttendeeService.RegisterAttendee(const Req: TRegisterAttendeeRequest):
 var
   Existing: TAttendee;
   Attendee: TAttendee;
+  a: TAttendee;
+  a2: TAttendee;
 begin
   // Check if email already registered
-  var a := TAttendee.Props;
+  a := TAttendee.Props;
   Existing := FDb.Attendees.Where(a.Email = Req.Email).FirstOrDefault;
   if Assigned(Existing) then
     raise Exception.CreateFmt('An attendee with email "%s" already exists', [Req.Email]);
@@ -407,7 +417,7 @@ begin
   FDb.SaveChanges;
 
   // Refresh
-  var a2 := TAttendee.Props;
+  a2 := TAttendee.Props;
   Attendee := FDb.Attendees.Where(a2.Email = Req.Email).FirstOrDefault;
 
   Result.Id := Attendee.Id;
@@ -470,6 +480,8 @@ var
   ExistingReg: TRegistration;
   ConfirmedCount: Integer;
   Reg: TRegistration;
+  r: TRegistration;
+  r2: TRegistration;
 begin
   // Validate event exists
   Event := FDb.Events.Find(Req.EventId);
@@ -486,7 +498,7 @@ begin
     raise Exception.CreateFmt('Attendee with ID %d not found', [Req.AttendeeId]);
 
   // Check for duplicate active registration
-  var r := TRegistration.Props;
+  r := TRegistration.Props;
   ExistingReg := FDb.Registrations
     .Where((r.EventId = Req.EventId) and
            (r.AttendeeId = Req.AttendeeId) and
@@ -514,7 +526,7 @@ begin
   FDb.SaveChanges;
 
   // Refresh
-  var r2 := TRegistration.Props;
+  r2 := TRegistration.Props;
   Reg := FDb.Registrations
     .Where((r2.EventId = Req.EventId) and
            (r2.AttendeeId = Req.AttendeeId) and
@@ -553,9 +565,10 @@ end;
 procedure TRegistrationService.PromoteFromWaitList(EventId: Integer);
 var
   NextInLine: TRegistration;
+  r: TRegistration;
 begin
   // Find the first WaitList registration (FIFO by RegisteredAt)
-  var r := TRegistration.Props;
+  r := TRegistration.Props;
   NextInLine := FDb.Registrations
     .Where((r.EventId = EventId) and
            (r.Status = rsWaitList))
@@ -573,9 +586,10 @@ function TRegistrationService.GetByEvent(EventId: Integer): IList<TRegistrationR
 var
   Regs: IList<TRegistration>;
   Reg: TRegistration;
+  r: TRegistration;
 begin
   Result := TCollections.CreateList<TRegistrationResponse>;
-  var r := TRegistration.Props;
+  r := TRegistration.Props;
   Regs := FDb.Registrations
     .Where(r.EventId = EventId)
     .ToList;
@@ -587,9 +601,10 @@ function TRegistrationService.GetByAttendee(AttendeeId: Integer): IList<TRegistr
 var
   Regs: IList<TRegistration>;
   Reg: TRegistration;
+  r: TRegistration;
 begin
   Result := TCollections.CreateList<TRegistrationResponse>;
-  var r := TRegistration.Props;
+  r := TRegistration.Props;
   Regs := FDb.Registrations
     .Where(r.AttendeeId = AttendeeId)
     .ToList;

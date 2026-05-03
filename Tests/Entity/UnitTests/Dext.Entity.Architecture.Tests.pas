@@ -1,4 +1,4 @@
-unit Dext.Entity.Architecture.Tests;
+﻿unit Dext.Entity.Architecture.Tests;
 
 interface
 
@@ -98,19 +98,23 @@ end;
 
 function TEntityArchitectureTests.FindEntity(const AEntities: IList<TEntityClassMetadata>;
   const AClassName: string): TEntityClassMetadata;
+var
+  i: Integer;
 begin
   Result := nil;
-  for var i := 0 to AEntities.Count - 1 do
+  for i := 0 to AEntities.Count - 1 do
     if SameText(AEntities[i].EntityClassName, AClassName) then
       Exit(AEntities[i]);
 end;
 
 function TEntityArchitectureTests.FindMember(AEntity: TEntityClassMetadata;
   const AMemberName: string): TEntityMemberMetadata;
+var
+  i: Integer;
 begin
   Result := nil;
   if AEntity = nil then Exit;
-  for var i := 0 to AEntity.Members.Count - 1 do
+  for i := 0 to AEntity.Members.Count - 1 do
     if SameText(AEntity.Members[i].Name, AMemberName) then
       Exit(AEntity.Members[i]);
 end;
@@ -123,6 +127,8 @@ var
   Entities: IList<TEntityClassMetadata>;
   Employee: TEntityClassMetadata;
   DeptMember: TEntityMemberMetadata;
+  TasksMember: TEntityMemberMetadata;
+  ContractMember: TEntityMemberMetadata;
 begin
   TempFile := TPath.Combine(TPath.GetTempPath, 'Dext.Test.Employee.pas');
   Source := TStringList.Create;
@@ -165,12 +171,12 @@ begin
       Should(DeptMember.JoinTargetColumn).Be('id');
 
       // Check Tasks (HasMany)
-      var TasksMember := FindMember(Employee, 'Tasks');
+      TasksMember := FindMember(Employee, 'Tasks');
       Should(TasksMember).NotBeNull;
       Should(TasksMember.RelationType).Be('HasMany');
 
       // Check Contract (HasOne)
-      var ContractMember := FindMember(Employee, 'Contract');
+      ContractMember := FindMember(Employee, 'Contract');
       Should(ContractMember).NotBeNull;
       Should(ContractMember.RelationType).Be('HasOne');
     finally
@@ -186,6 +192,7 @@ procedure TEntityArchitectureTests.Test_LazyLoading_Proxy_Calls_ILazyLoader;
 var
   Proxy: TClassProxy;
   Employee: TEmployee;
+  Dept: TObject;
 begin
   Proxy := TEntityProxyFactory.CreateProxyObject<TEmployee>(Mock);
   Should(Proxy).NotBeNull;
@@ -195,7 +202,7 @@ begin
     Should(Employee).NotBeNull;
     
     // Accessing the lazy property should trigger the loader
-    var Dept := Employee.Department;
+    Dept := Employee.Department;
     try
       Should(Dept).NotBeNull;
       Should(TDepartment(Dept).Name).Be('Mock Department');

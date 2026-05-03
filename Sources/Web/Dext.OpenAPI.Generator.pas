@@ -28,44 +28,44 @@ type
     ContactEmail: string;
     LicenseName: string;
     LicenseUrl: string;
-    
+
     // Swagger UI paths
     SwaggerPath: string;      // Default: '/swagger'
     SwaggerJsonPath: string;  // Default: '/swagger.json'
-    
+
     // Security configuration
     EnableBearerAuth: Boolean;
     BearerFormat: string;  // e.g., 'JWT'
     BearerDescription: string;
-    
+
     EnableApiKeyAuth: Boolean;
     ApiKeyName: string;    // e.g., 'X-API-Key'
     ApiKeyLocation: TApiKeyLocation;
     ApiKeyDescription: string;
-    
+
     // Global responses (e.g., 429, 500) applied to all operations
-    GlobalResponses: TArray<TPair<Integer, string>>; 
-    
+    GlobalResponses: TArray<TPair<Integer, string>>;
+
     // Additional Security definitions
     SecuritySchemes: TArray<TPair<string, TOpenAPISecurityScheme>>;
-    
+
     class function Default: TOpenAPIOptions; static;
-    
+
     /// <summary>
     ///   Adds a server to the configuration. Use fluently: Options.WithServer(...).WithServer(...)
     /// </summary>
     function WithServer(const AUrl, ADescription: string): TOpenAPIOptions;
-    
+
     /// <summary>
     ///   Enables Bearer token authentication (JWT).
     /// </summary>
     function WithBearerAuth(const AFormat: string = 'JWT'; const ADescription: string = 'Bearer token authentication'): TOpenAPIOptions;
-    
+
     /// <summary>
     ///   Enables API Key authentication.
     /// </summary>
     function WithApiKeyAuth(const AKeyName: string = 'X-API-Key'; ALocation: TApiKeyLocation = aklHeader; const ADescription: string = 'API Key authentication'): TOpenAPIOptions;
-    
+
     /// <summary>
     ///   Adds a global response (e.g., 400, 500) to all operations.
     /// </summary>
@@ -86,57 +86,57 @@ type
     ///   Creates a new OpenAPI builder with default options.
     /// </summary>
     class function Create: TOpenAPIBuilder; static;
-    
+
     /// <summary>
     ///   Sets the API title.
     /// </summary>
     function Title(const ATitle: string): TOpenAPIBuilder;
-    
+
     /// <summary>
     ///   Sets the API description.
     /// </summary>
     function Description(const ADescription: string): TOpenAPIBuilder;
-    
+
     /// <summary>
     ///   Sets the API version.
     /// </summary>
     function Version(const AVersion: string): TOpenAPIBuilder;
-    
+
     /// <summary>
     ///   Adds a server to the configuration.
     /// </summary>
     function Server(const AUrl: string; const ADescription: string = ''): TOpenAPIBuilder;
-    
+
     /// <summary>
     ///   Sets contact information.
     /// </summary>
     function Contact(const AName: string; const AEmail: string = ''): TOpenAPIBuilder;
-    
+
     /// <summary>
     ///   Sets license information.
     /// </summary>
     function License(const AName: string; const AUrl: string = ''): TOpenAPIBuilder;
-    
+
     /// <summary>
     ///   Sets custom Swagger UI path (default: /swagger).
     /// </summary>
     function SwaggerPath(const APath: string): TOpenAPIBuilder;
-    
+
     /// <summary>
     ///   Sets custom Swagger JSON path (default: /swagger.json).
     /// </summary>
     function SwaggerJsonPath(const APath: string): TOpenAPIBuilder;
-    
+
     /// <summary>
     ///   Enables Bearer token authentication (JWT).
     /// </summary>
     function BearerAuth(const AFormat: string = 'JWT'; const ADescription: string = 'Bearer token authentication'): TOpenAPIBuilder;
-    
+
     /// <summary>
     ///   Enables API Key authentication.
     /// </summary>
     function ApiKeyAuth(const AKeyName: string = 'X-API-Key'; ALocation: TApiKeyLocation = aklHeader; const ADescription: string = 'API Key authentication'): TOpenAPIBuilder;
-    
+
     /// <summary>
     ///   Adds a global response (e.g., 400, 500) to all operations.
     /// </summary>
@@ -146,7 +146,7 @@ type
     ///   Returns the built OpenAPI options.
     /// </summary>
     function Build: TOpenAPIOptions;
-    
+
     /// <summary>
     ///   Implicit conversion to TOpenAPIOptions for direct use in UseSwagger.
     /// </summary>
@@ -161,52 +161,52 @@ type
     FOptions: TOpenAPIOptions;
     FKnownTypes: IDictionary<PTypeInfo, string>;
     FDefinitions: IDictionary<string, TOpenAPISchema>;
-    
+
     function CreateInfoSection: TOpenAPIInfo;
     function CreatePathItem(const AMetadata: TEndpointMetadata): TOpenAPIPathItem;
     function CreateOperation(const AMetadata: TEndpointMetadata): TOpenAPIOperation;
     function GetOperationId(const AMethod, APath: string): string;
     function GetSchemaName(ATypeInfo: PTypeInfo): string;
-    
+
     /// <summary>
     ///   Creates security schemes based on options.
     /// </summary>
     procedure CreateSecuritySchemes(ADocument: TOpenAPIDocument);
-    
+
     /// <summary>
     ///   Converts a Delphi RTTI type to an OpenAPI schema.
     /// </summary>
     function TypeToSchema(ATypeInfo: PTypeInfo): TOpenAPISchema;
-    
+
     /// <summary>
     ///   Converts an OpenAPI schema to JSON object recursively.
     /// </summary>
     function SchemaToJson(ASchema: TOpenAPISchema): TJsonObject;
-    
+
     /// <summary>
     ///   Extracts path parameters from a route pattern (e.g., /users/{id}).
     /// </summary>
     function ExtractPathParameters(const APath: string): TArray<string>;
-    
+
     /// <summary>
     ///   Processes Swagger attributes on a type and applies them to the schema.
     /// </summary>
     procedure ProcessTypeAttributes(ARttiType: TRttiType; ASchema: TOpenAPISchema);
-    
+
     /// <summary>
     ///   Processes Swagger attributes on a field/property and applies them to the schema.
     /// </summary>
     procedure ProcessFieldAttributes(AMember: TRttiMember; ASchema: TOpenAPISchema; out AShouldIgnore: Boolean);
-    
+
   public
     constructor Create(const AOptions: TOpenAPIOptions);
     destructor Destroy; override;
-    
+
     /// <summary>
     ///   Generates a complete OpenAPI document from endpoint metadata.
     /// </summary>
     function Generate(const AEndpoints: TArray<TEndpointMetadata>): TOpenAPIDocument;
-    
+
     /// <summary>
     ///   Generates OpenAPI JSON string from endpoint metadata.
     /// </summary>
@@ -218,7 +218,6 @@ type
 ///   Usage: App.Builder.UseSwagger(Swagger.Title('My API').Version('v1'));
 /// </summary>
 function Swagger: TOpenAPIBuilder;
-
 
 implementation
 
@@ -238,11 +237,11 @@ begin
   Result.ContactEmail := '';
   Result.LicenseName := 'MIT';
   Result.LicenseUrl := 'https://opensource.org/licenses/MIT';
-  
+
   // Swagger UI paths defaults
   Result.SwaggerPath := '/swagger';
   Result.SwaggerJsonPath := '/swagger.json';
-  
+
   // Security defaults
   Result.EnableBearerAuth := False;
   Result.BearerFormat := '';
@@ -427,11 +426,17 @@ begin
 end;
 
 destructor TOpenAPIGenerator.Destroy;
+var
+  Key: string;
+  LKeys: TArray<string>;
+  i: Integer;
 begin
-  // FKnownTypes is ARC
-  for var Key in FDefinitions.Keys do
+  LKeys := FDefinitions.Keys;
+  for i := 0 to High(LKeys) do
+  begin
+    Key := LKeys[i];
     FDefinitions[Key].Free;
-  // FDefinitions is ARC
+  end;
   inherited;
 end;
 
@@ -441,14 +446,14 @@ begin
   Result.Title := FOptions.Title;
   Result.Description := FOptions.Description;
   Result.Version := FOptions.Version;
-  
+
   if FOptions.ContactName <> '' then
   begin
     Result.Contact := TOpenAPIContact.Create;
     Result.Contact.Name := FOptions.ContactName;
     Result.Contact.Email := FOptions.ContactEmail;
   end;
-  
+
   if FOptions.LicenseName <> '' then
   begin
     Result.License := TOpenAPILicense.Create;
@@ -457,13 +462,16 @@ begin
   end;
 end;
 
-
-
 procedure TOpenAPIGenerator.CreateSecuritySchemes(ADocument: TOpenAPIDocument);
+var
+  i: Integer;
+  LPairs: TArray<TPair<string, TOpenAPISecurityScheme>>;
+  Pair: TPair<string, TOpenAPISecurityScheme>;
+  Scheme: TOpenAPISecurityScheme;
 begin
   if FOptions.EnableBearerAuth then
   begin
-    var Scheme := TOpenAPISecurityScheme.Create;
+    Scheme := TOpenAPISecurityScheme.Create;
     Scheme.SchemeType := sstHttp;
     Scheme.Scheme := 'bearer';
     Scheme.BearerFormat := FOptions.BearerFormat;
@@ -473,10 +481,10 @@ begin
     else
       Scheme.Free;
   end;
-  
+
   if FOptions.EnableApiKeyAuth then
   begin
-    var Scheme := TOpenAPISecurityScheme.Create;
+    Scheme := TOpenAPISecurityScheme.Create;
     Scheme.SchemeType := sstApiKey;
     Scheme.Name := FOptions.ApiKeyName;
     Scheme.Location := FOptions.ApiKeyLocation;
@@ -486,11 +494,13 @@ begin
     else
       Scheme.Free;
   end;
-  
+
   if FOptions.SecuritySchemes <> nil then
   begin
-     for var Pair in FOptions.SecuritySchemes do
+     LPairs := FOptions.SecuritySchemes;
+     for i := 0 to High(LPairs) do
      begin
+        Pair := LPairs[i];
         if not ADocument.SecuritySchemes.ContainsKey(Pair.Key) then
           ADocument.SecuritySchemes.Add(Pair.Key, Pair.Value);
      end;
@@ -512,10 +522,11 @@ function TOpenAPIGenerator.ExtractPathParameters(const APath: string): TArray<st
 var
   Matches: TMatchCollection;
   I: Integer;
+  Regex: TRegEx;
 begin
-  var Regex := TRegEx.Create('\{([^}]+)\}');
+  Regex := TRegEx.Create('\{([^}]+)\}');
   Matches := Regex.Matches(APath);
-  
+
   SetLength(Result, Matches.Count);
   for I := 0 to Matches.Count - 1 do
     Result[I] := Matches[I].Groups[1].Value;
@@ -523,19 +534,21 @@ end;
 
 function TOpenAPIGenerator.GetSchemaName(ATypeInfo: PTypeInfo): string;
 var
-  Typ: TRttiType;
   Attr: TCustomAttribute;
+  I: Integer;
+  Typ: TRttiType;
 begin
   Result := string(ATypeInfo.Name);
   if Result.StartsWith('T') and (Result.Length > 1) then
     Result := Result.Substring(1); // Standard Delphi convention TUser -> User
-    
+
   // Check for override
   Typ := TReflection.Context.GetType(ATypeInfo);
   if Assigned(Typ) then
   begin
-    for Attr in Typ.GetAttributes do
+    for I := 0 to High(Typ.GetAttributes) do
     begin
+      Attr := Typ.GetAttributes[I];
       if Attr is SwaggerSchemaAttribute then
       begin
         if SwaggerSchemaAttribute(Attr).Title <> '' then
@@ -547,27 +560,30 @@ end;
 
 function TOpenAPIGenerator.TypeToSchema(ATypeInfo: PTypeInfo): TOpenAPISchema;
 var
-  SchemaName: string;
+  ArrayType: TRttiDynamicArrayType;
+  Attr: TCustomAttribute;
   DefinitionSchema: TOpenAPISchema;
+  ElementType: TRttiType;
+  EnumValues: TArray<string>;
+  Field: TRttiField;
+  FieldSchema: TOpenAPISchema;
+  I, j: Integer;
+  LTypeName: string;
+  Prop: TRttiProperty;
   PropName: string;
   RttiType: TRttiType;
-  Field: TRttiField;
-  Prop: TRttiProperty;
-  FieldSchema: TOpenAPISchema;
-  ArrayType: TRttiDynamicArrayType;
-  ElementType: TRttiType;
-  LTypeName: string;
-  ValueProp: TRttiProperty;
-  ValueField: TRttiField;
+  SchemaName: string;
   ShouldIgnore: Boolean;
-  Attr: TCustomAttribute;
+  TypeData: PTypeData;
+  ValueField: TRttiField;
+  ValueProp: TRttiProperty;
 begin
   // Handle complex types (Record/Class) with References
   if (ATypeInfo.Kind in [tkRecord, tkMRecord, tkClass]) then
   begin
     // Special handling for Dext Smart Types (Prop<T>) - Unwrap value
     LTypeName := string(ATypeInfo.Name);
-    if (ATypeInfo.Kind in [tkRecord, tkMRecord]) and 
+    if (ATypeInfo.Kind in [tkRecord, tkMRecord]) and
        (LTypeName.Contains('Prop<')) then
     begin
       RttiType := TReflection.Context.GetType(ATypeInfo);
@@ -580,7 +596,7 @@ begin
           Result := TypeToSchema(ValueProp.PropertyType.Handle);
           Exit;
         end;
-        
+
         // Fallback to FValue field if property not found
         ValueField := RttiType.GetField('FValue');
         if Assigned(ValueField) then
@@ -592,17 +608,16 @@ begin
     end;
 
     // Check if we already know this type
-    // Check if we already know this type
     if FKnownTypes.TryGetValue(ATypeInfo, SchemaName) then
     begin
       Result := TOpenAPISchema.Create;
       Result.Ref := '#/components/schemas/' + SchemaName;
       Exit;
     end;
-    
+
     // Register new type
     SchemaName := GetSchemaName(ATypeInfo);
-    
+
     // Handle specific generic types or collisions if needed, for now assume unique names
     if FDefinitions.ContainsKey(SchemaName) then
     begin
@@ -612,34 +627,38 @@ begin
        Result.Ref := '#/components/schemas/' + SchemaName;
        Exit;
     end;
-    
+
     FKnownTypes.Add(ATypeInfo, SchemaName);
-    
+
     // Create the definition
     DefinitionSchema := TOpenAPISchema.Create;
     DefinitionSchema.DataType := odtObject;
     FDefinitions.Add(SchemaName, DefinitionSchema);
-    
+
     // Now populate the definition (recursively)
     RttiType := TReflection.Context.GetType(ATypeInfo);
     if Assigned(RttiType) then
     begin
       ProcessTypeAttributes(RttiType, DefinitionSchema);
-      
+
       // Fields
-      for Field in RttiType.GetFields do
+      for I := 0 to High(RttiType.GetFields) do
       begin
+        Field := RttiType.GetFields[I];
         if Field.Visibility in [mvPublic, mvPublished] then
         begin
           ShouldIgnore := False;
           FieldSchema := TypeToSchema(Field.FieldType.Handle);
           ProcessFieldAttributes(Field, FieldSchema, ShouldIgnore);
-          
+
           PropName := Field.Name;
-          for Attr in Field.GetAttributes do
+          for j := 0 to High(Field.GetAttributes) do
+          begin
+            Attr := Field.GetAttributes[j];
             if Attr is SwaggerPropertyAttribute then
-                 if SwaggerPropertyAttribute(Attr).Name <> '' then
-                    PropName := SwaggerPropertyAttribute(Attr).Name;
+              if SwaggerPropertyAttribute(Attr).Name <> '' then
+                 PropName := SwaggerPropertyAttribute(Attr).Name;
+          end;
 
           if (not ShouldIgnore) and (not DefinitionSchema.Properties.ContainsKey(PropName)) then
             DefinitionSchema.Properties.Add(PropName, FieldSchema)
@@ -647,21 +666,25 @@ begin
             FieldSchema.Free;
         end;
       end;
-      
+
       // Properties
       if ATypeInfo.Kind = tkClass then
       begin
-        for Prop in RttiType.GetProperties do
+        for I := 0 to High(RttiType.GetProperties) do
         begin
+          Prop := RttiType.GetProperties[I];
           if (Prop.Visibility in [mvPublic, mvPublished]) and Prop.IsReadable then
           begin
              ShouldIgnore := False;
-             
+
              PropName := Prop.Name;
-             for Attr in Prop.GetAttributes do
+             for j := 0 to High(Prop.GetAttributes) do
+             begin
+                Attr := Prop.GetAttributes[j];
                 if Attr is SwaggerPropertyAttribute then
                      if SwaggerPropertyAttribute(Attr).Name <> '' then
                         PropName := SwaggerPropertyAttribute(Attr).Name;
+             end;
 
              if not DefinitionSchema.Properties.ContainsKey(PropName) then
              begin
@@ -676,7 +699,7 @@ begin
         end;
       end;
     end;
-    
+
     // Return reference to the newly created definition
     Result := TOpenAPISchema.Create;
     Result.Ref := '#/components/schemas/' + SchemaName;
@@ -685,14 +708,14 @@ begin
 
   // Simple Types and Arrays
   Result := TOpenAPISchema.Create;
-  
+
   case ATypeInfo.Kind of
     tkInteger, tkInt64:
     begin
       Result.DataType := odtInteger;
       Result.Format := 'int64';
     end;
-    
+
     tkFloat:
     begin
       Result.DataType := odtNumber;
@@ -714,12 +737,12 @@ begin
       else
         Result.Format := 'double';
     end;
-    
+
     tkString, tkLString, tkWString, tkUString:
     begin
       Result.DataType := odtString;
     end;
-    
+
     tkEnumeration:
     begin
       if ATypeInfo = TypeInfo(Boolean) then
@@ -727,18 +750,17 @@ begin
       else
       begin
         Result.DataType := odtString;
-        var TypeData := GetTypeData(ATypeInfo);
+        TypeData := GetTypeData(ATypeInfo);
         if Assigned(TypeData) then
         begin
-          var EnumValues: TArray<string>;
           SetLength(EnumValues, TypeData.MaxValue - TypeData.MinValue + 1);
-          for var I := TypeData.MinValue to TypeData.MaxValue do
+          for I := TypeData.MinValue to TypeData.MaxValue do
             EnumValues[I - TypeData.MinValue] := GetEnumName(ATypeInfo, I);
           Result.Enum := EnumValues;
         end;
       end;
     end;
-    
+
     tkDynArray:
     begin
       Result.DataType := odtArray;
@@ -756,20 +778,23 @@ end;
 
 function TOpenAPIGenerator.SchemaToJson(ASchema: TOpenAPISchema): TJsonObject;
 var
+  EnumArray: TJsonArray;
+  ExampleJson: TJsonBaseObject;
+  i: Integer;
   PropertiesJson: TJsonObject;
   PropPair: TPair<string, TOpenAPISchema>;
   PropSchema: TOpenAPISchema;
-  EnumArray: TJsonArray;
-  EnumValue: string;
+  RequiredArray: TJsonArray;
+  PropPairs: TArray<TPair<string, TOpenAPISchema>>;
 begin
   Result := TJsonObject.Create;
-  
+
   if ASchema.Ref <> '' then
   begin
     Result.S['$ref'] := ASchema.Ref;
     Exit;
   end;
-  
+
   // Type
   case ASchema.DataType of
     odtString: Result.S['type'] := 'string';
@@ -779,51 +804,53 @@ begin
     odtArray: Result.S['type'] := 'array';
     odtObject: Result.S['type'] := 'object';
   end;
-  
+
   // Format
   if ASchema.Format <> '' then
     Result.S['format'] := ASchema.Format;
-  
+
   // Description
   if ASchema.Description <> '' then
     Result.S['description'] := ASchema.Description;
-  
+
   // Enum values
   if Length(ASchema.Enum) > 0 then
   begin
     EnumArray := TJsonArray.Create;
-    for EnumValue in ASchema.Enum do
-      EnumArray.Add(EnumValue);
+    for i := 0 to High(ASchema.Enum) do
+      EnumArray.Add(ASchema.Enum[i]);
     Result.A['enum'] := EnumArray;
   end;
-  
+
   // Properties (for objects)
   if (ASchema.DataType = odtObject) and (ASchema.Properties.Count > 0) then
   begin
     PropertiesJson := TJsonObject.Create;
-    for PropPair in ASchema.Properties do
+    PropPairs := ASchema.Properties.ToArray;
+    for i := 0 to High(PropPairs) do
     begin
+      PropPair := PropPairs[i];
       PropSchema := PropPair.Value;
       PropertiesJson.O[PropPair.Key] := SchemaToJson(PropSchema);
     end;
     Result.O['properties'] := PropertiesJson;
-    
+
     // Required fields
     if Length(ASchema.Required) > 0 then
     begin
-      var RequiredArray := TJsonArray.Create;
-      for var Req in ASchema.Required do
-        RequiredArray.Add(Req);
+      RequiredArray := TJsonArray.Create;
+      for i := 0 to High(ASchema.Required) do
+        RequiredArray.Add(ASchema.Required[i]);
       Result.A['required'] := RequiredArray;
     end;
   end;
-  
+
   // Items (for arrays)
   if (ASchema.DataType = odtArray) and Assigned(ASchema.Items) then
   begin
     Result.O['items'] := SchemaToJson(ASchema.Items);
   end;
-  
+
   // Example
   if ASchema.Example <> '' then
   begin
@@ -832,7 +859,7 @@ begin
        (ASchema.Example.StartsWith('[') and ASchema.Example.EndsWith(']')) then
     begin
       try
-        var ExampleJson := TJsonObject.Parse(ASchema.Example);
+        ExampleJson := TJsonObject.Parse(ASchema.Example);
         if Assigned(ExampleJson) then
         begin
           if ExampleJson is TJsonObject then
@@ -844,7 +871,7 @@ begin
         end
         else
         begin
-          // If not object, maybe array? TJsonObject.Parse handles both? 
+          // If not object, maybe array? TJsonObject.Parse handles both?
           // JsonDataObjects TJsonObject.Parse returns TJsonBaseObject.
           // Let's keep it simple: if it's a string, just add it as string for now to be safe,
           // unless we are sure.
@@ -872,13 +899,15 @@ end;
 procedure TOpenAPIGenerator.ProcessTypeAttributes(ARttiType: TRttiType; ASchema: TOpenAPISchema);
 var
   Attr: TCustomAttribute;
+  I: Integer;
   SchemaAttr: SwaggerSchemaAttribute;
 begin
   if not Assigned(ARttiType) then
     Exit;
-    
-  for Attr in ARttiType.GetAttributes do
+
+  for I := 0 to High(ARttiType.GetAttributes) do
   begin
+    Attr := ARttiType.GetAttributes[I];
     if Attr is SwaggerSchemaAttribute then
     begin
       SchemaAttr := SwaggerSchemaAttribute(Attr);
@@ -893,24 +922,26 @@ end;
 procedure TOpenAPIGenerator.ProcessFieldAttributes(AMember: TRttiMember; ASchema: TOpenAPISchema; out AShouldIgnore: Boolean);
 var
   Attr: TCustomAttribute;
-  PropAttr: SwaggerPropertyAttribute;
-  FormatAttr: SwaggerFormatAttribute;
   ExampleAttr: SwaggerExampleAttribute;
+  FormatAttr: SwaggerFormatAttribute;
+  I: Integer;
+  PropAttr: SwaggerPropertyAttribute;
 begin
   AShouldIgnore := False;
-  
+
   if not Assigned(AMember) then
     Exit;
-    
-  for Attr in AMember.GetAttributes do
+
+  for I := 0 to High(AMember.GetAttributes) do
   begin
+    Attr := AMember.GetAttributes[I];
     // Check if should ignore
     if Attr is SwaggerIgnorePropertyAttribute then
     begin
       AShouldIgnore := True;
       Exit;
     end;
-    
+
     // Process property customization
     if Attr is SwaggerPropertyAttribute then
     begin
@@ -920,14 +951,14 @@ begin
       if PropAttr.Format <> '' then
         ASchema.Format := PropAttr.Format;
     end;
-    
+
     // Process format
     if Attr is SwaggerFormatAttribute then
     begin
       FormatAttr := SwaggerFormatAttribute(Attr);
       ASchema.Format := FormatAttr.Format;
     end;
-    
+
     // Process example
     if Attr is SwaggerExampleAttribute then
     begin
@@ -937,24 +968,33 @@ begin
   end;
 end;
 
-
 function TOpenAPIGenerator.CreateOperation(const AMetadata: TEndpointMetadata): TOpenAPIOperation;
 var
-  PathParams: TArray<string>;
-  ParamName: string;
+  ExtraResp, GResponse: TOpenAPIResponse;
+  GlobalResp: TPair<Integer, string>;
+  i: Integer;
+  GlobalRespPairs: TArray<TPair<Integer, string>>;
   Param: TOpenAPIParameter;
+  ParamName: string;
+  PathParams: TArray<string>;
+  RespMeta: TOpenAPIResponseMetadata;
   Response: TOpenAPIResponse;
+  ResponseSchema, ExtraSchema, ErrorSchema: TOpenAPISchema;
+  Schema: TOpenAPISchema;
+  SecRequirement: IDictionary<string, TArray<string>>;
+  SuccessCode, SuccessDesc, CodeStr, ContentType, SchemeName: string;
 begin
   Result := TOpenAPIOperation.Create;
   Result.Summary := AMetadata.Summary;
   Result.Description := AMetadata.Description;
   Result.OperationId := GetOperationId(AMetadata.Method, AMetadata.Path);
   Result.Tags := AMetadata.Tags;
-  
+
   // Extract path parameters
   PathParams := ExtractPathParameters(AMetadata.Path);
-  for ParamName in PathParams do
+  for i := 0 to High(PathParams) do
   begin
+    ParamName := PathParams[i];
     Param := TOpenAPIParameter.Create;
     Param.Name := ParamName;
     Param.Location := oplPath;
@@ -962,30 +1002,30 @@ begin
     Param.Schema.DataType := odtString; // Default to string
     Result.Parameters.Add(Param);
   end;
-  
+
   // Add request body for POST/PUT/PATCH only if a RequestType is defined
-  if (AMetadata.Method.ToUpper.Equals('POST') or 
-     AMetadata.Method.ToUpper.Equals('PUT') or 
-     AMetadata.Method.ToUpper.Equals('PATCH')) and 
+  if (AMetadata.Method.ToUpper.Equals('POST') or
+     AMetadata.Method.ToUpper.Equals('PUT') or
+     AMetadata.Method.ToUpper.Equals('PATCH')) and
      Assigned(AMetadata.RequestType) then
   begin
     Result.RequestBody := TOpenAPIRequestBody.Create;
     Result.RequestBody.Required := True;
-    
-    var Schema := TypeToSchema(AMetadata.RequestType);
+
+    Schema := TypeToSchema(AMetadata.RequestType);
     Result.RequestBody.Content.Add('application/json', Schema);
   end;
-  
+
   // Add appropriate responses based on method and metadata
-  
+
   // Determine success status code
-  var SuccessCode := '200';
-  var SuccessDesc := 'Successful response';
-  
+  SuccessCode := '200';
+  SuccessDesc := 'Successful response';
+
   if AMetadata.Method.ToUpper.Equals('POST') then
   begin
     SuccessCode := '201'; // Default to 201 for POST
-    SuccessDesc := 'Created'; 
+    SuccessDesc := 'Created';
   end
   else if AMetadata.Method.ToUpper.Equals('DELETE') then
   begin
@@ -996,81 +1036,84 @@ begin
   // Add primary success response
   Response := TOpenAPIResponse.Create;
   Response.Description := SuccessDesc;
-  
+
   // Only add content schema for non-204 responses
   if SuccessCode <> '204' then
   begin
     if Assigned(AMetadata.ResponseType) then
     begin
-      var ResponseSchema := TypeToSchema(AMetadata.ResponseType);
+      ResponseSchema := TypeToSchema(AMetadata.ResponseType);
       Response.Content.Add('application/json', ResponseSchema);
     end;
   end;
-  
+
   Result.Responses.Add(SuccessCode, Response);
-  
+
   // Add explicitly documented responses
-  for var RespMeta in AMetadata.Responses do
+  for i := 0 to High(AMetadata.Responses) do
   begin
-    var CodeStr := IntToStr(RespMeta.StatusCode);
-    
+    RespMeta := AMetadata.Responses[i];
+    CodeStr := IntToStr(RespMeta.StatusCode);
+
     // If it's the success code we already added, arguably we should merge or skip.
     // However, explicit metadata usually overrides default.
     // For now, let's only add if not present, OR overwrite if explicit.
     // Let's overwrite/add.
-    
-    var ExtraResp := TOpenAPIResponse.Create;
+
+    ExtraResp := TOpenAPIResponse.Create;
     ExtraResp.Description := RespMeta.Description;
     if ExtraResp.Description = '' then
       ExtraResp.Description := 'Response ' + CodeStr;
-      
-    // Schema
+
     // Schema
     if RespMeta.StatusCode <> 204 then
     begin
-       var ContentType := RespMeta.MediaType;
+       ContentType := RespMeta.MediaType;
        if ContentType = '' then ContentType := 'application/json';
-       
+
        if Assigned(RespMeta.SchemaType) then
        begin
-         var ExtraSchema := TypeToSchema(RespMeta.SchemaType);
+         ExtraSchema := TypeToSchema(RespMeta.SchemaType);
          ExtraResp.Content.Add(ContentType, ExtraSchema);
        end;
     end;
-    
+
     if Result.Responses.ContainsKey(CodeStr) then
       Result.Responses[CodeStr].Free; // Free old one
-      
+
     Result.Responses.AddOrSetValue(CodeStr, ExtraResp);
   end;
-  
+
   // ? Add Global Responses (e.g., 429, 500)
-  for var GlobalResp in FOptions.GlobalResponses do
+  GlobalRespPairs := FOptions.GlobalResponses;
+  for i := 0 to High(GlobalRespPairs) do
   begin
+    GlobalResp := GlobalRespPairs[i];
     // Don't overwrite if specific response exists
     if not Result.Responses.ContainsKey(IntToStr(GlobalResp.Key)) then
     begin
-      var GResponse := TOpenAPIResponse.Create;
+      GResponse := TOpenAPIResponse.Create;
       GResponse.Description := GlobalResp.Value;
-      
+
       // Add a generic error schema
-      var ErrorSchema := TOpenAPISchema.Create;
+      ErrorSchema := TOpenAPISchema.Create;
       ErrorSchema.DataType := odtObject;
       ErrorSchema.Properties.Add('error', TOpenAPISchema.Create);
       ErrorSchema.Properties['error'].DataType := odtString;
-      
+
       GResponse.Content.Add('application/json', ErrorSchema);
-      
+
       Result.Responses.Add(IntToStr(GlobalResp.Key), GResponse);
     end;
   end;
-  
+
   // Add security requirements
   if Length(AMetadata.Security) > 0 then
   begin
-    for var SchemeName in AMetadata.Security do
+    for i := 0 to High(AMetadata.Security) do
     begin
-      var SecRequirement := TCollections.CreateDictionary<string, TArray<string>>;
+      SchemeName := AMetadata.Security[i];
+      SecRequirement := TCollections.CreateDictionary<string, TArray<string>>;
       SecRequirement.Add(SchemeName, []);
       Result.Security.Add(SecRequirement);
     end;
@@ -1083,7 +1126,7 @@ var
 begin
   Result := TOpenAPIPathItem.Create;
   Operation := CreateOperation(AMetadata);
-  
+
   case IndexStr(AMetadata.Method.ToUpper, ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']) of
     0: Result.Get := Operation;
     1: Result.Post := Operation;
@@ -1097,10 +1140,13 @@ end;
 
 function TOpenAPIGenerator.Generate(const AEndpoints: TArray<TEndpointMetadata>): TOpenAPIDocument;
 var
-  Metadata: TEndpointMetadata;
-  PathItem: TOpenAPIPathItem;
+  DefPairs: TArray<TPair<string, TOpenAPISchema>>;
   ExistingPathItem: TOpenAPIPathItem;
+  i: Integer;
+  Metadata: TEndpointMetadata;
   Operation: TOpenAPIOperation;
+  Pair: TPair<string, TOpenAPISchema>;
+  PathItem: TOpenAPIPathItem;
 begin
   // Reset state to ensure clean generation
   FKnownTypes.Clear;
@@ -1109,47 +1155,45 @@ begin
   Result := TOpenAPIDocument.Create;
   if Result.Info <> nil then Result.Info.Free; // Free default instance to avoid leak
   Result.Info := CreateInfoSection;
-  
+
   // Add servers from options
-  for var Srv in FOptions.Servers do
+  for i := 0 to Length(FOptions.Servers) - 1 do
   begin
-    var Server: TOpenAPIServer; // Record
-    Server.Url := Srv.Url;
-    Server.Description := Srv.Description;
-    Result.Servers.Add(Server);
+    Result.Servers.Add(FOptions.Servers[i]);
   end;
 
   CreateSecuritySchemes(Result);
-  
-  for Metadata in AEndpoints do
+
+  for i := 0 to High(AEndpoints) do
   begin
+    Metadata := AEndpoints[i];
     // Check if path already exists (multiple methods on same path)
     if Result.Paths.TryGetValue(Metadata.Path, ExistingPathItem) then
     begin
       // Add operation to existing path item
       Operation := CreateOperation(Metadata);
       case IndexStr(Metadata.Method.ToUpper, ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']) of
-        0: 
+        0:
         begin
-          if Assigned(ExistingPathItem.Get) then ExistingPathItem.Get.Free; 
+          if Assigned(ExistingPathItem.Get) then ExistingPathItem.Get.Free;
           ExistingPathItem.Get := Operation;
         end;
-        1: 
+        1:
         begin
           if Assigned(ExistingPathItem.Post) then ExistingPathItem.Post.Free;
           ExistingPathItem.Post := Operation;
         end;
-        2: 
+        2:
         begin
           if Assigned(ExistingPathItem.Put) then ExistingPathItem.Put.Free;
           ExistingPathItem.Put := Operation;
         end;
-        3: 
+        3:
         begin
           if Assigned(ExistingPathItem.Delete) then ExistingPathItem.Delete.Free;
           ExistingPathItem.Delete := Operation;
         end;
-        4: 
+        4:
         begin
           if Assigned(ExistingPathItem.Patch) then ExistingPathItem.Patch.Free;
           ExistingPathItem.Patch := Operation;
@@ -1165,14 +1209,16 @@ begin
       Result.Paths.Add(Metadata.Path, PathItem);
     end;
   end;
-  
+
   // Transfer definitions (Schemas)
-  for var Pair in FDefinitions do
+  DefPairs := FDefinitions.ToArray;
+  for i := 0 to High(DefPairs) do
   begin
+    Pair := DefPairs[i];
     if not Result.Schemas.ContainsKey(Pair.Key) then
       Result.Schemas.Add(Pair.Key, Pair.Value);
   end;
-  
+
   // We cleared definitions list in the object, but we transferring ownership
   // DO NOT Free the values here as they are now owned by Document
   FDefinitions.Clear;
@@ -1180,80 +1226,108 @@ end;
 
 function TOpenAPIGenerator.GenerateJson(const AEndpoints: TArray<TEndpointMetadata>): string;
 var
+  AddOperation: TProc<TOpenAPIOperation, string>;
+  ComponentsJson, SchemasJson, SecSchemesJson: TJsonObject;
+  ContactJson, LicenseJson: TJsonObject;
   Doc: TOpenAPIDocument;
+  i: Integer;
+  InfoJson: TJsonObject;
   Json: TJsonObject;
-  PathsJson: TJsonObject;
+  Pair: TPair<string, TOpenAPIPathItem>;
+  Pairs: TArray<TPair<string, TOpenAPIPathItem>>;
   PathItem: TOpenAPIPathItem;
   PathItemJson: TJsonObject;
-  OperationJson: TJsonObject;
-  ServersArray: TJsonArray;
+  PathsJson: TJsonObject;
+  SchemaPair: TPair<string, TOpenAPISchema>;
+  SchemaPairs: TArray<TPair<string, TOpenAPISchema>>;
+  Scheme: TOpenAPISecurityScheme;
+  SchemeJson: TJsonObject;
+  SecSchemePair: TPair<string, TOpenAPISecurityScheme>;
+  SecSchemePairs: TArray<TPair<string, TOpenAPISecurityScheme>>;
   Server: TOpenAPIServer;
   ServerJson: TJsonObject;
-  InfoJson: TJsonObject;
-  ParamsArray: TJsonArray;
-  ParamJson: TJsonObject;
-  ResponsesJson: TJsonObject;
-  Response: TOpenAPIResponse;
-  ResponseJson: TJsonObject;
-  ContentJson: TJsonObject;
-  Schema: TOpenAPISchema;
-  Pair: TPair<string, TOpenAPIPathItem>;
-  TagsArray: TJsonArray;
+  ServersArray: TJsonArray;
 begin
   Doc := Generate(AEndpoints);
   try
     Json := TJsonObject.Create;
     try
       Json.S['openapi'] := Doc.OpenAPI;
-      
+
       // Info section
       InfoJson := TJsonObject.Create;
       InfoJson.S['title'] := Doc.Info.Title;
       InfoJson.S['description'] := Doc.Info.Description;
       InfoJson.S['version'] := Doc.Info.Version;
-      
+
       if Assigned(Doc.Info.Contact) then
       begin
-        var ContactJson := TJsonObject.Create;
+        ContactJson := TJsonObject.Create;
         if Doc.Info.Contact.Name <> '' then
           ContactJson.S['name'] := Doc.Info.Contact.Name;
         if Doc.Info.Contact.Email <> '' then
           ContactJson.S['email'] := Doc.Info.Contact.Email;
         InfoJson.O['contact'] := ContactJson;
       end;
-      
+
       if Assigned(Doc.Info.License) then
       begin
-        var LicenseJson := TJsonObject.Create;
+        LicenseJson := TJsonObject.Create;
         LicenseJson.S['name'] := Doc.Info.License.Name;
         if Doc.Info.License.Url <> '' then
           LicenseJson.S['url'] := Doc.Info.License.Url;
         InfoJson.O['license'] := LicenseJson;
       end;
-      
+
       Json.O['info'] := InfoJson;
-      
+
       // Servers section
       ServersArray := TJsonArray.Create;
-      for Server in Doc.Servers do
+      for i := 0 to Doc.Servers.Count - 1 do
       begin
+        Server := Doc.Servers[i];
         ServerJson := TJsonObject.Create;
         ServerJson.S['url'] := Server.Url;
         ServerJson.S['description'] := Server.Description;
         ServersArray.Add(ServerJson);
       end;
       Json.A['servers'] := ServersArray;
-      
+
       // Paths section
       PathsJson := TJsonObject.Create;
-      for Pair in Doc.Paths do
+      Pairs := Doc.Paths.ToArray;
+      for i := 0 to High(Pairs) do
       begin
+        Pair := Pairs[i];
         PathItem := Pair.Value;
         PathItemJson := TJsonObject.Create;
-        
+
         // Helper procedure to add operation
-        var AddOperation: TProc<TOpenAPIOperation, string>;
         AddOperation := procedure(Op: TOpenAPIOperation; MethodName: string)
+        var
+          ContentJson: TJsonObject;
+          i, j, k: Integer;
+          LSchema: TOpenAPISchema;
+          LSchemaPair: TPair<string, TOpenAPISchema>;
+          MediaTypeJson: TJsonObject;
+          OperationJson: TJsonObject;
+          Param: TOpenAPIParameter;
+          ParamJson: TJsonObject;
+          ParamsArray: TJsonArray;
+          RequestBodyJson: TJsonObject;
+          Response: TOpenAPIResponse;
+          ResponseJson: TJsonObject;
+          ResponsePair: TPair<string, TOpenAPIResponse>;
+          ResponsePairs: TArray<TPair<string, TOpenAPIResponse>>;
+          ResponsesJson: TJsonObject;
+          SchemaPairs: TArray<TPair<string, TOpenAPISchema>>;
+          ScopesArray: TJsonArray;
+          SecJson: TJsonObject;
+          SecPair: TPair<string, TArray<string>>;
+          SecPairs: TArray<TPair<string, TArray<string>>>;
+          SecReq: IDictionary<string, TArray<string>>;
+          SecurityArray: TJsonArray;
+          TagsArray: TJsonArray;
         begin
           if not Assigned(Op) then Exit;
 
@@ -1263,25 +1337,26 @@ begin
           if Op.Description <> '' then
             OperationJson.S['description'] := Op.Description;
           OperationJson.S['operationId'] := Op.OperationId;
-          
+
           // Tags
           if Length(Op.Tags) > 0 then
           begin
             TagsArray := TJsonArray.Create;
-            for var Tag in Op.Tags do
-              TagsArray.Add(Tag);
+            for i := 0 to High(Op.Tags) do
+              TagsArray.Add(Op.Tags[i]);
             OperationJson.A['tags'] := TagsArray;
           end;
-          
+
           // Parameters
           if Op.Parameters.Count > 0 then
           begin
             ParamsArray := TJsonArray.Create;
-            for var Param in Op.Parameters do
+            for i := 0 to Op.Parameters.Count - 1 do
             begin
+              Param := Op.Parameters[i];
               ParamJson := TJsonObject.Create;
               ParamJson.S['name'] := Param.Name;
-              
+
               case Param.Location of
                 oplQuery: ParamJson.S['in'] := 'query';
                 oplPath: ParamJson.S['in'] := 'path';
@@ -1290,75 +1365,83 @@ begin
               end;
 
               ParamJson.B['required'] := Param.Required;
-              
+
               if Param.Description <> '' then
                 ParamJson.S['description'] := Param.Description;
-              
+
               // Schema - use SchemaToJson for complete schema conversion
               ParamJson.O['schema'] := SchemaToJson(Param.Schema);
               ParamsArray.Add(ParamJson);
             end;
             OperationJson.A['parameters'] := ParamsArray;
           end;
-          
+
           // Request Body
           if Assigned(Op.RequestBody) then
           begin
-            var RequestBodyJson := TJsonObject.Create;
+            RequestBodyJson := TJsonObject.Create;
             RequestBodyJson.B['required'] := Op.RequestBody.Required;
-            
+
             ContentJson := TJsonObject.Create;
-            for var SchemaPair in Op.RequestBody.Content do
+            SchemaPairs := Op.RequestBody.Content.ToArray;
+            for i := 0 to High(SchemaPairs) do
             begin
-              Schema := SchemaPair.Value;
+              LSchemaPair := SchemaPairs[i];
+              LSchema := LSchemaPair.Value;
               // OpenAPI 3.0 requires: content -> mediaType -> schema -> {schema definition}
-              var MediaTypeJson := TJsonObject.Create;
-              MediaTypeJson.O['schema'] := SchemaToJson(Schema);
-              ContentJson.O[SchemaPair.Key] := MediaTypeJson;
+              MediaTypeJson := TJsonObject.Create;
+              MediaTypeJson.O['schema'] := SchemaToJson(LSchema);
+              ContentJson.O[LSchemaPair.Key] := MediaTypeJson;
             end;
-            
+
             RequestBodyJson.O['content'] := ContentJson;
             OperationJson.O['requestBody'] := RequestBodyJson;
           end;
-          
+
           // Responses
           ResponsesJson := TJsonObject.Create;
-          for var ResponsePair in Op.Responses do
+          ResponsePairs := Op.Responses.ToArray;
+          for i := 0 to High(ResponsePairs) do
           begin
+            ResponsePair := ResponsePairs[i];
             Response := ResponsePair.Value;
             ResponseJson := TJsonObject.Create;
             ResponseJson.S['description'] := Response.Description;
-            
+
             if Response.Content.Count > 0 then
             begin
               ContentJson := TJsonObject.Create;
-              for var SchemaPair in Response.Content do
+              SchemaPairs := Response.Content.ToArray;
+              for j := 0 to High(SchemaPairs) do
               begin
-                Schema := SchemaPair.Value;
+                LSchemaPair := SchemaPairs[j];
+                LSchema := LSchemaPair.Value;
                 // OpenAPI 3.0 requires: content -> mediaType -> schema -> {schema definition}
-                var MediaTypeJson := TJsonObject.Create;
-                MediaTypeJson.O['schema'] := SchemaToJson(Schema);
-                ContentJson.O[SchemaPair.Key] := MediaTypeJson;
+                MediaTypeJson := TJsonObject.Create;
+                MediaTypeJson.O['schema'] := SchemaToJson(LSchema);
+                ContentJson.O[LSchemaPair.Key] := MediaTypeJson;
               end;
               ResponseJson.O['content'] := ContentJson;
             end;
-            
+
             ResponsesJson.O[ResponsePair.Key] := ResponseJson;
           end;
           OperationJson.O['responses'] := ResponsesJson;
 
-          // Security
           if Op.Security.Count > 0 then
           begin
-            var SecurityArray := TJsonArray.Create;
-            for var SecReq in Op.Security do
+            SecurityArray := TJsonArray.Create;
+            for i := 0 to Op.Security.Count - 1 do
             begin
-              var SecJson := TJsonObject.Create;
-              for var SecPair in SecReq do
+              SecReq := Op.Security[i];
+              SecJson := TJsonObject.Create;
+              SecPairs := SecReq.ToArray;
+              for j := 0 to High(SecPairs) do
               begin
-                var ScopesArray := TJsonArray.Create;
-                for var Scope in SecPair.Value do
-                  ScopesArray.Add(Scope);
+                SecPair := SecPairs[j];
+                ScopesArray := TJsonArray.Create;
+                for k := 0 to High(SecPair.Value) do
+                  ScopesArray.Add(SecPair.Value[k]);
                 SecJson.A[SecPair.Key] := ScopesArray;
               end;
               SecurityArray.Add(SecJson);
@@ -1368,40 +1451,46 @@ begin
 
           PathItemJson.O[MethodName] := OperationJson;
         end;
-        
+
         AddOperation(PathItem.Get, 'get');
         AddOperation(PathItem.Post, 'post');
         AddOperation(PathItem.Put, 'put');
         AddOperation(PathItem.Delete, 'delete');
         AddOperation(PathItem.Patch, 'patch');
-        
+
         PathsJson.O[Pair.Key] := PathItemJson;
       end;
       Json.O['paths'] := PathsJson;
-      
+
       // Components
       if (Doc.Schemas.Count > 0) or (Doc.SecuritySchemes.Count > 0) then
       begin
-         var ComponentsJson := TJsonObject.Create;
-         
+         ComponentsJson := TJsonObject.Create;
+
          if Doc.Schemas.Count > 0 then
          begin
-           var SchemasJson := TJsonObject.Create;
-           for var SchemaPair in Doc.Schemas do
-             SchemasJson.O[SchemaPair.Key] := SchemaToJson(SchemaPair.Value);
+           SchemasJson := TJsonObject.Create;
+           SchemaPairs := Doc.Schemas.ToArray;
+            for i := 0 to High(SchemaPairs) do
+            begin
+              SchemaPair := SchemaPairs[i];
+              SchemasJson.O[SchemaPair.Key] := SchemaToJson(SchemaPair.Value);
+            end;
            ComponentsJson.O['schemas'] := SchemasJson;
          end;
-         
+
          if Doc.SecuritySchemes.Count > 0 then
          begin
-           var SecSchemesJson := TJsonObject.Create;
-           for var SecSchemePair in Doc.SecuritySchemes do
-           begin
-             var Scheme := SecSchemePair.Value;
-             var SchemeJson := TJsonObject.Create;
-             
+           SecSchemesJson := TJsonObject.Create;
+           SecSchemePairs := Doc.SecuritySchemes.ToArray;
+            for i := 0 to High(SecSchemePairs) do
+            begin
+              SecSchemePair := SecSchemePairs[i];
+             Scheme := SecSchemePair.Value;
+             SchemeJson := TJsonObject.Create;
+
              case Scheme.SchemeType of
-               sstHttp: 
+               sstHttp:
                begin
                  SchemeJson.S['type'] := 'http';
                  SchemeJson.S['scheme'] := Scheme.Scheme;
@@ -1421,15 +1510,15 @@ begin
                sstOAuth2: SchemeJson.S['type'] := 'oauth2';
                sstOpenIdConnect: SchemeJson.S['type'] := 'openIdConnect';
              end;
-             
+
              if Scheme.Description <> '' then
                SchemeJson.S['description'] := Scheme.Description;
-               
+
              SecSchemesJson.O[SecSchemePair.Key] := SchemeJson;
            end;
            ComponentsJson.O['securitySchemes'] := SecSchemesJson;
          end;
-         
+
          Json.O['components'] := ComponentsJson;
       end;
 
@@ -1443,3 +1532,10 @@ begin
 end;
 
 end.
+
+
+
+
+
+
+

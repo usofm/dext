@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -35,15 +35,19 @@ unit Dext.Caching.Redis;
     - Redis client library (e.g., DelphiRedis, TRedisClient)
   
   Usage:
-    var RedisStore := TRedisCacheStore.Create('localhost', 6379);
-    
-    TApplicationBuilderCacheExtensions.UseResponseCache(Builder,
-      procedure(Cache: TResponseCacheBuilder)
-      begin
-        Cache
-          .WithDefaultDuration(60)
-          .WithStore(RedisStore);
-      end);
+    var
+      RedisStore: TRedisCacheStore;
+    begin
+      RedisStore := TRedisCacheStore.Create('localhost', 6379);
+      
+      TApplicationBuilderCacheExtensions.UseResponseCache(Builder,
+        procedure(Cache: TResponseCacheBuilder)
+        begin
+          Cache
+            .WithDefaultDuration(60)
+            .WithStore(RedisStore);
+        end);
+    end;
 }
 
 interface
@@ -136,13 +140,21 @@ begin
 end;
 
 procedure TRedisCacheStore.Clear;
+//var
+//  Keys: TArray<string>;
+//  Key: string;
 begin
   // TODO: Implement Redis FLUSHDB or pattern-based deletion
   // FRedisClient.FlushDB;
   // or
-  // var Keys := FRedisClient.Keys('dext:cache:*');
-  // for Key in Keys do
-  //   FRedisClient.Del(Key);
+  // var
+  //   Keys: TArray<string>;
+  //   Key: string;
+  // begin
+  //   Keys := FRedisClient.Keys('dext:cache:*');
+  //   for Key in Keys do
+  //     FRedisClient.Del(Key);
+  // end;
 end;
 
 end.

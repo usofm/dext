@@ -52,6 +52,9 @@ var
   Parameters: TArray<TRttiParameter>;
   Arguments: TArray<TValue>;
   I: Integer;
+  ParamType: TRttiType;
+  Guid: TGUID;
+  Service: IInterface;
 begin
   // Get the anonymous method's 'Invoke' method via RTTI from communal context
   Method := TReflection.Context.GetType(AHandler.TypeInfo).GetMethod('Invoke');
@@ -65,11 +68,11 @@ begin
   // Resolve additional parameters from the DI container
   for I := 1 to High(Parameters) do
   begin
-    var ParamType := Parameters[I].ParamType;
+    ParamType := Parameters[I].ParamType;
     if ParamType.TypeKind = tkInterface then
     begin
-      var Guid := GetTypeData(ParamType.Handle)^.Guid;
-      var Service := AServiceProvider.GetServiceAsInterface(
+      Guid := GetTypeData(ParamType.Handle)^.Guid;
+      Service := AServiceProvider.GetServiceAsInterface(
         TServiceType.FromInterface(Guid));
       Arguments[I] := TValue.From(Service);
     end;

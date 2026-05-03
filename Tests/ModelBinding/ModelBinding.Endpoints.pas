@@ -1,4 +1,4 @@
-﻿unit ModelBinding.Endpoints;
+unit ModelBinding.Endpoints;
 
 interface
 
@@ -305,6 +305,8 @@ begin
   WriteLn('10. POST /test/service - Service injection with body binding');
   App.MapPost<IProductService, TProductCreateRequest, IResult>('/test/service',
     function(Service: IProductService; Req: TProductCreateRequest): IResult
+    var
+      NewId: Integer;
     begin
       WriteLn(Format('   -> Service: %s, Name=%s, Price=%.2f',
         [IfThen(Service <> nil, 'OK', 'NULL'), Req.Name, Double(Req.Price)], JsonFormat));
@@ -312,7 +314,7 @@ begin
       if Req.TenantId = '' then
         Exit(Results.BadRequest('X-Tenant-Id header is required'));
         
-      var NewId := Service.CreateProduct(Req.Name, Req.Price);
+      NewId := Service.CreateProduct(Req.Name, Req.Price);
       Result := Results.Created('/products/' + IntToStr(NewId), Format(
         '{"id":%d,"tenantId":"%s","name":"%s","price":%.2f}',
         [NewId, Req.TenantId, Req.Name, Double(Req.Price)], JsonFormat));

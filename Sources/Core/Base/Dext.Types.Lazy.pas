@@ -37,6 +37,9 @@ uses
 
 type
   {$M+}
+  /// <summary>
+  ///   Non-generic interface for lazy-initialized values.
+  /// </summary>
   ILazy = interface
     ['{40223BA9-0C66-49E7-AA33-BDAEF9F506D6}']
     function GetIsValueCreated: Boolean;
@@ -47,6 +50,9 @@ type
     property TargetType: PTypeInfo read GetTargetType;
   end;
 
+  /// <summary>
+  ///   Generic interface for lazy-initialized values.
+  /// </summary>
   ILazy<T> = interface(ILazy)
     ['{89709823-1234-4321-ABCD-EF0123456789}']
     function GetValueT: T;
@@ -57,6 +63,9 @@ type
   TLazy<T> = class;
   TValueLazy<T> = class;
   {$RTTI EXPLICIT PROPERTIES([])}
+  /// <summary>
+  ///   A record-based lazy initialization wrapper. Provides deferred instantiation.
+  /// </summary>
   Lazy<T> = record
   private
     FInstance: ILazy;
@@ -75,6 +84,9 @@ type
     property Value: T read GetValue;
   end;
 
+  /// <summary>
+  ///   A class-based lazy initialization wrapper implementing ILazy.
+  /// </summary>
   TLazy<T> = class(TInterfacedObject, ILazy, ILazy<T>)
   private
     FValueFactory: TFunc<T>;
@@ -92,6 +104,9 @@ type
     destructor Destroy; override;
   end;
 
+  /// <summary>
+  ///   A lazy wrapper initialized with an already existing value.
+  /// </summary>
   TValueLazy<T> = class(TInterfacedObject, ILazy, ILazy<T>)
   private
     FValue: T;
@@ -236,11 +251,12 @@ begin
 end;
 
 function Lazy<T>.GetValue: T;
+var
+  LSpecific: ILazy<T>;
 begin
   if FInstance <> nil then
   begin
      // If it is our generic interface, use it directly (optimized)
-     var LSpecific: ILazy<T>;
      if Supports(FInstance, ILazy<T>, LSpecific) then
        Exit(LSpecific.Value);
 

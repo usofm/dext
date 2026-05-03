@@ -61,6 +61,8 @@ var
   PKProp: TPropertyMap;
   ShouldFreeBinder: Boolean;
   EffectiveBinder: IModelBinder;
+  BinderVal: TValue;
+  Parts: TArray<string>;
 begin
   if AMap.Keys.Count = 0 then
     raise Exception.CreateFmt('Entity %s does not have a primary key mapped.', [AMap.EntityType.Name]);
@@ -77,13 +79,13 @@ begin
     begin
       PKProp := AMap.Properties[AMap.Keys[0]];
       // Delegation to Model Binder for type conversion (String, Integer, TUUID, TGUID, etc.)
-      var BinderVal := EffectiveBinder.BindValue(AIdStr, PKProp.Prop.PropertyType.Handle);
+      BinderVal := EffectiveBinder.BindValue(AIdStr, PKProp.Prop.PropertyType.Handle);
       Result := ValueToVariant(BinderVal);
     end
     else
     begin
       // Case 2: Composite Key (Dext pattern ID1|ID2|ID3)
-      var Parts := AIdStr.Split(['|']);
+      Parts := AIdStr.Split(['|']);
       if Length(Parts) <> AMap.Keys.Count then
         raise EConvertError.CreateFmt('Invalid composite ID format. Expected %d parts separated by "|".', [AMap.Keys.Count]);
 
@@ -91,7 +93,7 @@ begin
       for i := 0 to AMap.Keys.Count - 1 do
       begin
         PKProp := AMap.Properties[AMap.Keys[i]];
-        var BinderVal := EffectiveBinder.BindValue(Parts[i], PKProp.Prop.PropertyType.Handle);
+        BinderVal := EffectiveBinder.BindValue(Parts[i], PKProp.Prop.PropertyType.Handle);
         Result[i] := ValueToVariant(BinderVal);
       end;
     end;

@@ -1666,8 +1666,10 @@ begin
 end;
 
 function TWebServicesHelper.AddWebStencils(AConfig: TProc<TViewOptions>): TDextServices;
+var
+  Options: TViewOptions;
 begin
-  var Options: TViewOptions := TViewOptions.Create;
+  Options := TViewOptions.Create;
   if Assigned(AConfig) then
     AConfig(Options);
     
@@ -1675,12 +1677,17 @@ begin
 end;
 
 function TWebServicesHelper.AddWebStencils(const AOptions: TViewOptions): TDextServices;
+{$IFDEF DEXT_ENABLE_WEB_STENCILS}
+var
+  Options: TViewOptions;
+  Factory: TFunc<IServiceProvider, TObject>;
+{$ENDIF}
 begin
   Result := Self;
   {$IFDEF DEXT_ENABLE_WEB_STENCILS}
-  var Options := AOptions;
+  Options := AOptions;
   TWebStencilsViewEngine.RegisterWebStencilsFunctions;
-  var Factory: TFunc<IServiceProvider, TObject> := function(Provider: IServiceProvider): TObject
+  Factory := function(Provider: IServiceProvider): TObject
     begin
       Result := TWebStencilsViewEngine.Create(Options);
     end;

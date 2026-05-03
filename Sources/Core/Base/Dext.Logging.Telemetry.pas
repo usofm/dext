@@ -48,8 +48,13 @@ type
     ErrorMessage: string;
   end;
 
+  /// <summary>
+  ///   Interface for observing telemetry events.
+  /// </summary>
   ITelemetryObserver = interface
     ['{30000000-0000-0000-0000-000000000001}']
+    
+    /// <summary>Called when a telemetry event is emitted.</summary>
     procedure OnEvent(const AEvent: TTelemetryEvent);
   end;
 
@@ -60,7 +65,10 @@ type
   private
     FLogger: ILogger;
   public
+    /// <summary>Creates a new instance of the logging telemetry observer.</summary>
     constructor Create(const ALogger: ILogger);
+    
+    /// <summary>Handles the incoming telemetry event and logs it appropriately.</summary>
     procedure OnEvent(const AEvent: TTelemetryEvent);
   end;
 
@@ -76,14 +84,22 @@ type
     FEnabled: Boolean;
     constructor Create;
   public
+    /// <summary>Destroys the diagnostic source instance.</summary>
     class destructor Destroy;
+    
+    /// <summary>Gets the singleton instance of the diagnostic source.</summary>
     class property Instance: TDiagnosticSource read FInstance;
 
+    /// <summary>Subscribes an observer to receive telemetry events.</summary>
     procedure Subscribe(AObserver: ITelemetryObserver);
+    
+    /// <summary>Unsubscribes an observer from receiving telemetry events.</summary>
     procedure Unsubscribe(AObserver: ITelemetryObserver);
     
+    /// <summary>Writes a new telemetry event to all subscribed observers.</summary>
     procedure Write(const AName: string; const AData: TJSONObject; const ACategory: string = 'SYS'; const ADuration: Int64 = 0; const AStatus: string = 'Success'; const AError: string = '');
     
+    /// <summary>Gets or sets whether the diagnostic source is enabled.</summary>
     property Enabled: Boolean read FEnabled write FEnabled;
   end;
 
@@ -150,10 +166,12 @@ begin
 end;
 
 procedure TLoggingTelemetryObserver.OnEvent(const AEvent: TTelemetryEvent);
+var
+  SqlCmd: string;
 begin
   if AEvent.Category = 'SQL' then
   begin
-    var SqlCmd := AEvent.Data.GetValue<string>('sql');
+    SqlCmd := AEvent.Data.GetValue<string>('sql');
     if SqlCmd = '' then SqlCmd := AEvent.Name;
     
     FLogger.Info( 

@@ -116,11 +116,12 @@ class function THttpExecutor.ExecuteAsync(const ARequest: THttpRequestInfo): TAs
 var
   LClient: TRestClient;
   LBody: TStringStream;
+  LPair: TPair<string, string>;
 begin
   LClient := TRestClient.Create(ARequest.Url);
   
   // Add headers
-  for var LPair in ARequest.Headers do
+  for LPair in ARequest.Headers do
     LClient := LClient.Header(LPair.Key, LPair.Value);
   
   // Create body stream if needed
@@ -148,6 +149,7 @@ var
   Response: IRestResponse;
   Client: TRestClient;
   Body: TStringStream;
+  LPair: TPair<string, string>;
 begin
   // Initialize result
   Result.RequestName := ARequest.Name;
@@ -166,7 +168,7 @@ begin
     Client := TRestClient.Create(ARequest.Url);
     
     // Add headers
-    for var LPair in ARequest.Headers do
+    for LPair in ARequest.Headers do
       Client := Client.Header(LPair.Key, LPair.Value);
     
     // Execute request

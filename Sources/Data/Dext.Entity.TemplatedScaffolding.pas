@@ -88,6 +88,12 @@ begin
 end;
 
 function TTemplatedEntityGenerator.CreateTableViewModel(const AMeta: TMetaTable): TTableViewModel;
+var
+  MetaCol: TMetaColumn;
+  Col: TColumnViewModel;
+  MetaFK: TMetaForeignKey;
+  FK: TFKViewModel;
+  NavProp: string;
 begin
   Result := TTableViewModel.Create;
   Result.Name := AMeta.Name;
@@ -95,9 +101,9 @@ begin
   Result.DelphiUnitName := CleanName(AMeta.Name);
   Result.DelphiNamespace := 'Dext.Data.Entities'; // Default namespace for entities
   
-  for var MetaCol in AMeta.Columns do
+  for MetaCol in AMeta.Columns do
   begin
-    var Col := TColumnViewModel.Create;
+    Col := TColumnViewModel.Create;
     Col.Name := MetaCol.Name;
     Col.DelphiName := CleanName(MetaCol.Name);
     Col.DataType := MetaCol.DataType;
@@ -111,15 +117,15 @@ begin
     Result.Columns.Add(Col);
   end;
   
-  for var MetaFK in AMeta.ForeignKeys do
+  for MetaFK in AMeta.ForeignKeys do
   begin
-    var FK := TFKViewModel.Create;
+    FK := TFKViewModel.Create;
     FK.Name := MetaFK.Name;
     FK.ColumnName := MetaFK.ColumnName;
     FK.ReferencedTable := MetaFK.ReferencedTable;
     FK.ReferencedClass := 'T' + CleanName(MetaFK.ReferencedTable);
     
-    var NavProp := CleanName(MetaFK.ColumnName);
+    NavProp := CleanName(MetaFK.ColumnName);
     if NavProp.EndsWith('Id', True) then
        NavProp := NavProp.Substring(0, NavProp.Length - 2);
     if (NavProp = '') or SameText(NavProp, 'Id') then
@@ -139,6 +145,10 @@ var
   Context: ITemplateContext;
   TemplateContent: string;
   OutputContent: string;
+  TableName: string;
+  Meta: TMetaTable;
+  TableVM: TTableViewModel;
+  FileName: string;
 begin
   if not TFile.Exists(ATemplatePath) then
     raise Exception.Create('Template not found: ' + ATemplatePath);
@@ -151,9 +161,9 @@ begin
     ForceDirectories(AOutputDir);
 
     // Step 1: Collect all metadata and create initial ViewModels
-    for var TableName in TableNames do
+    for TableName in TableNames do
     begin
-      var Meta := ASchema.GetTableMetadata(TableName);
+      Meta := ASchema.GetTableMetadata(TableName);
       TableMetaList.Add(Meta);
       RootModel.Tables.Add(CreateTableViewModel(Meta));
     end;
@@ -169,7 +179,7 @@ begin
     // Step 3: Render and Save
     if AMode = gmMultipleFiles then
     begin
-      for var TableVM in RootModel.Tables do
+      for TableVM in RootModel.Tables do
       begin
         if TableVM.IsJoinTable then Continue; // Skip Join Tables generation
         
@@ -177,7 +187,7 @@ begin
         Context.SetObject('Model', TableVM);
         
         OutputContent := FEngine.Render(TemplateContent, Context);
-        var FileName := TPath.Combine(AOutputDir, TableVM.DelphiUnitName + '.pas');
+        FileName := TPath.Combine(AOutputDir, TableVM.DelphiUnitName + '.pas');
         TFile.WriteAllText(FileName, OutputContent);
       end;
     end
@@ -187,7 +197,7 @@ begin
       Context.SetObject('Model', RootModel);
       
       OutputContent := FEngine.Render(TemplateContent, Context);
-      var FileName := TPath.Combine(AOutputDir, 'Entities.pas');
+      FileName := TPath.Combine(AOutputDir, 'Entities.pas');
       TFile.WriteAllText(FileName, OutputContent);
     end;
   finally

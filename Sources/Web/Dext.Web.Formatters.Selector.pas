@@ -65,6 +65,9 @@ var
   MediaRange: string;
   Params: TArray<string>;
   i: Integer;
+  MediaTypeVal: TMediaTypeHeaderValue;
+  P: string;
+  QStr: string;
 begin
   if AHeaderValue.Trim = '' then
   begin
@@ -85,16 +88,16 @@ begin
       // Parse parameters (e.g. application/json; q=0.9)
       Params := MediaRange.Split([';']);
       
-      var MediaTypeVal: TMediaTypeHeaderValue;
+      // var MediaTypeVal: TMediaTypeHeaderValue;
       MediaTypeVal.MediaType := Params[0].Trim.ToLower;
       MediaTypeVal.Quality := 1.0; // Default
 
       for i := 1 to High(Params) do
       begin
-        var P := Params[i].Trim;
+        P := Params[i].Trim;
         if P.StartsWith('q=', True) then
         begin
-          var QStr := P.Substring(2);
+          QStr := P.Substring(2);
           // Handle dot or comma decimal separator if needed, usually dot in HTTP
           // Use Val or TryStrToFloat with specific settings to be safe
           MediaTypeVal.Quality := StrToFloatDef(QStr, 1.0, TFormatSettings.Invariant);
@@ -127,6 +130,9 @@ var
   MediaTypes: TArray<TMediaTypeHeaderValue>;
   MT: TMediaTypeHeaderValue;
   Formatter: IOutputFormatter;
+  IsWildcard: Boolean;
+  Supported: TArray<string>;
+  MediaType: string;
 begin
   Result := nil;
   if Length(Formatters) = 0 then Exit;
@@ -142,14 +148,14 @@ begin
   for MT in MediaTypes do
   begin
     // Wildcard handling
-    var IsWildcard := (MT.MediaType = '*/*');
+    IsWildcard := (MT.MediaType = '*/*');
     
     for Formatter in Formatters do
     begin
       if not Formatter.CanWriteResult(Context) then Continue;
       
-      var Supported := Formatter.GetSupportedMediaTypes;
-      for var MediaType in Supported do
+      Supported := Formatter.GetSupportedMediaTypes;
+      for MediaType in Supported do
       begin
         // If client accepts everything (*/*), pick the first one this formatter supports
         // Or if client request matches explicitly

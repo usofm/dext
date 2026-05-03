@@ -38,6 +38,7 @@ var
   TargetFile: string;
   Excluded: TArray<string>;
   Generator: TFacadeGenerator;
+  DryRun: Boolean;
 begin
   // Parse arguments
   // -p, --path: Source path (default: current dir)
@@ -109,7 +110,7 @@ begin
       Generator.BackupTargetFile(TargetFile);
       
     SafeWriteLn('Injecting into ' + TargetFile + '...');
-    var DryRun := Args.HasOption('dry-run');
+    DryRun := Args.HasOption('dry-run');
     Generator.InjectIntoFile(TargetFile, DryRun);
     
     if not DryRun then

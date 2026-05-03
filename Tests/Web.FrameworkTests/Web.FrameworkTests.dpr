@@ -37,12 +37,12 @@ begin
   try
     WriteLn('🌐 Dext Web Framework Stability Tests');
     WriteLn('=====================================');
-    
+
     // Execute Tests
     RunTest(TRoutingTest);
     RunTest(TAsyncTest);
     RunTest(TDataApiTest);
-    
+
     WriteLn('');
     WriteLn('✨ All tests completed.');
   except

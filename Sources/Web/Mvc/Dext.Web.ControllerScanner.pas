@@ -107,6 +107,20 @@ var
   Method: TRttiMethod;
   MethodInfo: TControllerMethod;
   Attr: TCustomAttribute;
+  HasRouteMethods: Boolean;
+  MethodsList: IList<TControllerMethod>;
+  Methods: TArray<TRttiMethod>;
+  Attributes: TArray<TCustomAttribute>;
+  VerbAttrs: TArray<RouteAttribute>;
+  PathAttrs: TArray<RouteAttribute>;
+  VCount: Integer;
+  PCount: Integer;
+  J, K: Integer;
+  Combined: Boolean;
+  V: RouteAttribute;
+  P: RouteAttribute;
+  R: RouteAttribute;
+  TypeAttributes: TArray<TCustomAttribute>;
 begin
   Controllers := TCollections.CreateList<TControllerInfo>;
   try
@@ -120,10 +134,10 @@ begin
       if (RttiType.TypeKind in [tkRecord, tkClass]) then
       begin
         // Verificar se tem métodos com atributos de rota
-        var HasRouteMethods := False;
-        var MethodsList: IList<TControllerMethod> := TCollections.CreateList<TControllerMethod>;
+        HasRouteMethods := False;
+        MethodsList := TCollections.CreateList<TControllerMethod>;
 
-        var Methods := RttiType.GetMethods;
+        Methods := RttiType.GetMethods;
 
         for Method in Methods do
         begin
@@ -135,12 +149,9 @@ begin
           if (RttiType.TypeKind = tkClass) and (Method.Visibility <> mvPublic) and (Method.Visibility <> mvPublished) then
              Continue;
 
-          var Attributes := Method.GetAttributes;
-          var VerbAttrs: TArray<RouteAttribute>;
-          var PathAttrs: TArray<RouteAttribute>;
-          var VCount := 0;
-          var PCount := 0;
-          var J, K: Integer;
+          Attributes := Method.GetAttributes;
+          VCount := 0;
+          PCount := 0;
 
           SetLength(VerbAttrs, Length(Attributes));
           SetLength(PathAttrs, Length(Attributes));
@@ -150,7 +161,7 @@ begin
           begin
             if Attr is RouteAttribute then
             begin
-              var R := RouteAttribute(Attr);
+              R := RouteAttribute(Attr);
               if R.Method <> '' then
               begin
                 VerbAttrs[VCount] := R;
@@ -164,15 +175,15 @@ begin
             end;
           end;
 
-          var Combined := False;
+          Combined := False;
 
           // COMBINE: HttpGet (Verb without Path) + Route (Path without Verb)
           for J := 0 to VCount - 1 do
           begin
-            var V := VerbAttrs[J];
+            V := VerbAttrs[J];
             for K := 0 to PCount - 1 do
             begin
-              var P := PathAttrs[K];
+              P := PathAttrs[K];
               if (V.Path = '') and (P.Method = '') then
               begin
                 MethodInfo.Method := Method;
@@ -193,7 +204,7 @@ begin
             begin
               if Attr is RouteAttribute then
               begin
-                var R := RouteAttribute(Attr);
+                R := RouteAttribute(Attr);
                 MethodInfo.Method := Method;
                 MethodInfo.Path := R.Path;
                 MethodInfo.HttpMethod := R.Method;
@@ -214,7 +225,7 @@ begin
 
           // CHECK [ApiController] ATTRIBUTE FOR PREFIX
           ControllerInfo.ControllerAttribute := nil;
-          var TypeAttributes := RttiType.GetAttributes;
+          TypeAttributes := RttiType.GetAttributes;
           for Attr in TypeAttributes do
           begin
             if Attr is ApiControllerAttribute then
@@ -262,8 +273,7 @@ begin
     if Controller.RttiType.TypeKind = tkClass then
     begin
       // Register as Transient
-      var ClassType := Controller.RttiType.AsInstance.MetaclassType;
-      Services.AddTransient(TServiceType.FromClass(ClassType), ClassType);
+      Services.AddTransient(TServiceType.FromClass(Controller.RttiType.AsInstance.MetaclassType), Controller.RttiType.AsInstance.MetaclassType);
       SafeWriteLn('  ✅ Registered service: ' + Controller.RttiType.Name);
     end;
   end;
@@ -275,6 +285,29 @@ var
   Controller: TControllerInfo;
   ControllerMethod: TControllerMethod;
   FullPath: string;
+  Prefix: string;
+  Attr: TCustomAttribute;
+  TypeAttr: TCustomAttribute;
+  IsIgnored: Boolean;
+  CachedMethod: TCachedMethod;
+  ControllerRequiresAuth: Boolean;
+  MethodRequiresAuth: Boolean;
+  MethodAllowsAnonymous: Boolean;
+  SecuritySchemes: IList<string>;
+  LScheme: string;
+  Routes: TArray<TEndpointMetadata>;
+  Metadata: TEndpointMetadata;
+  MetadataUpdated: Boolean;
+  Updated: Boolean;
+  TagAttr: SwaggerTagAttribute;
+  Params: TArray<TRttiParameter>;
+  Param: TRttiParameter;
+  ParamType: TRttiType;
+  OpAttr: SwaggerOperationAttribute;
+  ResponsesList: TArray<TOpenAPIResponseMetadata>;
+  RespAttr: SwaggerResponseAttribute;
+  RespMeta: TOpenAPIResponseMetadata;
+  R: RouteAttribute;
 begin
   Result := 0;
   Controllers := FindControllers;
@@ -285,17 +318,17 @@ begin
   for Controller in Controllers do
   begin
     // CALCULATE CONTROLLER PREFIX
-    var Prefix := '';
+    Prefix := '';
     if Assigned(Controller.ControllerAttribute) then
       Prefix := Controller.ControllerAttribute.Prefix;
 
     // ✅ FIX: CHECK FOR [Route] ATTRIBUTE ON CLASS TO OVERRIDE/SET PREFIX
     // This allows support for [ApiController, Route('/api/events')] syntax
-    for var Attr in Controller.RttiType.GetAttributes do
+    for Attr in Controller.RttiType.GetAttributes do
     begin
       if Attr is RouteAttribute then
       begin
-        var R := RouteAttribute(Attr);
+        R := RouteAttribute(Attr);
         if R.Path <> '' then
           Prefix := R.Path;
         // Break? Usually one route attribute per class.
@@ -313,8 +346,8 @@ begin
       SafeWriteLn(Format('    %s %s -> %s', [ControllerMethod.HttpMethod, FullPath, ControllerMethod.Method.Name]));
 
       // ✅ VERIFICAR [SwaggerIgnore]
-      var IsIgnored := False;
-      for var Attr in ControllerMethod.Method.GetAttributes do
+      IsIgnored := False;
+      for Attr in ControllerMethod.Method.GetAttributes do
         if Attr is SwaggerIgnoreAttribute then
         begin
           IsIgnored := True;
@@ -328,7 +361,6 @@ begin
       end;
 
       // ✅ CRIAR CACHE DO MÉTODO
-      var CachedMethod: TCachedMethod;
       CachedMethod.TypeName := Controller.RttiType.QualifiedName;
       CachedMethod.MethodName := ControllerMethod.Method.Name;
       CachedMethod.IsClass := (Controller.RttiType.TypeKind = tkClass);
@@ -337,13 +369,13 @@ begin
 
       // ✅ CHECK AUTH ATTRIBUTES (Controller or Method level)
       // RULE: [AllowAnonymous] on method OVERRIDES [Authorize] on controller
-      var ControllerRequiresAuth := False;
-      var MethodRequiresAuth := False;
-      var MethodAllowsAnonymous := False;
-      var SecuritySchemes: IList<string> := TCollections.CreateList<string>;
+      ControllerRequiresAuth := False;
+      MethodRequiresAuth := False;
+      MethodAllowsAnonymous := False;
+      SecuritySchemes := TCollections.CreateList<string>;
 
       // Check controller level [Authorize]
-      for var Attr in Controller.RttiType.GetAttributes do
+      for Attr in Controller.RttiType.GetAttributes do
         if (Attr is Dext.Auth.Attributes.AuthorizeAttribute) or (Attr.ClassName = 'AuthorizeAttribute') then
         begin
           ControllerRequiresAuth := True;
@@ -351,12 +383,12 @@ begin
         end;
 
       // Check method level attributes
-      for var Attr in ControllerMethod.Method.GetAttributes do
+      for Attr in ControllerMethod.Method.GetAttributes do
       begin
         if (Attr is Dext.Auth.Attributes.AuthorizeAttribute) or (Attr.ClassName = 'AuthorizeAttribute') then
         begin
           MethodRequiresAuth := True;
-          var LScheme := Dext.Auth.Attributes.AuthorizeAttribute(Attr).Scheme;
+          LScheme := Dext.Auth.Attributes.AuthorizeAttribute(Attr).Scheme;
           if (LScheme <> '') and (SecuritySchemes.IndexOf(LScheme) < 0) then
             SecuritySchemes.Add(LScheme);
         end;
@@ -382,12 +414,12 @@ begin
       AppBuilder.MapEndpoint(ControllerMethod.HttpMethod, FullPath, CreateHandler(CachedMethod));
 
       // UPDATE ROUTE METADATA (Security, Anonymous, etc.)
-      var Routes := AppBuilder.GetRoutes;
+      Routes := AppBuilder.GetRoutes;
       if Length(Routes) > 0 then
       begin
-        var Metadata := Routes[High(Routes)];
-        var MetadataUpdated := False;
-        var Updated := False;
+        Metadata := Routes[High(Routes)];
+        MetadataUpdated := False;
+        Updated := False;
 
         if (SecuritySchemes.Count > 0) then
         begin
@@ -404,11 +436,11 @@ begin
         end;
 
         // 1. Controller [SwaggerTag]
-        for var TypeAttr in Controller.RttiType.GetAttributes do
+        for TypeAttr in Controller.RttiType.GetAttributes do
         begin
           if TypeAttr is SwaggerTagAttribute then
           begin
-            var TagAttr := SwaggerTagAttribute(TypeAttr);
+            TagAttr := SwaggerTagAttribute(TypeAttr);
             if Length(Metadata.Tags) = 0 then
             begin
               SetLength(Metadata.Tags, 1);
@@ -423,10 +455,10 @@ begin
            (ControllerMethod.HttpMethod = 'PUT') or
            (ControllerMethod.HttpMethod = 'PATCH') then
         begin
-          var Params := ControllerMethod.Method.GetParameters;
-          for var Param in Params do
+          Params := ControllerMethod.Method.GetParameters;
+          for Param in Params do
           begin
-            var ParamType := Param.ParamType;
+            ParamType := Param.ParamType;
             if (ParamType <> nil) and (ParamType.TypeKind in [tkRecord, tkMRecord]) then
             begin
               // Ignore IHttpContext and basic types
@@ -442,11 +474,11 @@ begin
         end;
 
         // 3. Method [SwaggerOperation]
-        for var Attr in ControllerMethod.Method.GetAttributes do
+        for Attr in ControllerMethod.Method.GetAttributes do
         begin
           if Attr is SwaggerOperationAttribute then
           begin
-            var OpAttr := SwaggerOperationAttribute(Attr);
+            OpAttr := SwaggerOperationAttribute(Attr);
             if OpAttr.Summary <> '' then Metadata.Summary := OpAttr.Summary;
             if OpAttr.Description <> '' then Metadata.Description := OpAttr.Description;
             if Length(OpAttr.Tags) > 0 then Metadata.Tags := OpAttr.Tags;
@@ -455,14 +487,12 @@ begin
         end;
 
         // 4. Method [SwaggerResponse] -> populate Responses array
-        var ResponsesList: TArray<TOpenAPIResponseMetadata>;
         SetLength(ResponsesList, 0);
-        for var Attr in ControllerMethod.Method.GetAttributes do
+        for Attr in ControllerMethod.Method.GetAttributes do
         begin
           if Attr is SwaggerResponseAttribute then
           begin
-            var RespAttr := SwaggerResponseAttribute(Attr);
-            var RespMeta: TOpenAPIResponseMetadata;
+            RespAttr := SwaggerResponseAttribute(Attr);
             RespMeta.StatusCode := RespAttr.StatusCode;
             RespMeta.Description := RespAttr.Description;
             RespMeta.MediaType := RespAttr.ContentType;
@@ -510,6 +540,13 @@ var
   ControllerInstance: TObject;
   FilterAttr: TCustomAttribute;
   Filter: IActionFilter;
+  M: TRttiMethod;
+  FilterList: IList<TCustomAttribute>;
+  ActionDescriptor: TActionDescriptor;
+  ExecutingContext: IActionExecutingContext;
+  Binder: IModelBinder;
+  Invoker: THandlerInvoker;
+  ExecutedContext: IActionExecutedContext;
   I: Integer;
 begin
   SafeWriteLn('🔄 ' + Format('Executing: %s -> %s.%s', [CachedMethod.FullPath, CachedMethod.TypeName, CachedMethod.MethodName]));
@@ -537,7 +574,7 @@ begin
 
     // FIND METHOD AT RUNTIME
     Method := nil;
-    for var M in ControllerType.GetMethods do
+    for M in ControllerType.GetMethods do
     begin
       if M.Name = CachedMethod.MethodName then
       begin
@@ -553,7 +590,7 @@ begin
       Exit;
     end;
 
-    var FilterList: IList<TCustomAttribute> := TCollections.CreateList<TCustomAttribute>;
+    FilterList := TCollections.CreateList<TCustomAttribute>;
     // Controller Level
     for FilterAttr in ControllerType.GetAttributes do
       if Supports(FilterAttr, IActionFilter) then
@@ -565,14 +602,13 @@ begin
         FilterList.Add(FilterAttr);
 
     // ✅ EXECUTE ACTION FILTERS - OnActionExecuting
-    var ActionDescriptor: TActionDescriptor;
     ActionDescriptor.ControllerName := CachedMethod.TypeName;
     ActionDescriptor.ActionName := CachedMethod.MethodName;
     ActionDescriptor.HttpMethod := CachedMethod.HttpMethod;
     ActionDescriptor.Route := CachedMethod.FullPath;
 
     // ✅ FIX: Use interface variable to prevent premature destruction (RefCount issue)
-    var ExecutingContext: IActionExecutingContext := TActionExecutingContext.Create(Context, ActionDescriptor);
+    ExecutingContext := TActionExecutingContext.Create(Context, ActionDescriptor);
     try
       for FilterAttr in FilterList do
       begin
@@ -612,8 +648,8 @@ begin
           Exit;
         end;
 
-        var Binder: IModelBinder := TModelBinder.Create;
-        var Invoker := THandlerInvoker.Create(Context, Binder);
+        Binder := TModelBinder.Create;
+        Invoker := THandlerInvoker.Create(Context, Binder);
         try
           Invoker.InvokeAction(ControllerInstance, Method);
         finally
@@ -629,8 +665,8 @@ begin
       else
       begin
         // STATIC RECORDS
-        var Binder: IModelBinder := TModelBinder.Create;
-        var Invoker := THandlerInvoker.Create(Context, Binder);
+        Binder := TModelBinder.Create;
+        Invoker := THandlerInvoker.Create(Context, Binder);
         try
           Invoker.InvokeAction(nil, Method);
         finally
@@ -640,7 +676,7 @@ begin
       end;
 
       // ✅ EXECUTE ACTION FILTERS - OnActionExecuted
-      var ExecutedContext: IActionExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, nil);
+      ExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, nil);
       // Execute filters in reverse order
       for I := FilterList.Count - 1 downto 0 do
       begin
@@ -655,7 +691,7 @@ begin
         SafeWriteLn('❌ Error executing method: ' + E.Message);
 
         // ✅ EXECUTE ACTION FILTERS - OnActionExecuted (with exception)
-        var ExecutedContext: IActionExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, E);
+        ExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, E);
         for I := FilterList.Count - 1 downto 0 do
         begin
           FilterAttr := FilterList[I];

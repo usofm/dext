@@ -237,6 +237,8 @@ var
   Value: TValue;
   HasConfig, IsDefault: Boolean;
   SrcPtr, DstPtr: Pointer;
+  ConfigObj: TObject;
+  PropName: string;
 begin
   Config := nil;
 
@@ -263,7 +265,6 @@ begin
 
     // Check if there's a custom configuration
     ConfigKey := GetConfigKey(TypeInfo(TSource), TypeInfo(TDest));
-    var ConfigObj: TObject;
     HasConfig := FConfigurations.TryGetValue(ConfigKey, ConfigObj);
     if HasConfig and (ConfigObj is TTypeMapConfigBase) then
       Config := ConfigObj as TTypeMapConfigBase;
@@ -340,7 +341,7 @@ begin
     // Also try to match Destination Fields if they are not exposed via properties
     for DestField in DestType.GetFields do
     begin
-      var PropName := DestField.Name;
+      PropName := DestField.Name;
       if PropName.StartsWith('FF', True) then
         PropName := PropName.Substring(1);
 

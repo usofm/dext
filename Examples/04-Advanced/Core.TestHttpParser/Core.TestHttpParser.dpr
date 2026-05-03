@@ -44,12 +44,13 @@ const
 procedure TestParseVariables;
 var
   Collection: THttpRequestCollection;
+  V: THttpVariable;
 begin
   WriteLn('=== Test: Parse Variables ===');
   Collection := THttpRequestParser.Parse(SAMPLE_HTTP_CONTENT);
   try
     WriteLn('Variables found: ', Collection.Variables.Count);
-    for var V in Collection.Variables do
+    for V in Collection.Variables do
       WriteLn('  @', V.Name, ' = ', V.Value);
       
     if Collection.Variables.Count = 2 then
@@ -65,12 +66,13 @@ end;
 procedure TestParseRequests;
 var
   Collection: THttpRequestCollection;
+  R: THttpRequestInfo;
 begin
   WriteLn('=== Test: Parse Requests ===');
   Collection := THttpRequestParser.Parse(SAMPLE_HTTP_CONTENT);
   try
     WriteLn('Requests found: ', Collection.Requests.Count);
-    for var R in Collection.Requests do
+    for R in Collection.Requests do
     begin
       WriteLn('  [', R.Method, '] ', R.Name);
       WriteLn('       URL: ', R.Url);
@@ -185,13 +187,15 @@ procedure TestParseFromFile;
 var
   Collection: THttpRequestCollection;
   FilePath: string;
+  LDir: string;
+  R: THttpRequestInfo;
 begin
   WriteLn('=== Test: Parse From File ===');
   FilePath := ExtractFilePath(ParamStr(0)) + '..\..\Examples\example-api.http';
   
   if not FileExists(FilePath) then
   begin
-    var LDir := ExtractFilePath(ParamStr(0));
+    LDir := ExtractFilePath(ParamStr(0));
     while (Length(LDir) > 3) and not TDirectory.Exists(TPath.Combine(LDir, 'Examples')) do
       LDir := TPath.GetDirectoryName(LDir);
     FilePath := TPath.Combine(LDir, 'Examples\example-api.http');
@@ -205,7 +209,7 @@ begin
       WriteLn('Variables: ', Collection.Variables.Count);
       WriteLn('Requests: ', Collection.Requests.Count);
       
-      for var R in Collection.Requests do
+      for R in Collection.Requests do
         WriteLn('  - [', R.Method, '] ', R.Name);
       
       if Collection.Requests.Count > 0 then

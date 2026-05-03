@@ -1,4 +1,4 @@
-unit Web.SwaggerExample.Startup;
+﻿unit Web.SwaggerExample.Startup;
 
 interface
 
@@ -66,7 +66,7 @@ type
   end;
 
   TProductArray = TArray<TProduct>;
-  
+
   [SwaggerSchema('ErrorResponse', 'Standard error response')]
   TErrorResponse = record
     [SwaggerProperty('Error message description')]
@@ -78,7 +78,7 @@ type
     [SwaggerProperty('Service status')]
     [SwaggerExample('healthy')]
     status: string;
-    
+
     [SwaggerProperty('API version')]
     [SwaggerExample('1.0.0')]
     version: string;
@@ -103,7 +103,7 @@ uses
 class procedure TStartup.InitializeSampleData;
 begin
   if Length(FUsers) > 0 then Exit;
-  
+
   SetLength(FUsers, 2);
   FUsers[0].Id := 1;
   FUsers[0].Name := 'John Doe';
@@ -123,6 +123,7 @@ end;
 procedure TStartup.Configure(const App: IWebApplication);
 var
   Options: TOpenAPIOptions;
+  GetAllUsers: IApplicationBuilder;
 begin
   Writeln('📚 Configuring routes...');
   Writeln('');
@@ -135,14 +136,14 @@ begin
   Options.ContactEmail := 'contact@dext.dev';
   Options.LicenseName := 'MIT';
   Options.LicenseUrl := 'https://opensource.org/licenses/MIT';
-  
+
   Options.WithServer('http://localhost:5000', 'Development server');
   Options.WithBearerAuth('JWT', 'Enter JWT token in format: Bearer {token}');
   Options.WithApiKeyAuth('X-API-Key', aklHeader, 'API Key for administrative access');
 
   // GET /api/users
   Writeln('1. GET /api/users');
-  var GetAllUsers := App.Builder.MapGet('/api/users',
+  GetAllUsers := App.Builder.MapGet('/api/users',
       procedure(Ctx: IHttpContext)
       begin
         Ctx.Response.Json(TDextJson.Serialize<TArray<TUser>>(FUsers));

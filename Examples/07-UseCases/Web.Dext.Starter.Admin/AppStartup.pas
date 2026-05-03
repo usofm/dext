@@ -125,19 +125,23 @@ begin
 end;
 
 class procedure TAppStartup.RunSeeder(const App: IWebApplication);
+var
+  ServiceProvider: IServiceProvider;
+  SeederObj: TObject;
+  Seeder: TDbSeeder;
 begin
   Log.Info('[*] Preparing to seed database...');
-  var ServiceProvider := App.GetApplicationBuilder.GetServiceProvider;
+  ServiceProvider := App.GetApplicationBuilder.GetServiceProvider;
   if ServiceProvider = nil then
   begin
     Log.Error('[ERROR] ServiceProvider is nil');
     Exit;
   end;
 
-  var SeederObj := ServiceProvider.GetService(TServiceType.FromClass(TDbSeeder));
+  SeederObj := ServiceProvider.GetService(TServiceType.FromClass(TDbSeeder));
   if SeederObj <> nil then
   begin
-    var Seeder := SeederObj as TDbSeeder;
+    Seeder := SeederObj as TDbSeeder;
     try
       Seeder.Seed;
     finally
@@ -149,8 +153,10 @@ begin
 end;
 
 procedure TAppStartup.Configure(const App: IWebApplication);
+var
+  WebApp: TAppBuilder;
 begin
-  var WebApp := App.GetBuilder;
+  WebApp := App.GetBuilder;
 
   // 0. Configure JSON settings globally (camelCase for JS compatibility, case-insensitive for parsing)
   JsonDefaultSettings(JsonSettings.Default.CamelCase.CaseInsensitive);

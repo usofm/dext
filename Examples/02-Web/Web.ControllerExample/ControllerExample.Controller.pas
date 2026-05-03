@@ -1,4 +1,4 @@
-﻿unit ControllerExample.Controller;
+unit ControllerExample.Controller;
 
 {
 1. Binding: Body, Query, Route, Header, Services.
@@ -236,8 +236,10 @@ begin
 end;
 
 procedure TGreetingController.GetGreeting(Ctx: IHttpContext; const Name: string);
+var
+  Message: string;
 begin
-  var Message := FService.GetGreeting(Name);
+  Message := FService.GetGreeting(Name);
   Ctx.Response.Json(
     Format('{"message": "%s" - %s}',
     [Message, FormatDateTime('hh:nn:ss.zzz', Now)]));

@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -65,6 +65,7 @@ procedure TServiceScopeMiddleware.Invoke(AContext: IHttpContext; ANext: TRequest
 var
   Scope: IServiceScope;
   ScopeInterface: IInterface;
+  OriginalServices: IServiceProvider;
 begin
   // Create a new scope for this request
   ScopeInterface := AContext.Services.CreateScope;
@@ -74,7 +75,7 @@ begin
   
   // Replace the context's service provider with the scoped one
   // This ensures all services resolved during this request use the scoped provider
-  var OriginalServices := AContext.Services;
+  OriginalServices := AContext.Services;
   try
     // Update context to use scoped provider
     AContext.Services := Scope.ServiceProvider;

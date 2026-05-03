@@ -1,4 +1,4 @@
-﻿/// <summary>
+/// <summary>
 /// Counter.MVU - Pure MVU implementation for Delphi
 ///
 /// This unit demonstrates the Model-View-Update architecture pattern
@@ -260,6 +260,7 @@ const
   MARGIN = 10;
 var
   Y: Integer;
+  BtnWidth: Integer;
 begin
   Y := MARGIN;
   
@@ -339,7 +340,7 @@ begin
   FStepsPanel.BevelOuter := bvNone;
   FStepsPanel.Caption := '';
   
-  var BtnWidth := (FStepsPanel.ClientWidth - 20) div 3;
+  BtnWidth := (FStepsPanel.ClientWidth - 20) div 3;
   
   FStep1Button := TButton.Create(FStepsPanel);
   FStep1Button.Parent := FStepsPanel;

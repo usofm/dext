@@ -47,6 +47,7 @@ var
   Context: IDbContext;
   Migrator: TMigrator;
   SourcePath: string;
+  CtxObj: TDbContext;
 begin
   SourcePath := Args.GetOption('source');
   if SourcePath = '' then
@@ -71,7 +72,7 @@ begin
   finally
     if Context is TDbContext then
     begin
-      var CtxObj := Context as TDbContext;
+      CtxObj := Context as TDbContext;
       Context := nil; 
       CtxObj.Free;
     end;

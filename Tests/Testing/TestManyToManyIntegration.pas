@@ -1,4 +1,4 @@
-﻿unit TestManyToManyIntegration;
+unit TestManyToManyIntegration;
 
 interface
 
@@ -12,6 +12,7 @@ uses
   FireDAC.Stan.Async,
   FireDAC.Stan.Def,
   System.Classes,
+  System.Rtti,
   System.SysUtils,
   Dext.Assertions,
   Dext.Collections,
@@ -120,6 +121,10 @@ end;
 procedure TManyToManyIntegrationTests.Setup;
 var
   DbConn: IDbConnection;
+  Dummy1: IList<TCourseInt>;
+  Dummy2: IList<TStudentInt>;
+  Dummy3: TTrackingList<TCourseInt>;
+  Dummy4: TTrackingList<TStudentInt>;
 begin
   FEntities := TCollections.CreateList<TObject>(False); // ORM manages object lifetime
   // Create In-Memory SQLite Connection
@@ -137,10 +142,10 @@ begin
   FContext := TIntegrationContext.Create(DbConn);
   
   // Force RTTI for generic lists and tracking lists
-  var Dummy1: IList<TCourseInt> := TSmartList<TCourseInt>.Create;
-  var Dummy2: IList<TStudentInt> := TSmartList<TStudentInt>.Create;
-  var Dummy3 := TTrackingList<TCourseInt>.Create(nil, nil, '');
-  var Dummy4 := TTrackingList<TStudentInt>.Create(nil, nil, '');
+  Dummy1 := TSmartList<TCourseInt>.Create;
+  Dummy2 := TSmartList<TStudentInt>.Create;
+  Dummy3 := TTrackingList<TCourseInt>.Create(nil, nil, '');
+  Dummy4 := TTrackingList<TStudentInt>.Create(nil, nil, '');
   Dummy3.Free;
   Dummy4.Free;
   
@@ -217,6 +222,8 @@ procedure TManyToManyIntegrationTests.TestLink_ManyToMany;
 var
   S1: TStudentInt;
   C1: TCourseInt;
+  Cmd: IDbCommand;
+  Val, Val2: TValue;
 begin
   S1 := TStudentInt.Create; 
   S1.Name := 'Alice';
@@ -232,17 +239,17 @@ begin
   FContext.Students.LinkManyToMany(S1, 'Courses', C1);
   
   // Verify in Join Table
-  var Cmd := FContext.Connection.CreateCommand('SELECT COUNT(*) FROM "StudentCourses" WHERE "student_id" = :p1 AND "course_id" = :p2');
+  Cmd := FContext.Connection.CreateCommand('SELECT COUNT(*) FROM "StudentCourses" WHERE "student_id" = :p1 AND "course_id" = :p2');
   Cmd.AddParam('p1', S1.Id);
   Cmd.AddParam('p2', C1.Id);
   
-  var Val := Cmd.ExecuteScalar;
+  Val := Cmd.ExecuteScalar;
   Should(Val.AsInteger).Be(1);
   
   // Unlink
   FContext.Students.UnlinkManyToMany(S1, 'Courses', C1);
   
-  var Val2 := Cmd.ExecuteScalar;
+  Val2 := Cmd.ExecuteScalar;
   Should(Val2.AsInteger).Be(0);
 end;
 
@@ -251,6 +258,7 @@ var
   S1: TStudentInt;
   C1, C2, C3: TCourseInt;
   Related: TArray<TObject>;
+  Cmd, CmdCheck: IDbCommand;
 begin
   S1 := TStudentInt.Create; 
   FContext.Students.Add(S1);
@@ -269,7 +277,7 @@ begin
   Related[1] := C2;
   FContext.Students.SyncManyToMany(S1, 'Courses', Related);
   
-  var Cmd := FContext.Connection.CreateCommand('SELECT COUNT(*) FROM "StudentCourses" WHERE "student_id" = :p1');
+  Cmd := FContext.Connection.CreateCommand('SELECT COUNT(*) FROM "StudentCourses" WHERE "student_id" = :p1');
   Cmd.AddParam('p1', S1.Id);
   Should(Cmd.ExecuteScalar.AsInteger).Be(2);
   
@@ -282,7 +290,7 @@ begin
   Should(Cmd.ExecuteScalar.AsInteger).Be(2);
   
   // Verify C1 is gone
-  var CmdCheck := FContext.Connection.CreateCommand('SELECT COUNT(*) FROM "StudentCourses" WHERE "student_id" = :p1 AND "course_id" = :p2');
+  CmdCheck := FContext.Connection.CreateCommand('SELECT COUNT(*) FROM "StudentCourses" WHERE "student_id" = :p1 AND "course_id" = :p2');
   CmdCheck.AddParam('p1', S1.Id);
   CmdCheck.AddParam('p2', C1.Id);
   Should(CmdCheck.ExecuteScalar.AsInteger).Be(0);
@@ -296,12 +304,15 @@ begin
 end;
 
 procedure TManyToManyIntegrationTests.TestManualInsertSQL;
+var
+  Cmd: IDbCommand;
+  Val: Integer;
 begin
   // Verifying writes work
   FContext.Connection.CreateCommand('INSERT INTO "StudentCourses" ("student_id", "course_id") VALUES (99, 88)').Execute;
   
-  var Cmd := FContext.Connection.CreateCommand('SELECT COUNT(*) FROM "StudentCourses" WHERE "student_id" = 99');
-  var Val := Cmd.ExecuteScalar.AsInteger;
+  Cmd := FContext.Connection.CreateCommand('SELECT COUNT(*) FROM "StudentCourses" WHERE "student_id" = 99');
+  Val := Cmd.ExecuteScalar.AsInteger;
   Should(Val).Be(1);
 end;
 

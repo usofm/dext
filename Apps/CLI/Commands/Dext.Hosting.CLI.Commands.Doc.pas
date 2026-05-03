@@ -414,6 +414,7 @@ end;
 procedure TDocCommand.Execute(const Args: TCommandLineArgs);
 var
   InputDir, OutputDir, Title: string;
+  Generator: TDextDocGenerator;
 begin
   // 1. Parse Arguments
   if Args.HasOption('input') then
@@ -448,7 +449,7 @@ begin
   
   // 3. Generate Documentation
   SafeWriteLn('Parsing source and generating HTML...');
-  var Generator := TDextDocGenerator.Create(TEMPLATE_HTML, OutputDir, Title);
+  Generator := TDextDocGenerator.Create(TEMPLATE_HTML, OutputDir, Title);
   try
     Generator.Generate(InputDir);
   finally

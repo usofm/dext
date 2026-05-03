@@ -69,6 +69,9 @@ type
     property HasPreviousPage: Boolean read GetHasPreviousPage;
   end;
 
+  /// <summary>
+  ///   Concrete implementation of a paginated query result.
+  /// </summary>
   TPagedResult<T> = class(TInterfacedObject, IPagedResult<T>)
   private
     FItems: IList<T>;
@@ -102,10 +105,6 @@ type
     property Current: T read GetCurrent;
   end;
 
-  /// <summary>
-  ///   Concrete type for fluent queries.
-  ///   Implemented as a record for automatic lifecycle management.
-  /// </summary>
   /// <summary>
   ///   Orchestrator for fluent queries (LINQ-like). 
   ///   Implemented as a record for automatic lifecycle management and low overhead.
@@ -268,6 +267,7 @@ type
     function MaxOrDefault(const AProp: IPropInfo; const ADefault: Double = 0): Double; overload;
 
     /// <summary>
+    ///   Paginates the query results.
     /// </summary>
     function Paginate(const APageNumber, APageSize: Integer): IPagedResult<T>;
   end;
@@ -292,6 +292,9 @@ type
     function GetList: IList<T>;
   end;
 
+  /// <summary>
+  ///   Iterator that projects elements into a new form.
+  /// </summary>
   TProjectingIterator<TSource, TResult> = class(TQueryIterator<TResult>)
   private
     FEnumerator: IEnumerator<TSource>;
@@ -361,6 +364,9 @@ type
     destructor Destroy; override;
   end;
 
+  /// <summary>
+  ///   Iterator that returns an empty sequence.
+  /// </summary>
   TEmptyIterator<T> = class(TQueryIterator<T>)
   protected
     function MoveNextCore: Boolean; override;
@@ -721,15 +727,17 @@ end;
 function TFluentQuery<T>.Select(const AProperties: array of string): TFluentQuery<T>;
 var
   LProperties: TArray<string>;
+  LProp: string;
+  I: Integer;
 begin
   if FSpecification <> nil then
   begin
-    for var LProp in AProperties do
+    for LProp in AProperties do
       FSpecification.Select(LProp);
   end;
 
   SetLength(LProperties, Length(AProperties));
-  for var I := 0 to High(AProperties) do
+  for I := 0 to High(AProperties) do
     LProperties[I] := AProperties[I];
 
   Result := Select<T>(CreatePropsSelector(LProperties));
@@ -1192,6 +1200,7 @@ var
   Prop: TRttiProperty;
   Map: TEntityMap;
   PropMap: TPropertyMap;
+  Typ: TRttiType;
 begin
   Result := 0;
   Prop := nil;
@@ -1203,7 +1212,7 @@ begin
   
   if Prop = nil then
   begin
-    var Typ := TReflection.Context.GetType(TypeInfo(T));
+    Typ := TReflection.Context.GetType(TypeInfo(T));
     if Typ <> nil then
       Prop := Typ.GetProperty(APropertyName);
   end;
@@ -1262,6 +1271,7 @@ var
   Prop: TRttiProperty;
   Map: TEntityMap;
   PropMap: TPropertyMap;
+  Typ: TRttiType;
 begin
   SumVal := 0;
   CountVal := 0;
@@ -1273,7 +1283,7 @@ begin
     
   if Prop = nil then
   begin
-    var Typ := TReflection.Context.GetType(TypeInfo(T));
+    Typ := TReflection.Context.GetType(TypeInfo(T));
     if Typ <> nil then
       Prop := Typ.GetProperty(APropertyName);
   end;
@@ -1341,6 +1351,7 @@ var
   Prop: TRttiProperty;
   Map: TEntityMap;
   PropMap: TPropertyMap;
+  Typ: TRttiType;
 begin
   HasValue := False;
   Result := 0;
@@ -1352,7 +1363,7 @@ begin
   
   if Prop = nil then
   begin
-    var Typ := TReflection.Context.GetType(TypeInfo(T));
+    Typ := TReflection.Context.GetType(TypeInfo(T));
     if Typ <> nil then
       Prop := Typ.GetProperty(APropertyName);
   end;
@@ -1427,6 +1438,7 @@ var
   Prop: TRttiProperty;
   Map: TEntityMap;
   PropMap: TPropertyMap;
+  Typ: TRttiType;
 begin
   HasValue := False;
   Result := 0;
@@ -1438,7 +1450,7 @@ begin
   
   if Prop = nil then
   begin
-    var Typ := TReflection.Context.GetType(TypeInfo(T));
+    Typ := TReflection.Context.GetType(TypeInfo(T));
     if Typ <> nil then
       Prop := Typ.GetProperty(APropertyName);
   end;
@@ -1515,6 +1527,7 @@ var
   Prop: TRttiProperty;
   Map: TEntityMap;
   PropMap: TPropertyMap;
+  Typ: TRttiType;
 begin
   Result := ADefault;
   Prop := nil;
@@ -1525,7 +1538,7 @@ begin
     
   if Prop = nil then
   begin
-    var Typ := TReflection.Context.GetType(TypeInfo(T));
+    Typ := TReflection.Context.GetType(TypeInfo(T));
     if Typ <> nil then
       Prop := Typ.GetProperty(APropertyName);
   end;

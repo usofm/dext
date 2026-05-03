@@ -19,9 +19,19 @@ uses
   Dext.Utils;
 
 type
+  /// <summary>
+  ///   Event triggered when a unit source file is refreshed by the data provider.
+  /// </summary>
   TRefreshUnitEvent = procedure(AProvider: TComponent; const AFileName: string) of object;
+  
+  /// <summary>
+  ///   Event to request source code content for a given filename during metadata synchronization.
+  /// </summary>
   TGetSourceContentEvent = function(const AFileName: string): string;
 
+  /// <summary>
+  ///   Provider component that discovers, parses, and provides runtime entity metadata and preview capabilities.
+  /// </summary>
   TEntityDataProvider = class(TComponent, IEntityDataProvider)
   private
     FModelUnits: TStrings;
@@ -112,6 +122,7 @@ function TEntityDataProvider.BuildColumnList(AClass: TClass; const AClassName: s
 var
   EntityMap: TEntityMap;
   Columns: IList<string>;
+  PropMap: TPropertyMap;
 begin
   Columns := TCollections.CreateList<string>;
 
@@ -119,7 +130,7 @@ begin
   begin
     EntityMap := BuildEntityMap(AClass);
     try
-      for var PropMap in EntityMap.Properties.Values do
+      for PropMap in EntityMap.Properties.Values do
       begin
         if PropMap.IsIgnored or PropMap.IsNavigation or PropMap.IsShadow then
           Continue;
@@ -176,9 +187,10 @@ end;
 function TEntityDataProvider.GetEntities: TArray<string>;
 var
   List: IList<string>;
+  i: Integer;
 begin
   List := TCollections.CreateList<string>;
-  for var i := 0 to FEntitiesMetadata.Count - 1 do
+  for i := 0 to FEntitiesMetadata.Count - 1 do
     List.Add(FEntitiesMetadata[i].EntityClassName);
   Result := List.ToArray;
 end;
@@ -207,6 +219,7 @@ var
   ParsedList: IList<TEntityClassMetadata>;
   MD: TEntityClassMetadata;
   Found: Boolean;
+  I: Integer;
 begin
   if not (csDesigning in ComponentState) then
     Exit;
@@ -219,7 +232,7 @@ begin
 
   // Find the full path in ModelUnits
   FileName := '';
-  for var I := 0 to FModelUnits.Count - 1 do
+  for I := 0 to FModelUnits.Count - 1 do
   begin
     if SameText(ChangeFileExt(ExtractFileName(FModelUnits[I]), ''), UnitName) then
     begin
@@ -325,6 +338,8 @@ var
   Obj: TObject;
   PropMap: TPropertyMap;
   FieldValue: TValue;
+  CurrentPropMap: TPropertyMap;
+  I: Integer;
 begin
   Result := nil;
 
@@ -342,7 +357,7 @@ begin
   EntityMap := BuildEntityMap(EntityClass);
   try
     ColumnMap := TCollections.CreateDictionaryIgnoreCase<string, TPropertyMap>;
-    for var CurrentPropMap in EntityMap.Properties.Values do
+    for CurrentPropMap in EntityMap.Properties.Values do
     begin
       if CurrentPropMap.IsIgnored or CurrentPropMap.IsNavigation or CurrentPropMap.IsShadow then
         Continue;
@@ -369,7 +384,7 @@ begin
         Obj := TReflection.CreateInstance(EntityClass);
         if Obj <> nil then
         begin
-          for var I := 0 to Query.Fields.Count - 1 do
+          for I := 0 to Query.Fields.Count - 1 do
           begin
             if not ColumnMap.TryGetValue(Query.Fields[I].FieldName, PropMap) then
               Continue;
@@ -415,10 +430,12 @@ begin
 end;
 
 procedure TEntityDataProvider.Loaded;
+var
+  i: Integer;
 begin
   inherited;
   FMetadataCache.Clear;
-  for var i := 0 to FEntitiesMetadata.Count - 1 do
+  for i := 0 to FEntitiesMetadata.Count - 1 do
     FMetadataCache.AddOrSetValue(FEntitiesMetadata[i].EntityClassName, FEntitiesMetadata[i]);
 end;
 

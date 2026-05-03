@@ -1,4 +1,4 @@
-﻿program TestCollectionsLists;
+program TestCollectionsLists;
 
 {$APPTYPE CONSOLE}
 
@@ -71,6 +71,8 @@ var
   JsonStr: string;
   DextList: Dext.Collections.TList<TPost>;
   SystemList: System.Generics.Collections.TList<TPost>;
+  Val2: TValue;
+  CustomList: IMyList<TPost>;
 begin
   Writeln('--- Testes de Deserializacao de Listas ---');
   Writeln;
@@ -101,7 +103,7 @@ begin
   try
     // SystemList := TDextJson.Deserialize<System.Generics.Collections.TList<TPost>>(JsonStr); // Erro de namespace se não for explícito?
     // Em Delphi, o TDextJson.Deserialize dá suporte a classes se tiverem Add.
-    var Val2 := TDextJson.Deserialize(TypeInfo(System.Generics.Collections.TList<TPost>), JsonStr);
+    Val2 := TDextJson.Deserialize(TypeInfo(System.Generics.Collections.TList<TPost>), JsonStr);
     SystemList := Val2.AsType<System.Generics.Collections.TList<TPost>>;
     try
       Writeln('   Success! Count: ', SystemList.Count);
@@ -121,7 +123,7 @@ begin
   try
     TActivator.RegisterDefault<IMyList<TPost>, TMyList<TPost>>;
 
-    var CustomList := TDextJson.Deserialize<IMyList<TPost>>(JsonStr);
+    CustomList := TDextJson.Deserialize<IMyList<TPost>>(JsonStr);
     if CustomList <> nil then
     begin
       Writeln('   Success! Count: ', CustomList.Count);

@@ -110,6 +110,7 @@ begin
     function(Service: IProductService; Request: TProductCreateRequest): IResult
     var
       Dto: TCreateProductDto;
+      Product: TProduct;
     begin
       // Debug log to see what we are receiving
       Log.Debug('[DEBUG] Product Request - TenantId: "{TenantId}", Name: "{Name}"', [Request.TenantId, Request.Name]);
@@ -122,7 +123,7 @@ begin
       Dto.Price := Request.Price;
       Dto.Stock := Request.Stock;
         
-      var Product := Service.CreateProduct(Request.TenantId, Dto);
+      Product := Service.CreateProduct(Request.TenantId, Dto);
       Result := Results.Created('/api/products/' + IntToStr(Product.Id), Product);
     end);
 

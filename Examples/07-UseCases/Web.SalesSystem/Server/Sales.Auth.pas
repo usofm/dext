@@ -71,10 +71,12 @@ begin
 end;
 
 function TAuthService.Login(const User, Pass: string): string;
+var
+  Claims: TArray<TClaim>;
 begin
   if (User = 'admin') and (Pass = 'admin') then
   begin
-    var Claims := TClaimsBuilder.Create
+    Claims := TClaimsBuilder.Create
       .WithName(User)
       .WithRole('Admin')
       .Build;

@@ -60,6 +60,7 @@ object FormMain: TFormMain
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 1
+    ExplicitWidth = 948
     object RealMasterDetailButton: TSpeedButton
       Left = 256
       Top = 8

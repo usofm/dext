@@ -54,6 +54,11 @@ var
   CurrTable, PrevTable: TSnapshotTable;
   CurrCol, PrevCol: TSnapshotColumn;
   CurrFK: TSnapshotForeignKey;
+  CreateOp: TCreateTableOperation;
+  PKs: IList<string>;
+  C: TSnapshotColumn;
+  StillExists: Boolean;
+  T: TSnapshotTable;
   
   // Helper to convert Snapshot Column to Operation Column Definition
   function ToDef(C: TSnapshotColumn): TColumnDefinition;
@@ -102,7 +107,7 @@ begin
       if PrevTable = nil then
       begin
         // Table Added
-        var CreateOp := TCreateTableOperation.Create(CurrTable.Name);
+        CreateOp := TCreateTableOperation.Create(CurrTable.Name);
         
         // Add Columns
         for CurrCol in CurrTable.Columns do
@@ -112,7 +117,7 @@ begin
         // For simplicity, let's assume PKs are marked in columns for now, 
         // or we extract them.
         // TCreateTableOperation has a PrimaryKey array property.
-        var PKs := TCollections.CreateList<string>;
+        PKs := TCollections.CreateList<string>;
         try
           for CurrCol in CurrTable.Columns do
             if CurrCol.IsPrimaryKey then
@@ -175,8 +180,8 @@ begin
         for PrevCol in PrevTable.Columns do
         begin
           // Check if column was dropped (not renamed)
-          var StillExists := False;
-          for var C in CurrTable.Columns do
+          StillExists := False;
+          for C in CurrTable.Columns do
             if SameText(C.Name, PrevCol.Name) or SameText(C.RenamedFrom, PrevCol.Name) then
             begin
               StillExists := True;
@@ -200,10 +205,10 @@ begin
   begin
     for PrevTable in Previous.Tables do
     begin
-      var StillExists := False;
+      StillExists := False;
       if Current <> nil then
       begin
-        for var T in Current.Tables do
+        for T in Current.Tables do
           if SameText(T.Name, PrevTable.Name) or SameText(T.RenamedFrom, PrevTable.Name) then
           begin
             StillExists := True;

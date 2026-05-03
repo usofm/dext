@@ -219,10 +219,15 @@ end;
 procedure TFacadeGenerator.ProcessFile(const FileName: string);
 var
   Root, IntfNode, SectionNode, DeclNode: TSyntaxNode;
-  UnitName: string;
+  UnitName, TypeName: string;
   UnitDecl: TExtractedUnit;
-  TypeName: string;
   GenericParams: string;
+  FoundElements: Boolean;
+  StandardEnumNode: TSyntaxNode;
+  TypeWrapper: TSyntaxNode;
+  IdCount: Integer;
+  C: TSyntaxNode;
+  ConstName: string;
   
   function IsValidType(Name: string): Boolean;
   begin
@@ -233,6 +238,9 @@ var
 
   // Robust search for Enum Elements anywhere in sub-tree of TypeDecl
   procedure ScanForElements(UnitDecl: TExtractedUnit; N: TSyntaxNode; const TypeName: string; var FoundElements: Boolean);
+  var
+    EnumItemName: string;
+    C: TSyntaxNode;
   begin
      if N = nil then Exit;
      
@@ -241,7 +249,7 @@ var
      if (N.Typ = ntElement) or (Ord(N.Typ) = 56) then // 56 = ntIdentifier
      begin
          // Check if it's the TypeName itself (DeclNode name) to avoid self-reference? 
-         var EnumItemName := N.GetAttribute(anName);
+         EnumItemName := N.GetAttribute(anName);
          if (not EnumItemName.IsEmpty) and (not FGlobalTypeNames.Contains(EnumItemName)) and (EnumItemName <> TypeName) then
          begin
             if not UnitDecl.Consts.Contains(EnumItemName) then
@@ -254,7 +262,7 @@ var
          end;
      end;
      
-     for var C in N.ChildNodes do
+     for C in N.ChildNodes do
        ScanForElements(UnitDecl, C, TypeName, FoundElements);
   end;
   
@@ -287,10 +295,7 @@ begin
      Exit;
     end;
 
-
     UnitName := GetUnitName(Root, FileName);
-    
-
     if IsExcluded(UnitName) then 
     begin
       SafeWriteLn('  Excluded: ' + UnitName);
@@ -343,7 +348,7 @@ begin
               end;
 
               // Robust search for Enum Elements anywhere in sub-tree of TypeDecl
-              var FoundElements: Boolean := False;
+              FoundElements := False;
               
               // Only scan if we suspect it is an enum? 
               // Hard to know without ntEnum node.
@@ -355,10 +360,10 @@ begin
               // If it has ONE identifier, it's likely an Alias.
               
               // Let's look for known structure ntEnum first.
-              var StandardEnumNode := DeclNode.FindNode(ntEnum);
+              StandardEnumNode := DeclNode.FindNode(ntEnum);
               if StandardEnumNode = nil then
               begin
-                  var TypeWrapper := DeclNode.FindNode(ntType);
+                  TypeWrapper := DeclNode.FindNode(ntType);
                   if TypeWrapper <> nil then
                      StandardEnumNode := TypeWrapper.FindNode(ntEnum);
               end;
@@ -372,12 +377,12 @@ begin
                  // If no ntEnum found, fallback to ntType container with heuristics?
                  // TCascadeAction = (caNoAction, ...) -> 4 items.
                  // If we see > 1 identifier inside ntType, treat as Enum.
-                 var TypeWrapper := DeclNode.FindNode(ntType);
+                 TypeWrapper := DeclNode.FindNode(ntType);
                  if (TypeWrapper <> nil) then
                  begin
                      // Count identifiers
-                     var IdCount := 0;
-                     for var C in TypeWrapper.ChildNodes do
+                     IdCount := 0;
+                     for C in TypeWrapper.ChildNodes do
                         if Ord(C.Typ) = 56 then Inc(IdCount);
                         
                      if IdCount > 1 then
@@ -393,7 +398,7 @@ begin
            begin
              if DeclNode.Typ = ntConstant then
              begin
-               var ConstName := DeclNode.GetAttribute(anName);
+               ConstName := DeclNode.GetAttribute(anName);
                
                if ConstName.IsEmpty then Continue;
                
@@ -428,6 +433,7 @@ var
   NewLines: TStringList;
   I: Integer;
   InAliasesBlock, InUsesBlock: Boolean;
+  Trimmed: string;
   
   TargetUnitName: string;
   
@@ -562,7 +568,7 @@ begin
     
     for I := 0 to Lines.Count - 1 do
     begin
-      var Trimmed := Trim(Lines[I]);
+      Trimmed := Trim(Lines[I]);
       
       if Trimmed.StartsWith(FStartAliasTag) then
       begin

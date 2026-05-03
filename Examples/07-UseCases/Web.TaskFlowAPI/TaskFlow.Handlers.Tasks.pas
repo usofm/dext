@@ -1,4 +1,4 @@
-﻿unit TaskFlow.Handlers.Tasks;
+unit TaskFlow.Handlers.Tasks;
 
 interface
 
@@ -351,13 +351,16 @@ end;
 
 class function TTaskHandlers.SearchTasks(Filter: TTaskFilter;
   TaskRepo: ITaskRepository): TTaskListResponse;
+var
+  Tasks: TArray<TTask>;
+  TotalCount: Integer;
 begin
   try
     if not Filter.IsValid then
       raise EDextHttpException.Create(400, 'Invalid filter parameters');
 
-    var Tasks := TaskRepo.SearchTasks(Filter);
-    var TotalCount := TaskRepo.GetTaskCount; // Em produção, teríamos count com filtro
+    Tasks := TaskRepo.SearchTasks(Filter);
+    TotalCount := TaskRepo.GetTaskCount; // Em produção, teríamos count com filtro
 
     Result := TTaskListResponse.Create(Tasks, TotalCount, Filter.Page, Filter.PageSize);
 
@@ -371,10 +374,13 @@ end;
 
 class function TTaskHandlers.GetTasksByStatus(Status: TTaskStatus;
   TaskRepo: ITaskRepository): TTaskListResponse;
+var
+  Tasks: TArray<TTask>;
+  TotalCount: Integer;
 begin
   try
-    var Tasks := TaskRepo.GetTasksByStatus(Status);
-    var TotalCount := Length(Tasks);
+    Tasks := TaskRepo.GetTasksByStatus(Status);
+    TotalCount := Length(Tasks);
 
     Result := TTaskListResponse.Create(Tasks, TotalCount, 1, TotalCount);
 
@@ -386,10 +392,13 @@ end;
 
 class function TTaskHandlers.GetTasksByPriority(Priority: TTaskPriority;
   TaskRepo: ITaskRepository): TTaskListResponse;
+var
+  Tasks: TArray<TTask>;
+  TotalCount: Integer;
 begin
   try
-    var Tasks := TaskRepo.GetTasksByPriority(Priority);
-    var TotalCount := Length(Tasks);
+    Tasks := TaskRepo.GetTasksByPriority(Priority);
+    TotalCount := Length(Tasks);
 
     Result := TTaskListResponse.Create(Tasks, TotalCount, 1, TotalCount);
 
@@ -400,10 +409,13 @@ begin
 end;
 
 class function TTaskHandlers.GetOverdueTasks(TaskRepo: ITaskRepository): TTaskListResponse;
+var
+  Tasks: TArray<TTask>;
+  TotalCount: Integer;
 begin
   try
-    var Tasks := TaskRepo.GetOverdueTasks;
-    var TotalCount := Length(Tasks);
+    Tasks := TaskRepo.GetOverdueTasks;
+    TotalCount := Length(Tasks);
 
     Result := TTaskListResponse.Create(Tasks, TotalCount, 1, TotalCount);
 

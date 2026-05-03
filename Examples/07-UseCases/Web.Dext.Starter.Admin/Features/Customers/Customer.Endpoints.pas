@@ -182,12 +182,13 @@ begin
     function(Service: ICustomerService; Context: IHttpContext): IResult
     var
       Id: Integer;
+      C: TCustomer;
     begin
       Id := StrToIntDef(Context.Request.RouteParams['id'], 0);
       
       if Id > 0 then
       begin
-          var C := Service.GetById(Id);
+          C := Service.GetById(Id);
           if C <> nil then
           begin
              Service.Delete(Id);

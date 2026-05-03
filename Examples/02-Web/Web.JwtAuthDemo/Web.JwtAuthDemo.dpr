@@ -29,10 +29,12 @@ var
   App: IWebApplication;
   JwtHandler: TJwtTokenHandler;
   SecretKey: string;
+  Builder: IApplicationBuilder;
 
 begin
 
   try
+    SetConsoleCharSet(65001);
     WriteLn('🔐 Dext JWT Authentication Demo');
     WriteLn('================================');
     WriteLn;
@@ -44,7 +46,7 @@ begin
     JwtHandler := TJwtTokenHandler.Create(SecretKey, 'DextAuthDemo', 'DextAPI', 60);
 
     App := TDextApplication.Create;
-    var Builder := App.GetApplicationBuilder;
+    Builder := App.GetApplicationBuilder;
 
     // ✅ 1. Middleware de Autenticação JWT
     WriteLn('📦 Configuring JWT Authentication Middleware...');
@@ -186,7 +188,7 @@ begin
     WriteLn;
 
     App.Run(8080);
-    
+
     // Only pause if not running in automated mode
     ConsolePause;
 
@@ -199,7 +201,7 @@ begin
     on E: Exception do
     begin
       WriteLn('❌ Error: ', E.Message);
-      
+
       // Only pause if not running in automated mode
       ConsolePause;
     end;

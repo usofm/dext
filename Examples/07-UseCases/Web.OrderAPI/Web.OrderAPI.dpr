@@ -1,4 +1,4 @@
-﻿program Web.OrderAPI;
+program Web.OrderAPI;
 
 {***************************************************************************}
 {                                                                           }
@@ -14,6 +14,7 @@
 uses
   Dext.MM,
   System.SysUtils,
+  Dext.Utils,
   Dext,
   Dext.Web,
   OrderAPI.Startup in 'OrderAPI.Startup.pas',
@@ -22,8 +23,11 @@ uses
   OrderAPI.Services in 'OrderAPI.Services.pas',
   OrderAPI.Controllers in 'OrderAPI.Controllers.pas';
 
+var
+  App: IWebApplication;
 begin
   try
+    SetConsoleCharSet(65001);
     WriteLn('');
     WriteLn('==============================================');
     WriteLn('  ORDER API - Sistema de Comandas');
@@ -31,7 +35,7 @@ begin
     WriteLn('==============================================');
     WriteLn('');
 
-    var App := WebApplication;
+    App := WebApplication;
     
     // 1. Configure Startup Class
     // The framework will call ConfigureServices and Configure automatically

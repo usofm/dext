@@ -647,12 +647,14 @@ end;
 { TDextWebBrokerApp }
 
 class procedure TDextWebBrokerApp.Configure(Startup: IStartup);
+var
+  Factory: TServerFactory;
 begin
   FApp := WebApplication;
 
   // Register a server factory that captures pipeline+services and returns a
   // no-op host. WebBroker/IIS owns the actual accept loop.
-  var Factory: TServerFactory := function(Port: Integer; Pipeline: TRequestDelegate;
+  Factory := function(Port: Integer; Pipeline: TRequestDelegate;
     Services: IServiceProvider): IWebHost
   begin
     FPipeline := Pipeline;

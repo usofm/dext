@@ -51,8 +51,10 @@ begin
 end;
 
 procedure TMultiTenancyStartup.Configure(const App: IWebApplication);
+var
+  WebApp: TAppBuilder;
 begin
-  var WebApp := App.GetBuilder;
+  WebApp := App.GetBuilder;
 
   // Global JSON settings
   JsonDefaultSettings(JsonSettings.Default.CamelCase.CaseInsensitive);
@@ -77,17 +79,21 @@ begin
 end;
 
 class procedure TMultiTenancyStartup.InitializeDatabase(const Services: IServiceProvider);
+var
+  Scope: IServiceScope;
+  ServiceObj: TObject;
+  DbCtx: TTenantDbContext;
 begin
   WriteLn('[*] Initializing Database...');
 
-  var Scope := Services.CreateScope; // Returns IServiceScope
+  Scope := Services.CreateScope; // Returns IServiceScope
   try
     // 3. Resolve the DbContext safely
-    var ServiceObj := Scope.ServiceProvider.GetService(TServiceType.FromClass(TTenantDbContext));
+    ServiceObj := Scope.ServiceProvider.GetService(TServiceType.FromClass(TTenantDbContext));
     
     if ServiceObj <> nil then
     begin
-      var DbCtx := ServiceObj as TTenantDbContext;
+      DbCtx := ServiceObj as TTenantDbContext;
       try
         DbCtx.EnsureCreated;
         WriteLn('[OK] Database schema created/verified.');
@@ -107,6 +113,7 @@ end;
 
 var
   App: IWebApplication;
+  Services: IServiceProvider;
 begin
   try
     SetConsoleCharSet;
@@ -115,7 +122,7 @@ begin
     App.UseStartup(TMultiTenancyStartup.Create);
     
     // CRITICAL: Build services before trying to access them
-    var Services := App.BuildServices;
+    Services := App.BuildServices;
     
     // Initialize DB
     TMultiTenancyStartup.InitializeDatabase(Services);

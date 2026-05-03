@@ -36,6 +36,9 @@ uses
   Dext.Json.Types;
 
 type
+  /// <summary>
+  ///   Exception type for JSON parsing and processing errors.
+  /// </summary>
   EJsonException = class(Exception);
 
   /// <summary>
@@ -320,6 +323,7 @@ end;
 function TUtf8JsonReader.Read: Boolean;
 var
   B: Byte;
+  StrSpan: TByteSpan;
 begin
   if FPosition >= FData.Length then
   begin
@@ -386,7 +390,7 @@ begin
         // Simple Readers usually rely on the caller knowing the structure or check the colon.
         // Let's implement a lookahead for colon to distinguish PropertyName.
         
-        var StrSpan := ConsumeString;
+        StrSpan := ConsumeString;
         
         SkipWhitespace;
         // Check for colon
@@ -453,6 +457,7 @@ function TUtf8JsonReader.ConsumeString: TByteSpan;
 var
   StartPos: Integer;
   IsEscaped: Boolean;
+  B: Byte;
 begin
   // Assume FData[FPosition] is '"'
   Inc(FPosition); // Skip opening quote
@@ -461,7 +466,7 @@ begin
 
   while FPosition < FData.Length do
   begin
-    var B := FData[FPosition];
+    B := FData[FPosition];
     
     if IsEscaped then
     begin
@@ -494,12 +499,13 @@ end;
 function TUtf8JsonReader.ConsumeNumber: TByteSpan;
 var
   StartPos: Integer;
+  B: Byte;
 begin
   StartPos := FPosition;
   // Simple validation: strictly allow only number chars -0..9.eE+
   while FPosition < FData.Length do
   begin
-    var B := FData[FPosition];
+    B := FData[FPosition];
     // Allow digits, dot, minus, plus, e, E
     if (B in [Ord('0')..Ord('9'), Ord('.'), Ord('-'), Ord('+'), Ord('e'), Ord('E')]) then
       Inc(FPosition)
@@ -510,13 +516,15 @@ begin
 end;
 
 function TUtf8JsonReader.ConsumeLiteral(const ALiteral: string): Boolean;
+var
+  SpanToCheck: TByteSpan;
 begin
   // Check if enough bytes remain
   if FPosition + ALiteral.Length > FData.Length then
     Exit(False);
 
   // We need to compare bytes. We assumes ALiteral is ASCII/UTF8 friendly (true/false/null always are)
-  var SpanToCheck := FData.Slice(FPosition, ALiteral.Length);
+  SpanToCheck := FData.Slice(FPosition, ALiteral.Length);
   if SpanToCheck.EqualsString(ALiteral) then
   begin
     Inc(FPosition, ALiteral.Length);
@@ -609,16 +617,20 @@ begin
 end;
 
 procedure TUtf8JsonWriter.WriteIndent;
+var
+  i: Integer;
 begin
   if not FIndented then Exit;
   WriteRawByte(10); // LF
-  for var i := 0 to FDepth - 1 do
+  for i := 0 to FDepth - 1 do
     WriteRaw('  ');
 end;
 
 procedure TUtf8JsonWriter.WriteRaw(const S: string);
+var
+  B: TBytes;
 begin
-  var B := TEncoding.UTF8.GetBytes(S);
+  B := TEncoding.UTF8.GetBytes(S);
   if Length(B) > 0 then
     FStream.WriteBuffer(B[0], Length(B));
 end;

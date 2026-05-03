@@ -97,6 +97,7 @@ procedure TCommandLineArgs.Parse(const Args: TArray<string>);
 var
   i: Integer;
   Arg, Key, Value: string;
+  Parts: TArray<string>;
 begin
   FRawArgs := Args;
   if Length(Args) = 0 then
@@ -121,7 +122,7 @@ begin
       if Arg.Contains('=') then
       begin
         // --key=value
-        var Parts := Arg.Split(['='], 2);
+        Parts := Arg.Split(['='], 2);
         Key := NormalizeKey(Parts[0]);
         if Length(Parts) > 1 then
           Value := Parts[1]

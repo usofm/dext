@@ -127,6 +127,7 @@ type
 
     /// <summary>Get customer by ID</summary>
     [HttpGet('/{id}')]
+    [Authorize]
     function GetById(Id: Integer): IResult;
 
     /// <summary>Register a new customer</summary>
@@ -156,27 +157,33 @@ type
 
     /// <summary>Get order by ID</summary>
     [HttpGet('/{id}')]
+    [Authorize]
     function GetById(Id: Integer): IResult;
 
     /// <summary>Get orders for a customer</summary>
     [HttpGet('/customer/{customerId}')]
+    [Authorize]
     function GetByCustomerId(CustomerId: Integer): IResult;
 
     /// <summary>Create a new order</summary>
     [HttpPost]
+    [Authorize]
     [ValidateModel]
     function CreateOrder([FromBody] Request: TCreateOrderRequest): IResult;
 
     /// <summary>Pay for an order</summary>
     [HttpPost('/{id}/pay')]
+    [Authorize]
     function PayOrder(Id: Integer): IResult;
 
     /// <summary>Cancel an order</summary>
     [HttpPost('/{id}/cancel')]
+    [Authorize]
     function CancelOrder(Id: Integer): IResult;
 
     /// <summary>Get tickets for an order</summary>
     [HttpGet('/{id}/tickets')]
+    [Authorize]
     function GetOrderTickets(Id: Integer): IResult;
   end;
 

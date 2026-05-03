@@ -30,6 +30,7 @@ var
   SetupResult: MockSetup<ICalculator>;
   WhenResult: IWhen<ICalculator>;
   CalcForSetup: ICalculator;
+  Result: Integer;
 begin
   try
     WriteLn('Step 1: Creating Mock...');
@@ -57,7 +58,7 @@ begin
     WriteLn('  OK - Add called during setup');
 
     WriteLn('Step 7: Calling Add on Instance...');
-    var Result := Instance.Add(10, 20);
+    Result := Instance.Add(10, 20);
     WriteLn('  OK - Add returned: ', Result);
 
     if Result = 42 then

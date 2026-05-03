@@ -1,4 +1,4 @@
-﻿unit TaskFlow.API.UnitTests;
+unit TaskFlow.API.UnitTests;
 
 interface
 
@@ -16,6 +16,12 @@ procedure RunUnitTests;
 var
   Repo: ITaskRepository;
   Task: TTask;
+  FoundTask: TTask;
+  CompletedTasks: TArray<TTask>;
+  Stats: TTaskStats;
+  Status: TTaskStatus;
+  StatusStr: string;
+  ConvertedStatus: TTaskStatus;
 begin
   WriteLn('');
   WriteLn('🔬 UNIT TESTS (No HTTP required)');
@@ -35,7 +41,7 @@ begin
 
     // Teste 2: Busca por ID
     Write('2. Get by ID... ');
-    var FoundTask := Repo.GetById(Task.Id);
+    FoundTask := Repo.GetById(Task.Id);
     if FoundTask.Id = Task.Id then
       WriteLn('✅ Found')
     else
@@ -43,19 +49,18 @@ begin
 
     // Teste 3: Filtro por status
     Write('3. Filter by status... ');
-    var CompletedTasks := Repo.GetTasksByStatus(tsCompleted);
+    CompletedTasks := Repo.GetTasksByStatus(tsCompleted);
     WriteLn('✅ Found ', Length(CompletedTasks), ' completed tasks');
 
     // Teste 4: Estatísticas
     Write('4. Statistics... ');
-    var Stats := Repo.GetTasksStats;
+    Stats := Repo.GetTasksStats;
     WriteLn('✅ Total: ', Stats.TotalTasks, ', Completed: ', Stats.CompletedCount);
 
     // Teste 5: Enum conversion
     Write('5. Enum conversion... ');
-    var Status := TTaskStatus.tsInProgress;
-    var StatusStr := Status.ToString;
-    var ConvertedStatus: TTaskStatus;
+    Status := TTaskStatus.tsInProgress;
+    StatusStr := Status.ToString;
 
     if TTaskStatus.TryFromString(StatusStr, ConvertedStatus) and (ConvertedStatus = Status) then
       WriteLn('✅ Round-trip conversion works')

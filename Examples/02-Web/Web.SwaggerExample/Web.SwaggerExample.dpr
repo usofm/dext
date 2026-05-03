@@ -9,23 +9,25 @@ uses
   Dext.Web,
   Web.SwaggerExample.Startup in 'Web.SwaggerExample.Startup.pas';
 
+var
+  App: IWebApplication;
 begin
   SetConsoleCharSet;
   try
     Writeln('🚀 Starting Dext Swagger Example...');
     Writeln('');
 
-    var App: IWebApplication := TDextApplication.Create;
+    App := TDextApplication.Create;
     App.UseStartup(TStartup.Create);
-    
+
     Writeln('');
     Writeln('✅ Server configured successfully!');
     Writeln('');
     Writeln('📖 Swagger UI: http://localhost:5000/api/swagger');
     Writeln('');
-    
+
     App.Run(5000);
-    
+
     ConsolePause;
     App.Stop;
 

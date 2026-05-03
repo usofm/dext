@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.Scaffolding;
+unit EntityDemo.Tests.Scaffolding;
 
 interface
 
@@ -26,6 +26,11 @@ var
   TableMeta: TMetaTable;
   MetaList: TArray<TMetaTable>;
   Code: string;
+  i: Integer;
+  Col: TMetaColumn;
+  Flags: string;
+  FK: TMetaForeignKey;
+  FileName: string;
 begin
   Log('🏗️ Running Scaffolding Tests...');
 
@@ -40,16 +45,16 @@ begin
 
   SetLength(MetaList, Length(Tables));
 
-  for var i := 0 to High(Tables) do
+  for i := 0 to High(Tables) do
   begin
     Log('   - Table: ' + Tables[i]);
     TableMeta := Provider.GetTableMetadata(Tables[i]);
     MetaList[i] := TableMeta;
 
     Log(Format('     Columns: %d', [Length(TableMeta.Columns)]));
-    for var Col in TableMeta.Columns do
+    for Col in TableMeta.Columns do
     begin
-      var Flags := '';
+      Flags := '';
       if Col.IsPrimaryKey then Flags := Flags + ' [PK]';
       if Col.IsAutoInc then Flags := Flags + ' [AutoInc]';
       if Col.IsNullable then Flags := Flags + ' [Null]';
@@ -57,7 +62,7 @@ begin
     end;
 
     Log(Format('     FKs: %d', [Length(TableMeta.ForeignKeys)]));
-    for var FK in TableMeta.ForeignKeys do
+    for FK in TableMeta.ForeignKeys do
       Log(Format('       %s -> %s.%s', [FK.ColumnName, FK.ReferencedTable, FK.ReferencedColumn]));
   end;
 
@@ -68,7 +73,7 @@ begin
   Log('   Generated Code Preview (Attributes) - First 200 chars:');
   Log(Copy(Code, 1, 200));
 
-  var FileName := TPath.Combine(ExtractFilePath(ParamStr(0)), 'GeneratedEntitiesMappingWithAttributes.pas');
+  FileName := TPath.Combine(ExtractFilePath(ParamStr(0)), 'GeneratedEntitiesMappingWithAttributes.pas');
   TFile.WriteAllText(FileName, Code);
   Log('   Saved to ' + FileName);
 

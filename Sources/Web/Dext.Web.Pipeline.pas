@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -80,6 +80,7 @@ var
   Path: string;
   Handler: TRequestDelegate;
   RoutePattern: TRoutePattern;
+  NewPattern: TRoutePattern;
 begin
   inherited Create;
 
@@ -98,7 +99,7 @@ begin
     if ARoutePatterns.TryGetValue(RoutePattern, Handler) then
     begin
       // Criar nova instância do padrão (clone)
-      var NewPattern := TRoutePattern.Create(RoutePattern.Pattern);
+      NewPattern := TRoutePattern.Create(RoutePattern.Pattern);
       FRoutePatterns.Add(NewPattern, Handler);
     end;
   end;
@@ -146,14 +147,17 @@ end;
 //end;
 
 procedure TDextPipeline.Execute(AContext: IHttpContext);
+var
+  SW: TStopwatch;
+  Payload: TJSONObject;
 begin
-  var SW := TStopwatch.StartNew;
+  SW := TStopwatch.StartNew;
   try
     // Just execute the complete pipeline
     // O roteamento agora está DENTRO do pipeline como um middleware
     FMiddlewarePipeline(AContext);
     
-    var Payload := TJSONObject.Create;
+    Payload := TJSONObject.Create;
     Payload.AddPair('method', AContext.Request.Method);
     Payload.AddPair('url', AContext.Request.Path);
     Payload.AddPair('status', TJSONNumber.Create(AContext.Response.StatusCode));
@@ -162,7 +166,7 @@ begin
   except
     on E: Exception do
     begin
-      var Payload := TJSONObject.Create;
+      Payload := TJSONObject.Create;
       Payload.AddPair('method', AContext.Request.Method);
       Payload.AddPair('url', AContext.Request.Path);
       Payload.AddPair('error', E.Message);
@@ -178,8 +182,9 @@ end;
 //  Handler: TRequestDelegate;
 //  RouteParams: IDictionary<string, string>;
 //  IndyContext: TDextIndyHttpContext;
+//  Path: string;
 //begin
-//  var Path := AContext.Request.Path;
+//  Path := AContext.Request.Path;
 //
 //  // ? USAR novo método de busca
 //  if FindMatchingRoute(Path, Handler, RouteParams) then

@@ -85,8 +85,9 @@ begin
   Builder
     .MapGet<IResult>('/health',
       function: IResult
+      var
+        Status: THealthStatus;
       begin
-        var Status: THealthStatus;
         Status.status := 'healthy';
         Status.timestamp := DateTimeToStr(Now);
         Result := Results.Ok(Status);
@@ -95,12 +96,14 @@ begin
   // Authentication
     .MapPost<TLoginRequest, IAuthService, IResult>('/auth/login',
       function(Req: TLoginRequest; Auth: IAuthService): IResult
+      var
+        Token: string;
+        Resp: TLoginResponse;
       begin
-        var Token := Auth.Login(Req.username, Req.password);
+        Token := Auth.Login(Req.username, Req.password);
         if Token = '' then
           Exit(Results.StatusCode(401));
 
-        var Resp: TLoginResponse;
         Resp.token := Token;
         Result := Results.Ok(Resp);
       end)
@@ -128,6 +131,11 @@ begin
     // ==========================================================================
     .MapPost<IHttpContext, TSalesDbContext, TCreateOrderDto, IResult>('/api/orders',
       function(Context: IHttpContext; Db: TSalesDbContext; Dto: TCreateOrderDto): IResult
+      var
+        OrderEntity: TOrder;
+        Handler: TOrderModel;
+        ItemDto: TOrderItemDto;
+        ValidProd: TProduct;
       begin
         // Note: Dto is automatically freed by the framework after handler execution
         if (Dto = nil) then
@@ -136,17 +144,17 @@ begin
         if (Dto.items.Count = 0) then
           Exit(Results.BadRequest('O pedido deve conter pelo menos um item.'));
 
-        var OrderEntity := TOrder.Create;
+        OrderEntity := TOrder.Create;
         try
           OrderEntity.Status := TOrderStatus.Draft;
           OrderEntity.CustomerId := 1;
 
-          var Handler := TOrderModel.Create(OrderEntity);
+          Handler := TOrderModel.Create(OrderEntity);
           try
             try
-              for var ItemDto in Dto.items do
+              for ItemDto in Dto.items do
               begin
-                var ValidProd := Db.Products.Find(ItemDto.productId);
+                ValidProd := Db.Products.Find(ItemDto.productId);
                 if ValidProd = nil then
                 begin
                   Exit(Results.BadRequest('Produto nao encontrado: ' + IntToStr(ItemDto.productId)));
@@ -176,8 +184,10 @@ begin
     // List Orders
     .MapGet<TSalesDbContext, IResult>('/api/orders',
       function(Db: TSalesDbContext): IResult
+      var
+        Orders: IList<TOrder>;
       begin
-        var Orders := Db.Orders.QueryAll.OrderBy(TOrder.Props.CreatedAt.Desc).ToList;
+        Orders := Db.Orders.QueryAll.OrderBy(TOrder.Props.CreatedAt.Desc).ToList;
         Result := Results.Ok(Orders);
       end);
 end;

@@ -86,7 +86,7 @@ foreach ($proj in $projects) {
             $job = Start-Process -FilePath $exePath -PassThru -NoNewWindow
             Start-Sleep -Seconds 3
             
-            Write-Host "  [TEST] Executing script..." -NoNewline
+            Write-Host "  [TEST] Executing script..."
             $global:LASTEXITCODE = 0
             try {
                 & $testScript.FullName | Out-Null
@@ -104,7 +104,7 @@ foreach ($proj in $projects) {
             
             Stop-Process -Id $job.Id -Force -ErrorAction SilentlyContinue
         } else {
-            Write-Host "  [CHECK] Basic execution check..." -NoNewline
+            Write-Host "  [CHECK] Basic execution check..."
             
             $psi = New-Object System.Diagnostics.ProcessStartInfo
             $psi.FileName = $exePath

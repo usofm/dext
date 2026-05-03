@@ -88,6 +88,7 @@ procedure TestAutoMocker;
 var
   Mocker: TAutoMocker;
   Sut: TSystemUnderTest;
+  Res: Integer;
 begin
   Mocker := TAutoMocker.Create;
   try
@@ -100,7 +101,7 @@ begin
       Mocker.GetMock<IDependency>.Setup.Returns(21).When.GetValue;
       
       // Execute
-      var Res := Sut.DoWork;
+      Res := Sut.DoWork;
       
       Should(Res).Be(42);
     finally
@@ -115,11 +116,12 @@ end;
 procedure TestClassMocking;
 var
   MockRepo: Mock<TCustomerRepository>;
+  Res: Integer;
 begin
   MockRepo := Mock<TCustomerRepository>.Create;
   MockRepo.Setup.Returns(100).When.GetCount;
   
-  var Res := MockRepo.Instance.GetCount;
+  Res := MockRepo.Instance.GetCount;
   Should(Res).Be(100);
 end;
 
@@ -148,6 +150,7 @@ end;
 procedure TestSnapshot;
 var
   JsonStr: string;
+  Path: string;
 begin
   // Test String Snapshot
   JsonStr := '{"name": "John", "age": 30}';
@@ -156,7 +159,7 @@ begin
   Should(JsonStr).MatchSnapshot('UserSnapshot');
   
   // Check file exists
-  var Path := TPath.Combine(TPath.Combine(ExtractFilePath(ParamStr(0)), 'Snapshots'), 'UserSnapshot.json');
+  Path := TPath.Combine(TPath.Combine(ExtractFilePath(ParamStr(0)), 'Snapshots'), 'UserSnapshot.json');
   if not FileExists(Path) then
     raise Exception.Create('Snapshot file not created at ' + Path);
     

@@ -1,4 +1,4 @@
-﻿unit DextStore.Services;
+unit DextStore.Services;
 
 interface
 
@@ -91,13 +91,15 @@ implementation
 { TProductService }
 
 constructor TProductService.Create;
+var
+  P: TProduct;
 begin
   FProducts := TCollections.CreateList<TProduct>(True);
   FLock := TCriticalSection.Create;
   FNextId := 1;
   
   // Seed Data
-  var P := TProduct.Create;
+  P := TProduct.Create;
   P.Id := FNextId; Inc(FNextId);
   P.Name := 'Delphi 12 Athens';
   P.Price := 1500.00;
@@ -122,10 +124,12 @@ begin
 end;
 
 function TProductService.CreateProduct(const Request: TCreateProductRequest): TProduct;
+var
+  P: TProduct;
 begin
   FLock.Enter;
   try
-    var P := TProduct.Create;
+    P := TProduct.Create;
     P.Id := FNextId;
     Inc(FNextId);
     P.Name := Request.Name;
@@ -154,11 +158,13 @@ begin
 end;
 
 function TProductService.GetById(Id: Integer): TProduct;
+var
+  P: TProduct;
 begin
   FLock.Enter;
   try
     Result := nil;
-    for var P in FProducts do
+    for P in FProducts do
       if P.Id = Id then
         Exit(P);
   finally
@@ -167,10 +173,12 @@ begin
 end;
 
 procedure TProductService.UpdateStock(Id, Quantity: Integer);
+var
+  P: TProduct;
 begin
   FLock.Enter;
   try
-    var P := GetById(Id);
+    P := GetById(Id);
     if P <> nil then
       P.Stock := P.Stock + Quantity;
   finally
@@ -195,10 +203,15 @@ begin
 end;
 
 procedure TCartService.AddItem(const UserId: string; ProductId, Quantity: Integer);
+var
+  Product: TProduct;
+  Cart: IList<TCartItem>;
+  Found: Boolean;
+  Item: TCartItem;
 begin
   FLock.Enter;
   try
-    var Product := FProductService.GetById(ProductId);
+    Product := FProductService.GetById(ProductId);
     if Product = nil then
       raise Exception.Create('Product not found');
       
@@ -208,10 +221,10 @@ begin
     if not FCarts.ContainsKey(UserId) then
       FCarts.Add(UserId, TCollections.CreateList<TCartItem>(True));
       
-    var Cart := FCarts[UserId];
-    var Found := False;
+    Cart := FCarts[UserId];
+    Found := False;
     
-    for var Item in Cart do
+    for Item in Cart do
     begin
       if Item.ProductId = ProductId then
       begin
@@ -223,7 +236,7 @@ begin
     
     if not Found then
     begin
-      var Item := TCartItem.Create;
+      Item := TCartItem.Create;
       Item.ProductId := ProductId;
       Item.ProductName := Product.Name;
       Item.UnitPrice := Product.Price;
@@ -236,13 +249,15 @@ begin
 end;
 
 function TCartService.CalculateTotal(const UserId: string): Currency;
+var
+  Item: TCartItem;
 begin
   FLock.Enter;
   try
     Result := 0;
     if FCarts.ContainsKey(UserId) then
     begin
-      for var Item in FCarts[UserId] do
+      for Item in FCarts[UserId] do
         Result := Result + Item.Total;
     end;
   finally
@@ -292,14 +307,20 @@ begin
 end;
 
 function TOrderService.Checkout(const UserId: string): TOrder;
+var
+  Items: TArray<TCartItem>;
+  Order: TOrder;
+  OrderItems: IList<TCartItem>;
+  Item: TCartItem;
+  NewItem: TCartItem;
 begin
   FLock.Enter;
   try
-    var Items := FCartService.GetCart(UserId);
+    Items := FCartService.GetCart(UserId);
     if Length(Items) = 0 then
       raise Exception.Create('Cart is empty');
       
-    var Order := TOrder.Create;
+    Order := TOrder.Create;
     Order.Id := FNextId;
     Inc(FNextId);
     Order.UserId := UserId;
@@ -311,10 +332,10 @@ begin
     // In a real app, you would create OrderItems entities
     // Here we just reference them but we need to be careful because CartService clears the cart
     // So we should deep copy. For this demo, we'll just create new objects.
-    var OrderItems := TCollections.CreateList<TCartItem>(False);
-    for var Item in Items do
+    OrderItems := TCollections.CreateList<TCartItem>(False);
+    for Item in Items do
     begin
-      var NewItem := TCartItem.Create;
+      NewItem := TCartItem.Create;
       NewItem.ProductId := Item.ProductId;
       NewItem.ProductName := Item.ProductName;
       NewItem.Quantity := Item.Quantity;
@@ -338,12 +359,15 @@ begin
 end;
 
 function TOrderService.GetUserOrders(const UserId: string): TArray<TOrder>;
+var
+  List: IList<TOrder>;
+  Order: TOrder;
 begin
   FLock.Enter;
   try
-    var List := TCollections.CreateList<TOrder>;
+    List := TCollections.CreateList<TOrder>;
     try
-      for var Order in FOrders do
+      for Order in FOrders do
         if Order.UserId = UserId then
           List.Add(Order);
       Result := List.ToArray;

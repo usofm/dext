@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -31,6 +31,7 @@ uses
   System.Classes,
   System.IOUtils,
   System.SysUtils,
+  Dext.Collections.Dict,
   Dext.Configuration.Interfaces,
   Dext.Configuration.Core,
   Dext.Yaml;
@@ -203,6 +204,9 @@ procedure TYamlConfigurationProvider.FlattenNode(Node: TYamlNode; const Prefix: 
 var
   Key: string;
   I: Integer;
+  Mapping: TYamlMapping;
+  Pair: TPair<string, TYamlNode>;
+  Seq: TYamlSequence;
 begin
   if Node = nil then Exit;
 
@@ -218,8 +222,8 @@ begin
       
     yntMapping:
       begin
-        var Mapping := Node as TYamlMapping;
-        for var Pair in Mapping.Children do
+        Mapping := Node as TYamlMapping;
+        for Pair in Mapping.Children do
         begin
           Key := Pair.Key;
           if Prefix <> '' then
@@ -231,7 +235,7 @@ begin
       
     yntSequence:
       begin
-        var Seq := Node as TYamlSequence;
+        Seq := Node as TYamlSequence;
         for I := 0 to Seq.Items.Count - 1 do
         begin
           Key := IntToStr(I);

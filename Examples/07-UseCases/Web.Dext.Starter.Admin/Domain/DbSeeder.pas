@@ -35,22 +35,30 @@ begin
 end;
 
 procedure TDbSeeder.Seed;
+var
+  Scope: IServiceScope;
+  SvcType: TServiceType;
+  DbObj: TObject;
+  Db: TAppDbContext;
+  Admin: TUser;
+  AdminSettings: TUserSettings;
+  C1, C2, C3: TCustomer;
 begin
   try
     Log.Info('[*] Seeding Database...');
     
     // Create a scope to resolve Scoped services (DbContext)
-    var Scope := FServiceProvider.CreateScope;
+    Scope := FServiceProvider.CreateScope;
     
     // Resolve DbContext using manual resolution
-    var SvcType := TServiceType.FromClass(TAppDbContext);
-    var DbObj := Scope.ServiceProvider.GetService(SvcType);
+    SvcType := TServiceType.FromClass(TAppDbContext);
+    DbObj := Scope.ServiceProvider.GetService(SvcType);
     if DbObj = nil then
     begin
       Log.Error('[ERROR] TAppDbContext could not be resolved');
       Exit;
     end;
-    var Db := DbObj as TAppDbContext;
+    Db := DbObj as TAppDbContext;
     
     // Register entities in FCache (required for EnsureCreated to work)
     Log.Info('[*] Registering entities...');
@@ -67,23 +75,23 @@ begin
     // Seed Data
     if Db.Entities<TUser>.ToList.Count = 0 then
     begin
-      var Admin := TUser.Create;
+      Admin := TUser.Create;
       Admin.Username := 'admin';
       Admin.PasswordHash := THashSHA2.GetHashString('admin'); // Hash the password!
       Admin.Role := 'Admin';
       Db.Entities<TUser>.Add(Admin);
       
       // Add default settings for admin
-      var AdminSettings := TUserSettings.Create;
+      AdminSettings := TUserSettings.Create;
       AdminSettings.UserId := 1; // Will be assigned after Admin is saved
       AdminSettings.EmailNotifications := True;
       AdminSettings.DarkMode := False;
       AdminSettings.AutoSave := True;
       Db.Entities<TUserSettings>.Add(AdminSettings);
       
-      var C1 := TCustomer.Create; C1.Name := 'Alice Corp'; C1.Email := 'alice@corp.com'; C1.Status := TCustomerStatus.Active; C1.TotalSpent := 1200;
-      var C2 := TCustomer.Create; C2.Name := 'Bob Ltd'; C2.Email := 'bob@ltd.com'; C2.Status := TCustomerStatus.Inactive; C2.TotalSpent := 0;
-      var C3 := TCustomer.Create; C3.Name := 'Cesar Romero Silva'; C3.Email := 'cesarliws@gmail.com'; C3.Status := TCustomerStatus.Active; C3.TotalSpent := 100;
+      C1 := TCustomer.Create; C1.Name := 'Alice Corp'; C1.Email := 'alice@corp.com'; C1.Status := TCustomerStatus.Active; C1.TotalSpent := 1200;
+      C2 := TCustomer.Create; C2.Name := 'Bob Ltd'; C2.Email := 'bob@ltd.com'; C2.Status := TCustomerStatus.Inactive; C2.TotalSpent := 0;
+      C3 := TCustomer.Create; C3.Name := 'Cesar Romero Silva'; C3.Email := 'cesarliws@gmail.com'; C3.Status := TCustomerStatus.Active; C3.TotalSpent := 100;
       Db.Entities<TCustomer>.Add(C1);
       Db.Entities<TCustomer>.Add(C2);
       Db.Entities<TCustomer>.Add(C3);

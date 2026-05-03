@@ -304,9 +304,11 @@ begin
 end;
 
 function TTicketTypeService.CreateTicketType(const Request: TCreateTicketTypeRequest): TTicketType;
+var
+  Event: TEvent;
 begin
   // Validate event exists
-  var Event := FDb.Events.Find(Request.EventId);
+  Event := FDb.Events.Find(Request.EventId);
   if Event = nil then
     raise EEventNotFoundException.CreateFmt('Event with ID %d not found', [Request.EventId]);
 
@@ -642,6 +644,7 @@ var
   OrderItemIds: IList<TOrderItem>;
   Tickets: IList<TTicket>;
   OrderItem: TOrderItem;
+  Ticket: TTicket;
 begin
   Result := TCollections.CreateList<TTicket>;
   
@@ -657,7 +660,7 @@ begin
       .Where(t.OrderItemId = Integer(OrderItem.Id))
       .ToList;
     
-    for var Ticket in Tickets do
+    for Ticket in Tickets do
       Result.Add(Ticket);
   end;
 end;

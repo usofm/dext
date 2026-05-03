@@ -1,4 +1,4 @@
-﻿unit OrderAPI.Services;
+unit OrderAPI.Services;
 
 {***************************************************************************}
 {  Order API - Business Services                                            }
@@ -185,8 +185,10 @@ begin
 end;
 
 function TProductService.GetByCategory(CategoryId: Int64): IList<TProduct>;
+var
+  u: TProduct;
 begin
-  var u := Prototype.Entity<TProduct>;
+  u := Prototype.Entity<TProduct>;
   Result := FDbContext.Entities<TProduct>
     .Where(u.CategoryId = CategoryId)
     .ToList;
@@ -450,6 +452,8 @@ var
   Tables: IList<TRestaurantTable>;
   Tbl: TRestaurantTable;
   AvailCount, OccupiedCount: Integer;
+  o: TOrder;
+  OpenCount: Integer;
 begin
   Tables := FDbContext.Entities<TRestaurantTable>.ToList;
   
@@ -461,9 +465,9 @@ begin
     if Tbl.Status = TTableStatus.tsOccupied then Inc(OccupiedCount);
   end;
   
-  var o := Prototype.Entity<TOrder>;
+  o := Prototype.Entity<TOrder>;
   // Forçando o uso de ToList.Count devido ao erro de overload de Count
-  var OpenCount := FDbContext.Entities<TOrder>
+  OpenCount := FDbContext.Entities<TOrder>
     .Where(o.Status = TOrderStatus.osOpen)
     .ToList.Count;
   
@@ -483,10 +487,11 @@ var
   Order: TOrder;
   TotalRevenue: Currency;
   ClosedCount: Integer;
+  o: TOrder;
 begin
   Result.Date := Date;
   
-  var o := Prototype.Entity<TOrder>;
+  o := Prototype.Entity<TOrder>;
   Orders := FDbContext.Entities<TOrder>
     .Where(o.Status = TOrderStatus.osClosed)
     .ToList;

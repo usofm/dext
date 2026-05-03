@@ -1,4 +1,4 @@
-﻿program TestMapper;
+program TestMapper;
 
 {$APPTYPE CONSOLE}
 
@@ -131,13 +131,14 @@ var
   DTOs: IList<TUserDTO>;
   User: TUser;
   DTO: TUserDTO;
+  I: Integer;
 begin
   WriteLn('=== Test 3: List Mapping ===');
   
   Users := TCollections.CreateList<TUser>;
   try
     // Create 3 users
-    for var I := 1 to 3 do
+    for I := 1 to 3 do
     begin
       User := TUser.Create;
       User.Id := I;
@@ -301,13 +302,14 @@ var
   DTOs: IList<TUserDTORec>;
   User: TUser;
   DTO: TUserDTORec;
+  I: Integer;
 begin
   WriteLn('=== Test 8: List Record To Model Mapping ===');
 
   DTOs := TCollections.CreateList<TUserDTORec>;
   try
     // Create 3 users
-    for var I := 1 to 3 do
+    for I := 1 to 3 do
     begin
       DTO := Default(TUserDTORec);
       DTO.Id := I;
@@ -339,13 +341,14 @@ var
   DTOs: IList<TUserDTORec>;
   User: TUser;
   DTO: TUserDTORec;
+  I: Integer;
 begin
   WriteLn('=== Test 9: List Model To Record Mapping ===');
 
   Users := TCollections.CreateList<TUser>;
   try
     // Create 3 users
-    for var I := 1 to 3 do
+    for I := 1 to 3 do
     begin
       User := TUser.Create;
       User.Id := I;
@@ -372,6 +375,7 @@ begin
 end;
 
 begin
+  SetConsoleCharSet(65001);
   try
     WriteLn('Dext AutoMapper Tests');
     WriteLn('=====================');

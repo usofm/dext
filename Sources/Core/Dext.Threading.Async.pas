@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -306,8 +306,10 @@ begin
   // Create a new builder for the next step, preserving the CancellationToken
   Result := TAsyncBuilder<U>.Create(
     function: U
+    var
+      Input: T;
     begin
-      var Input := LPrevious();
+      Input := LPrevious();
       Result := AFunc(Input);
     end,
     FToken
@@ -379,9 +381,11 @@ begin
 end;
 
 function TAsyncBuilder<T>.Start: IAsyncTask;
+var
+  Task: TAsyncTask<T>;
 begin
   // Create the specific TAsyncTask instance
-  var Task := TAsyncTask<T>.Create(FWork, FOnComplete, FOnException, FToken, FSyncComplete, FSyncException);
+  Task := TAsyncTask<T>.Create(FWork, FOnComplete, FOnException, FToken, FSyncComplete, FSyncException);
   // Start execution in the ThreadPool
   Task.Start;
   Result := Task;

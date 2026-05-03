@@ -295,6 +295,8 @@ begin
 end;
 
 destructor TDextServiceProvider.Destroy;
+var
+  Pair: TPair<string, TObject>;
 begin
   // === SINGLETON CLEANUP (only for root provider) ===
   if FIsRootProvider then
@@ -307,7 +309,7 @@ begin
     // 2. Free class-based singletons (non-TInterfacedObject)
     if Assigned(FSingletons) then
     begin
-      for var Pair in FSingletons do
+      for Pair in FSingletons do
         Pair.Value.Free;
       FSingletons := nil;
     end;
@@ -319,7 +321,7 @@ begin
   
   if Assigned(FScopedInstances) then
   begin
-    for var Pair in FScopedInstances do
+    for Pair in FScopedInstances do
       Pair.Value.Free;
     FScopedInstances := nil;
   end;

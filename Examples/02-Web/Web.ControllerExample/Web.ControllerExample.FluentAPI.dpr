@@ -1,4 +1,4 @@
-﻿program Web.ControllerExample.FluentAPI;
+program Web.ControllerExample.FluentAPI;
 
 {$APPTYPE CONSOLE}
 
@@ -11,6 +11,9 @@ uses
   ControllerExample.Services in 'ControllerExample.Services.pas',
   ControllerExample.Controller in 'ControllerExample.Controller.pas';
 
+var
+  App: IWebApplication;
+  Builder: TAppBuilder;
 begin
   SetConsoleCharSet;
   try
@@ -19,7 +22,7 @@ begin
     // Create appsettings.json if it doesn't exist
     EnsureAppSettingsExists;
     
-    var App: IWebApplication := TDextApplication.Create;
+    App := TDextApplication.Create;
 
     // 1. Register Configuration (IOptions)
     App.Services
@@ -37,7 +40,7 @@ begin
       .Build;
 
     // 5. Configure Middleware Pipeline
-    var Builder := App.Builder;
+    Builder := App.Builder;
 
     // ✨ CORS with Fluent API
     Builder

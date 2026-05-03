@@ -36,7 +36,7 @@ uses
   System.SysUtils,
   Dext.Testing.Runner,
   System.SyncObjs,
-  System.Generics.Collections,
+//  System.Generics.Collections,
   TestInsight.Client;
 
 type
@@ -75,12 +75,15 @@ uses
   Dext.Utils;
 
 constructor TTestInsightListener.Create(const ABaseUrl: string);
+var
+  ParentProcess: string;
+  IsManualActivation: Boolean;
 begin
   inherited Create;
   
   // 1. Process Precedence Check (Optimization: Don't even try network if not in IDE)
-  var ParentProcess := GetParentProcessName;
-  var IsManualActivation := FindCmdLineSwitch('X', ['-', '/'], True) or 
+  ParentProcess := GetParentProcessName;
+  IsManualActivation := FindCmdLineSwitch('X', ['-', '/'], True) or 
                            FindCmdLineSwitch('TestInsight', ['-', '/'], True);
                            
   if (not IsManualActivation) and (ParentProcess <> 'bds.exe') then

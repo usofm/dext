@@ -20,9 +20,12 @@ begin
   WriteLn('Hello from Dext Console Service!');
 end;
 
+var
+  Host: IHost;
+  Service: TSampleService;
 begin
   try
-    var Host := THost.CreateDefaultBuilder
+    Host := THost.CreateDefaultBuilder
       .ConfigureServices(procedure(const Services: IServiceCollection)
       begin
         Services.AddLogging;
@@ -30,7 +33,7 @@ begin
       end)
       .Build;
 
-    var Service := Host.Services.GetService<TSampleService>;
+    Service := Host.Services.GetService<TSampleService>;
     Service.Run;
     
     WriteLn('Press Enter to exit...');

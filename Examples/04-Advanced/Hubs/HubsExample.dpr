@@ -127,6 +127,7 @@ var
   TimeThread: TThread;
   TimeCounter: Integer;
   Running: Boolean;
+  Builder: TAppBuilder;
 begin
   try
     WriteLn('===========================================');
@@ -138,7 +139,7 @@ begin
     App := TDextApplication.Create;
     
     // 2. Configure pipeline
-    var Builder := App.GetBuilder;
+    Builder := App.GetBuilder;
     
     // Serve static files (for the demo HTML page)
     Builder.UseStaticFiles;

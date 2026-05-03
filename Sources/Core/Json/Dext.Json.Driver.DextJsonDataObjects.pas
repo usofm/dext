@@ -33,6 +33,9 @@ uses
   DextJsonDataObjects;
 
 type
+  /// <summary>
+  ///   Base wrapper class for bridging DextJsonDataObjects nodes to IDextJsonNode.
+  /// </summary>
   TJsonDataObjectWrapper = class(TInterfacedObject, IDextJsonNode)
   protected
     function GetNodeType: TDextJsonNodeType; virtual; abstract;
@@ -45,6 +48,9 @@ type
     function IsNull: Boolean; virtual; abstract;
   end;
 
+  /// <summary>
+  ///   Adapter wrapping a TJsonObject for the IDextJsonObject interface.
+  /// </summary>
   TJsonDataObjectAdapter = class(TJsonDataObjectWrapper, IDextJsonObject)
   private
     FObj: TJsonObject;
@@ -87,6 +93,9 @@ type
     procedure SetNull(const Name: string);
   end;
 
+  /// <summary>
+  ///   Adapter wrapping a TJsonArray for the IDextJsonArray interface.
+  /// </summary>
   TJsonDataArrayAdapter = class(TJsonDataObjectWrapper, IDextJsonArray)
   private
     FArr: TJsonArray;
@@ -126,6 +135,9 @@ type
     procedure AddNull;
   end;
 
+  /// <summary>
+  ///   Adapter for simple JSON primitive values (string, number, boolean, null).
+  /// </summary>
   TJsonPrimitiveAdapter = class(TInterfacedObject, IDextJsonNode)
   private
     FValue: Variant;
@@ -143,6 +155,9 @@ type
     function IsNull: Boolean;
   end;
 
+  /// <summary>
+  ///   Provider implementation using the external DextJsonDataObjects library.
+  /// </summary>
   TJsonDataObjectsProvider = class(TInterfacedObject, IDextJsonProvider)
   public
     function CreateObject: IDextJsonObject;
@@ -393,6 +408,8 @@ var
   Node: IDextJsonNode;
   NestedObjAdapter: TJsonDataObjectAdapter;
   NestedArrAdapter: TJsonDataArrayAdapter;
+  NestedObj: IDextJsonObject;
+  NestedArr: IDextJsonArray;
 begin
   if Value = nil then
     FObj.O[Name] := nil
@@ -419,7 +436,7 @@ begin
           jntNull: ; // Skip or set null
           jntObject: 
             begin
-              var NestedObj := Value.GetObject(PropName);
+              NestedObj := Value.GetObject(PropName);
               if (NestedObj <> nil) and (NestedObj is TJsonDataObjectAdapter) then
               begin
                 NestedObjAdapter := NestedObj as TJsonDataObjectAdapter;
@@ -429,7 +446,7 @@ begin
             end;
           jntArray:
             begin
-              var NestedArr := Value.GetArray(PropName);
+              NestedArr := Value.GetArray(PropName);
               if (NestedArr <> nil) and (NestedArr is TJsonDataArrayAdapter) then
               begin
                 NestedArrAdapter := NestedArr as TJsonDataArrayAdapter;

@@ -125,8 +125,10 @@ begin
 end;
 
 function TTicketService.GetMyTickets(UserId: Integer; AsRequester: Boolean): IList<TTicket>;
+var
+  t: TTicket;
 begin
-  var t := TTicket.Props;
+  t := TTicket.Props;
   if AsRequester then
     Result := FDb.Tickets.Where(t.RequesterId = UserId).OrderBy(t.CreatedAt.Desc).ToList
   else
@@ -214,8 +216,9 @@ var
   Tickets: IList<TTicket>;
   Ticket: TTicket;
   TotalHours: Double;
+  t: TTicket;
 begin
-  var t := TTicket.Props;
+  t := TTicket.Props;
 
   // 1. Total Open
   Result.TotalOpen := FDb.Tickets
@@ -256,8 +259,9 @@ end;
 function TUserService.Login(const Request: TLoginRequest): TTokenResponse;
 var
   User: TUser;
+  u: TUser;
 begin
-  var u := TUser.Props;
+  u := TUser.Props;
   User := FDb.Users
     .Where((u.Email = Request.Email) and (u.PasswordHash = Request.Password))
     .FirstOrDefault;
@@ -273,8 +277,10 @@ begin
 end;
 
 function TUserService.Register(const Request: TRegisterUserRequest): TUser;
+var
+  u: TUser;
 begin
-  var u := TUser.Props;
+  u := TUser.Props;
   if FDb.Users.Where(u.Email = Request.Email).Any then
     raise EHelpDeskException.Create('Email already registered');
 

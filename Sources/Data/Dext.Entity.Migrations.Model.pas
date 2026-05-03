@@ -34,6 +34,9 @@ uses
   Dext.Collections;
 
 type
+  /// <summary>
+  ///   Represents a column definition within a database snapshot.
+  /// </summary>
   TSnapshotColumn = class
   public
     Name: string;
@@ -51,6 +54,9 @@ type
     function Clone: TSnapshotColumn;
   end;
 
+  /// <summary>
+  ///   Represents a foreign key constraint within a database snapshot.
+  /// </summary>
   TSnapshotForeignKey = class
   public
     Name: string;
@@ -63,6 +69,9 @@ type
     function Equals(Obj: TObject): Boolean; override;
   end;
 
+  /// <summary>
+  ///   Represents a table structure within a database snapshot.
+  /// </summary>
   TSnapshotTable = class
   public
     Name: string;
@@ -76,6 +85,9 @@ type
     function FindColumn(const AName: string): TSnapshotColumn;
   end;
 
+  /// <summary>
+  ///   Represents the complete database schema snapshot at a specific point in time.
+  /// </summary>
   TSnapshotModel = class
   public
     Tables: IList<TSnapshotTable>;
@@ -173,8 +185,10 @@ begin
 end;
 
 function TSnapshotTable.FindColumn(const AName: string): TSnapshotColumn;
+var
+  Col: TSnapshotColumn;
 begin
-  for var Col in Columns do
+  for Col in Columns do
     if SameText(Col.Name, AName) then
       Exit(Col);
   Result := nil;
@@ -194,8 +208,10 @@ begin
 end;
 
 function TSnapshotModel.FindTable(const AName: string): TSnapshotTable;
+var
+  Tab: TSnapshotTable;
 begin
-  for var Tab in Tables do
+  for Tab in Tables do
     if SameText(Tab.Name, AName) then
       Exit(Tab);
   Result := nil;

@@ -1,4 +1,4 @@
-unit Dext.ModelBinding.Tests;
+﻿unit Dext.ModelBinding.Tests;
 
 interface
 
@@ -60,6 +60,11 @@ type
 var
   MockContext: IHttpContext;
   Binder: IModelBinder;
+  QueryTest: TQueryTest;
+  Value: TValue;
+  BoolTests: TArray<string>;
+  BoolValue: string;
+  Test: TQueryTest;
 begin
   Writeln('=== TESTE BINDQUERY COMPREENSIVO ===');
 
@@ -77,8 +82,7 @@ begin
     Writeln('✅ TESTE 1: Cenário básico');
     MockContext := TMockFactory.CreateHttpContext('user_name=John+Doe&age=30&active=true&score=95.5&status=2');
 
-    var QueryTest: TQueryTest;
-    var Value := Binder.BindQuery(TypeInfo(TQueryTest), MockContext);
+    Value := Binder.BindQuery(TypeInfo(TQueryTest), MockContext);
     QueryTest := Value.AsType<TQueryTest>;
 
     Writeln('  Name: ', QueryTest.Name, ' (Expected: John Doe)');
@@ -90,8 +94,8 @@ begin
     // ✅ TESTE 2: Boolean com diferentes representações
     Writeln(#10 + '✅ TESTE 2: Boolean com múltiplas representações');
 
-    var BoolTests: TArray<string> := ['true', '1', 'yes', 'on', 'false', '0', 'no', 'off'];
-    for var BoolValue in BoolTests do
+    BoolTests := ['true', '1', 'yes', 'on', 'false', '0', 'no', 'off'];
+    for BoolValue in BoolTests do
     begin
       MockContext := TMockFactory.CreateHttpContext('active=' + BoolValue);
 
@@ -99,7 +103,7 @@ begin
       Writeln('Query string: ', 'active=' + BoolValue);
 
       Value := Binder.BindQuery(TypeInfo(TQueryTest), MockContext);
-      var Test := Value.AsType<TQueryTest>;
+      Test := Value.AsType<TQueryTest>;
       Writeln('  active=' + BoolValue + ' -> ' + Test.Active.ToString(TUseBoolStrs.True));
     end;
 
@@ -125,6 +129,7 @@ type
 var
   MockContext: IHttpContext;
   Binder: IModelBinder;
+  Test: TEdgeCaseTest;
 begin
   Writeln('=== TESTE CASOS EXTREMOS BINDQUERY ===');
 
@@ -133,7 +138,7 @@ begin
 
     // ✅ TESTE: Valores extremos
     MockContext := CreateMockHttpContext('/api/test?smallint=32767&largeint=9223372036854775807&currencyval=123.4567&isenabled=1&userrole=5');
-    var Test := TModelBinderHelper.BindQuery<TEdgeCaseTest>(Binder, MockContext);
+    Test := TModelBinderHelper.BindQuery<TEdgeCaseTest>(Binder, MockContext);
 
     Writeln('  SmallInt: ', Test.SmallInt, ' (Expected: 32767)');
     Writeln('  LargeInt: ', Test.LargeInt, ' (Expected: 9223372036854775807)');
@@ -172,6 +177,13 @@ var
   MockContext: IHttpContext;
   Binder: IModelBinder;
   RouteParams: IDictionary<string, string>;
+  RouteTest: TRouteTest;
+  Value: TValue;
+  BoolTests: TArray<string>;
+  BoolValue: string;
+  Test: TRouteTest;
+  GuidTests: TArray<string>;
+  GuidStr: string;
 begin
   Writeln('=== TESTE BINDROUTE COMPREENSIVO ===');
 
@@ -191,8 +203,7 @@ begin
 
       MockContext := TMockFactory.CreateHttpContextWithRoute('', RouteParams);
 
-      var RouteTest: TRouteTest;
-      var Value := Binder.BindRoute(TypeInfo(TRouteTest), MockContext);
+      Value := Binder.BindRoute(TypeInfo(TRouteTest), MockContext);
       RouteTest := Value.AsType<TRouteTest>;
 
       Writeln('  UserId: ', RouteTest.UserId, ' (Expected: 123)');
@@ -207,17 +218,17 @@ begin
     // ✅ TESTE 2: Boolean com diferentes representações
     Writeln(#10 + '✅ TESTE 2: Boolean com múltiplas representações');
 
-    var BoolTests: TArray<string> := ['true', '1', 'yes', 'on', 'false', '0', 'no', 'off'];
-    for var BoolValue in BoolTests do
+    BoolTests := ['true', '1', 'yes', 'on', 'false', '0', 'no', 'off'];
+    for BoolValue in BoolTests do
     begin
       RouteParams := TCollections.CreateDictionary<string, string>;
       try
         RouteParams.Add('IsActive', BoolValue); // ✅ Já está correto
         MockContext := TMockFactory.CreateHttpContextWithRoute('', RouteParams);
 
-        var Value := Binder.BindRoute(TypeInfo(TRouteTest), MockContext);
-        var Test := Value.AsType<TRouteTest>;
-        Writeln('  isactive=' + BoolValue + ' -> ' + Test.IsActive.ToString(TUseBoolStrs.True));
+        Value := Binder.BindRoute(TypeInfo(TRouteTest), MockContext);
+        Test := Value.AsType<TRouteTest>;
+        Writeln('  isactive=' + BoolValue + ' -> ' + BoolToStr(Test.IsActive, True));
       finally
         // RouteParams.Free;
       end;
@@ -226,21 +237,21 @@ begin
     // ✅ TESTE 3: GUID com diferentes formatos
     Writeln(#10 + '✅ TESTE 3: GUID com diferentes formatos');
 
-    var GuidTests: TArray<string> := [
+    GuidTests := [
       '{C87A33C3-116A-4A31-9A15-9D9A8B6D9C41}',
       'C87A33C3-116A-4A31-9A15-9D9A8B6D9C41',
       'invalid-guid' // Deve resultar em GUID.Empty
     ];
 
-    for var GuidStr in GuidTests do
+    for GuidStr in GuidTests do
     begin
       RouteParams := TCollections.CreateDictionary<string, string>;
       try
         RouteParams.Add('UserGuid', GuidStr); // ✅ Já está correto
         MockContext := TMockFactory.CreateHttpContextWithRoute('', RouteParams);
 
-        var Value := Binder.BindRoute(TypeInfo(TRouteTest), MockContext);
-        var Test := Value.AsType<TRouteTest>;
+        Value := Binder.BindRoute(TypeInfo(TRouteTest), MockContext);
+        Test := Value.AsType<TRouteTest>;
         Writeln('  userguid=' + GuidStr + ' -> ' + GUIDToString(Test.UserGuid));
       finally
         // RouteParams.Free;
@@ -258,8 +269,8 @@ begin
 
       MockContext := TMockFactory.CreateHttpContextWithRoute('', RouteParams);
 
-      var Value := Binder.BindRoute(TypeInfo(TRouteTest), MockContext);
-      var RouteTest := Value.AsType<TRouteTest>;
+      Value := Binder.BindRoute(TypeInfo(TRouteTest), MockContext);
+      RouteTest := Value.AsType<TRouteTest>;
 
       Writeln('  UserId: ', RouteTest.UserId, ' (Expected: 456)');
       Writeln('  OrderId: ', RouteTest.OrderId, ' (Expected: 0 - default)');
@@ -291,6 +302,8 @@ var
   MockContext: IHttpContext;
   Binder: IModelBinder;
   RouteParams: IDictionary<string, string>;
+  RouteTest: TRouteEdgeTest;
+  Value: TValue;
 begin
   Writeln('=== TESTE CASOS EXTREMOS BINDROUTE ===');
 
@@ -310,8 +323,7 @@ begin
 
       MockContext := TMockFactory.CreateHttpContextWithRoute('', RouteParams);
 
-      var RouteTest: TRouteEdgeTest;
-      var Value := Binder.BindRoute(TypeInfo(TRouteEdgeTest), MockContext);
+      Value := Binder.BindRoute(TypeInfo(TRouteEdgeTest), MockContext);
       RouteTest := Value.AsType<TRouteEdgeTest>;
 
       Writeln('  Id: ', RouteTest.Id, ' (Expected: 32767)');
@@ -335,8 +347,8 @@ begin
 
       MockContext := TMockFactory.CreateHttpContextWithRoute('', RouteParams);
 
-      var Value := Binder.BindRoute(TypeInfo(TRouteEdgeTest), MockContext);
-      var RouteTest := Value.AsType<TRouteEdgeTest>;
+      Value := Binder.BindRoute(TypeInfo(TRouteEdgeTest), MockContext);
+      RouteTest := Value.AsType<TRouteEdgeTest>;
 
       Writeln('  Id negativo: ', RouteTest.Id, ' (Expected: -123)');
       Writeln('  BigId negativo: ', RouteTest.BigId, ' (Expected: -999999)');
@@ -370,6 +382,8 @@ var
   MockContext: IHttpContext;
   Binder: IModelBinder;
   Headers: IDictionary<string, string>;
+  HeaderTest: THeaderTest;
+  Value: TValue;
 begin
   Writeln('=== TESTE BINDHEADER COMPREENSIVO ===');
 
@@ -389,8 +403,7 @@ begin
 
       MockContext := TMockFactory.CreateHttpContextWithHeaders('', Headers);
 
-      var HeaderTest: THeaderTest;
-      var Value := Binder.BindHeader(TypeInfo(THeaderTest), MockContext);
+      Value := Binder.BindHeader(TypeInfo(THeaderTest), MockContext);
       HeaderTest := Value.AsType<THeaderTest>;
 
       Writeln('  UserId: ', HeaderTest.UserId, ' (Expected: 123)');
@@ -661,3 +674,4 @@ begin
 end;
 
 end.
+

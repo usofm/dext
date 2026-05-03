@@ -55,13 +55,16 @@ var
   Dialect: ISQLDialect;
   SQL: string;
   Cmd: IDbCommand;
+  RType: TRttiType;
+  NewObj: TObject;
+  FinalVal: TValue;
 begin
   if (FContext = nil) or (AEntity = nil) then Exit;
 
   Map := TEntityMap(FContext.GetMapping(AEntity.ClassInfo));
   if (Map <> nil) and Map.Properties.TryGetValue(APropertyName, PropMap) then
   begin
-    var RType := TReflection.Context.GetType(Map.EntityType);
+    RType := TReflection.Context.GetType(Map.EntityType);
     Prop := RType.GetProperty(APropertyName);
     if Prop = nil then Exit;
     
@@ -134,7 +137,7 @@ begin
               end
               else if Prop.PropertyType.IsInstance then
               begin
-                var NewObj := TActivator.CreateInstance(Prop.PropertyType.AsInstance.MetaclassType, []);
+                NewObj := TActivator.CreateInstance(Prop.PropertyType.AsInstance.MetaclassType, []);
                 if NewObj is TStrings then
                   TStrings(NewObj).Text := DBVal.ToString;
                 
@@ -145,7 +148,6 @@ begin
               end
               else
               begin
-                var FinalVal: TValue;
                 if PropMap.Converter <> nil then
                   FinalVal := PropMap.Converter.FromDatabase(DBVal, Prop.PropertyType.Handle)
                 else

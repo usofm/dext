@@ -254,6 +254,8 @@ procedure TSQLParamCollector.ProcessBinary(const C: TBinaryExpression);
 var
   I: Integer;
   ArrayValue: TValue;
+  PName: string;
+  PVal: TValue;
 begin
   // Standard traversal order must match TSQLWhereGenerator exactly:
   // 1. IN/NOT IN with Array -> Loop elements
@@ -266,8 +268,8 @@ begin
        ArrayValue := TLiteralExpression(C.Right).Value;
        for I := 0 to ArrayValue.GetArrayLength - 1 do
        begin
-         var PName := GetNextParamName;
-         var PVal := ArrayValue.GetArrayElement(I);
+         PName := GetNextParamName;
+         PVal := ArrayValue.GetArrayElement(I);
          FParams.Add(PName, PVal);
        end;
        
@@ -349,6 +351,8 @@ var
   RTyp: TRttiType;
   RProp: TRttiProperty;
   RAttr, SubAttr: TCustomAttribute;
+  HasTableAttr: Boolean;
+  HasColAttr: Boolean;
 begin
   Result := False;
   ASchema := '';
@@ -357,7 +361,7 @@ begin
   
   // Table Name
   ATable := RTyp.Name;
-  var HasTableAttr := False;
+  HasTableAttr := False;
   for RAttr in RTyp.GetAttributes do
     if RAttr is TableAttribute then
     begin
@@ -377,7 +381,7 @@ begin
       if RAttr is PrimaryKeyAttribute then
       begin
         APK := RProp.Name;
-        var HasColAttr := False;
+        HasColAttr := False;
         // Check for Column Attribute on PK
         for SubAttr in RProp.GetAttributes do
           if SubAttr is ColumnAttribute then
@@ -399,7 +403,7 @@ begin
   if RProp <> nil then
   begin
     APK := 'Id';
-    var HasColAttr := False;
+    HasColAttr := False;
     for RAttr in RProp.GetAttributes do
       if RAttr is ColumnAttribute then
       begin
@@ -540,6 +544,10 @@ var
   Converter: ITypeConverter;
   DialectEnum: TDatabaseDialect;
   Quoted: string;
+  PVal: TValue;
+  URType: TRttiType;
+  UFValue: TRttiField;
+  Lit: TLiteralExpression;
 begin
   // Special handling for IN and NOT IN operators
   if (C.BinaryOperator = boIn) or (C.BinaryOperator = boNotIn) then
@@ -552,14 +560,14 @@ begin
         for I := 0 to ArrayValue.GetArrayLength - 1 do
         begin
           ParamName := GetNextParamName;
-          var PVal := ArrayValue.GetArrayElement(I);
+          PVal := ArrayValue.GetArrayElement(I);
           // Inline unwrap for Smart Types (same logic as TSQLGenerator.TryUnwrapSmartValue)
           if PVal.Kind = tkRecord then
           begin
-            var URType := TReflection.Context.GetType(PVal.TypeInfo);
+            URType := TReflection.Context.GetType(PVal.TypeInfo);
             if URType <> nil then
             begin
-              var UFValue := URType.GetField('FValue');
+              UFValue := URType.GetField('FValue');
               if (UFValue <> nil) and
                  (URType.Name.Contains('Prop<') or URType.Name.Contains('TProp') or
                   (URType.Name.EndsWith('Type') and (URType.TypeKind = tkRecord))) then
@@ -598,7 +606,7 @@ begin
 
   if C.Right is TLiteralExpression then
   begin
-    var Lit := TLiteralExpression(C.Right);
+    Lit := TLiteralExpression(C.Right);
     ParamName := GetNextParamName;
     FParams.Add(ParamName, Lit.Value);
     
@@ -914,15 +922,19 @@ end;
 function TSQLGenerator<T>.GetSoftDeleteFilter: string;
 var
   Attr: TCustomAttribute;
-  ColumnName: string;
-  DeletedVal, NotDeletedVal: Variant;
   IsSoftDelete: Boolean;
+  DeletedVal, NotDeletedVal: Variant;
   Prop: TRttiProperty;
   PropMap: TPropertyMap;
+  ColumnName: string;
   PropName: string;
   SoftDeleteAttr: SoftDeleteAttribute;
   TargetPropType: PTypeInfo;
   Typ: TRttiType;
+  LiteralVal: string;
+  IsTargetBool: Boolean;
+  BoolVal: Boolean;
+  PropColumnName: string;
 begin
   Result := '';
   IsSoftDelete := False;
@@ -934,7 +946,6 @@ begin
   Typ := TReflection.Context.GetType(T);
   if Typ = nil then Exit;
   
-  // 1. Check Fluent Mapping
   if (FMap <> nil) and FMap.IsSoftDelete then
   begin
     IsSoftDelete := True;
@@ -942,7 +953,6 @@ begin
     DeletedVal := FMap.SoftDeleteDeletedValue;
     NotDeletedVal := FMap.SoftDeleteNotDeletedValue;
   end
-   // 2. Check Attribute
   else
   begin
     for Attr in Typ.GetAttributes do
@@ -951,7 +961,7 @@ begin
       begin
         SoftDeleteAttr := SoftDeleteAttribute(Attr);
         IsSoftDelete := True;
-        PropName := SoftDeleteAttr.ColumnName; // This is actually the COLUMN NAME in the attribute
+        PropName := SoftDeleteAttr.ColumnName;
         DeletedVal := SoftDeleteAttr.DeletedValue;
         NotDeletedVal := SoftDeleteAttr.NotDeletedValue;
         Break;
@@ -961,23 +971,18 @@ begin
 
   if not IsSoftDelete then Exit;
 
-  // Find actual column name and Property Type
-  // Note: PropName from attribute is the COLUMN NAME usually, but let's try to match property first
   ColumnName := PropName;
 
-  // Searching for the property that maps to this column (or has this name)
   for Prop in Typ.GetProperties do
   begin
-    var PropColumnName: string := Prop.Name;
+    PropColumnName := Prop.Name;
 
-    // Check Prop Map
     if (FMap <> nil) and FMap.Properties.TryGetValue(Prop.Name, PropMap) then
     begin
        if PropMap.ColumnName <> '' then PropColumnName := PropMap.ColumnName;
     end
     else
     begin
-      // Check Column Attribute
       for Attr in Prop.GetAttributes do
       begin
         if Attr is ColumnAttribute then
@@ -988,7 +993,6 @@ begin
       end;
     end;
 
-    // Match found if Property Name OR Column Name matches
     if SameText(Prop.Name, PropName) or SameText(PropColumnName, PropName) then
     begin
       if (PropColumnName = Prop.Name) and (FNamingStrategy <> nil) then
@@ -1002,26 +1006,13 @@ begin
 
   if FIgnoreQueryFilters then Exit;
 
-  // Generate filter (Start)
-  // NOTE: We use Literals instead of Parameters (pSoftDelete) to ensure compatibility with SQL Caching.
-  // Cached queries re-hydrate parameters from the Specification, which does not contain System Filters.
-  // Since SoftDelete values are metadata-driven (static constants), using literals is safe.
-
   if FOnlyDeleted then
   begin
-     // ---------------------------------------------------------
-     // Case 1: Show ONLY Deleted items
-     // ---------------------------------------------------------
-
-     // Determine Literal Value for "Deleted" state
-     var LiteralVal: string;
-
-     var IsTargetBool := (TargetPropType <> nil) and
+     IsTargetBool := (TargetPropType <> nil) and
        ((TargetPropType = TypeInfo(Boolean)) or (SameText(string(TargetPropType.Name), 'Boolean')));
 
      if IsTargetBool then
      begin
-       var BoolVal: Boolean;
        if VarIsType(DeletedVal, varBoolean) then
          BoolVal := DeletedVal
        else if VarIsNumeric(DeletedVal) then
@@ -1053,17 +1044,11 @@ begin
   end
   else
   begin
-     // ---------------------------------------------------------
-     // Case 2: Show ONLY Active (Not Deleted) items (Default)
-     // ---------------------------------------------------------
-     
-     var LiteralVal: string;
-     var IsTargetBool := (TargetPropType <> nil) and
+     IsTargetBool := (TargetPropType <> nil) and
        ((TargetPropType = TypeInfo(Boolean)) or (SameText(string(TargetPropType.Name), 'Boolean')));
 
      if IsTargetBool then
      begin
-       var BoolVal: Boolean;
        if VarIsType(NotDeletedVal, varBoolean) then
          BoolVal := NotDeletedVal
        else if VarIsNumeric(NotDeletedVal) then
@@ -1088,8 +1073,6 @@ begin
          LiteralVal := QuotedStr(LiteralVal);
      end;
    
-     // For PostgreSQL/Boolean, COALESCE requires consistent types
-     // But since we are using literals, strict typing is handled by the dialect's SQL syntax
      if LiteralVal = 'NULL' then
         Result := Format('%s IS NULL', [FDialect.QuoteIdentifier(ColumnName)])
      else
@@ -1680,6 +1663,8 @@ var
   IsPK, FirstWhere: Boolean;
   Val: TValue;
   PropMap: TPropertyMap;
+  NullableHlp: TNullableHelper;
+  SQLCastStr: string;
 begin
   FParams.Clear;
   FParamCount := 0;
@@ -1724,7 +1709,7 @@ begin
       // Check for Nullable<PK>? (Unlikely but for consistency)
       if IsNullable(Val.TypeInfo) then
       begin
-         var NullableHlp := TNullableHelper.Create(Val.TypeInfo);
+         NullableHlp := TNullableHelper.Create(Val.TypeInfo);
          if NullableHlp.HasValue(Val.GetReferenceToRawData) then
            Val := NullableHlp.GetValue(Val.GetReferenceToRawData);
       end;
@@ -1739,7 +1724,7 @@ begin
       FirstWhere := False;
       
       // Apply ::uuid cast for PostgreSQL if value is GUID/UUID or GUID-like string
-      var SQLCastStr := ':' + ParamName;
+      SQLCastStr := ':' + ParamName;
       if (GetDialectEnum = ddPostgreSQL) and
          ((Val.TypeInfo = TypeInfo(TGUID)) or 
           (Val.TypeInfo = TypeInfo(TUUID)) or
@@ -1785,12 +1770,13 @@ var
   CachedSQL: string;
   Collector: TSQLParamCollector;
   TenantId: string;
+  LKind: TTypeKind;
 begin
   FParams.Clear;
   FParamCount := 0;
   
   // 1. Check Cache
-  if ASpec <> nil then
+  if TSQLCache.Instance.Enabled then
   begin
     TenantId := '';
     if Assigned(FTenantProvider) and Assigned(FTenantProvider.Tenant) then
@@ -1915,8 +1901,15 @@ begin
         if (PropMap <> nil) and (PropMap.IsLazy or PropMap.IsNavigation) then Continue;
 
         // TypeKind safety net for navigation properties not explicitly marked
-        var LKind := Prop.PropertyType.TypeKind;
-        if LKind in [tkClass, tkInterface] then Continue;
+        LKind := Prop.PropertyType.TypeKind;
+        
+        if (LKind in [tkClass, tkInterface]) then
+        begin
+           // Allow class/interface ONLY if marked as JsonColumn
+           if (PropMap = nil) or (not PropMap.IsJsonColumn) then
+             Continue;
+        end;
+
         if (LKind = tkRecord) and Prop.PropertyType.Name.StartsWith('Lazy<') then Continue;
         
         if not First then SB.Append(', ');
@@ -2051,6 +2044,7 @@ var
   First, IsMapped: Boolean;
   PropMap: TPropertyMap;
   SoftDeleteFilter, DiscriminatorFilter, GlobalFilters, QFilters: string;
+  LKind: TTypeKind;
 begin
   FParams.Clear;
   FParamCount := 0;
@@ -2098,8 +2092,15 @@ begin
       if (PropMap <> nil) and (PropMap.IsLazy or PropMap.IsNavigation) then Continue;
 
       // TypeKind safety net for navigation properties not explicitly marked
-      var LKind := Prop.PropertyType.TypeKind;
-      if LKind in [tkClass, tkInterface] then Continue;
+      LKind := Prop.PropertyType.TypeKind;
+
+      if (LKind in [tkClass, tkInterface]) then
+      begin
+         // Allow class/interface ONLY if marked as JsonColumn
+         if (PropMap = nil) or (not PropMap.IsJsonColumn) then
+           Continue;
+      end;
+
       if (LKind = tkRecord) and Prop.PropertyType.Name.StartsWith('Lazy<') then Continue;
 
       if not First then SB.Append(', ');
@@ -2247,6 +2248,15 @@ var
   IsRequired : Boolean;
   SoftDeleteDefaultValue: Variant;
   SoftDelAttr: SoftDeleteAttribute;
+  LKind: TTypeKind;
+  LTypeName, LLocalCol, LFKPropName: string;
+  LRelatedTargetType: TRttiType;
+  LIsNavProp: Boolean;
+  LMeta: TTypeMetadata;
+  NavProp: TRttiProperty;
+  RelatedSchema, LFullRelatedTable: string;
+  FieldFValue: TRttiField;
+  MaxLen: Integer;
 begin
   SB := TStringBuilder.Create;
   PKCols := TCollections.CreateList<string>;
@@ -2290,7 +2300,7 @@ begin
       // Class/Interface detection as a safety net (unless explicitly mapped via attributes/mapping)
       if IsMapped then
       begin
-        var LKind := Prop.PropertyType.TypeKind;
+        LKind := Prop.PropertyType.TypeKind;
         if LKind in [tkClass, tkInterface] then
         begin
           // Classes/Interfaces are only mapped if they have a converter (already handled in PropMap.IsNavigation)
@@ -2299,7 +2309,7 @@ begin
         end
         else if LKind = tkRecord then
         begin
-          var LTypeName := Prop.PropertyType.Name;
+          LTypeName := Prop.PropertyType.Name;
           if LTypeName.StartsWith('Lazy<') then
              IsMapped := False;
         end;
@@ -2317,11 +2327,11 @@ begin
         begin
              FK := ForeignKeyAttribute(Attr);
           
-             var LLocalCol := ColName;
-             var LRelatedTargetType: TRttiType := nil;
-             var LFKPropName := FK.ColumnName;
+             LLocalCol := ColName;
+             LRelatedTargetType := nil;
+             LFKPropName := FK.ColumnName;
 
-             var LIsNavProp := (Prop.PropertyType.TypeKind = tkClass);
+             LIsNavProp := (Prop.PropertyType.TypeKind = tkClass);
              if (not LIsNavProp) and (Prop.PropertyType.TypeKind = tkRecord) and Prop.PropertyType.Name.StartsWith('Lazy<') then
                LIsNavProp := True;
 
@@ -2331,7 +2341,7 @@ begin
                 LLocalCol := TSQLGeneratorHelper.GetColumnNameForProperty(Typ, LFKPropName, FNamingStrategy);
                 if Prop.PropertyType.TypeKind = tkRecord then
                 begin
-                   var LMeta := TReflection.GetMetadata(Prop.PropertyType.Handle);
+                   LMeta := TReflection.GetMetadata(Prop.PropertyType.Handle);
                    if LMeta.InnerType <> nil then
                      LRelatedTargetType := TReflection.Context.GetType(LMeta.InnerType);
                 end
@@ -2341,25 +2351,25 @@ begin
              else
              begin
                 // Pattern B: [ForeignKey('Requester')] property RequesterId: Integer
-                var NavProp := Typ.GetProperty(LFKPropName);
+                NavProp := Typ.GetProperty(LFKPropName);
                 if NavProp <> nil then
                 begin
                    if NavProp.PropertyType.TypeKind = tkClass then
                      LRelatedTargetType := NavProp.PropertyType
                    else if (NavProp.PropertyType.TypeKind = tkRecord) and NavProp.PropertyType.Name.StartsWith('Lazy<') then
                    begin
-                     var LMeta := TReflection.GetMetadata(NavProp.PropertyType.Handle);
+                     LMeta := TReflection.GetMetadata(NavProp.PropertyType.Handle);
                      if LMeta.InnerType <> nil then
                        LRelatedTargetType := TReflection.Context.GetType(LMeta.InnerType);
                    end;
                 end;
              end;
 
-             var RelatedSchema: string;
+             RelatedSchema := '';
              if (LRelatedTargetType <> nil) and 
                 TSQLGeneratorHelper.GetRelatedTableAndPK(LRelatedTargetType.AsInstance.MetaclassType, RelatedTable, RelatedSchema, RelatedPK, FNamingStrategy) then
              begin
-                 var LFullRelatedTable := RelatedTable;
+                 LFullRelatedTable := RelatedTable;
                  if RelatedSchema <> '' then
                    LFullRelatedTable := RelatedSchema + '.' + RelatedTable;
 
@@ -2419,7 +2429,7 @@ begin
         // Handle Prop<T> (Smart Types)
         else if (Prop.PropertyType.TypeKind = tkRecord) then
         begin
-           var FieldFValue := Prop.PropertyType.GetField('FValue');
+           FieldFValue := Prop.PropertyType.GetField('FValue');
            if (FieldFValue <> nil) and 
               (Prop.PropertyType.Name.Contains('Prop<') or (Prop.PropertyType.GetProperty('Value') <> nil)) then
            begin
@@ -2431,7 +2441,7 @@ begin
       end;
       
       // Apply MaxLength for string columns - check from PropMap or Attribute
-      var MaxLen: Integer := 0;
+      MaxLen := 0;
       if (PropMap <> nil) and (PropMap.MaxLength > 0) then
         MaxLen := PropMap.MaxLength
       else

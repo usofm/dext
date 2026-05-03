@@ -39,6 +39,9 @@ uses
   Dext.Configuration.Interfaces;
 
 type
+  /// <summary>
+  ///   Callback function type for validating a configuration section.
+  /// </summary>
   TConfigurationValidator = reference to function(const Section: IConfigurationSection): string;
 
   /// <summary>
@@ -58,6 +61,9 @@ type
     function GetChildKeys(const EarlierKeys: TArray<string>; const ParentPath: string): TArray<string>; virtual;
   end;
 
+  /// <summary>
+  ///   Represents a section of application configuration values.
+  /// </summary>
   TConfigurationSection = class(TInterfacedObject, IConfigurationSection, IConfiguration)
   private
     FRoot: IConfigurationRoot;
@@ -138,12 +144,18 @@ type
     function Build: IConfigurationRoot;
   end;
 
+  /// <summary>
+  ///   An in-memory implementation of IConfigurationProvider.
+  /// </summary>
   TMemoryConfigurationProvider = class(TConfigurationProvider)
   public
     constructor Create(Data: IDictionary<string, string>);
     procedure Load; override;
   end;
 
+  /// <summary>
+  ///   Represents an in-memory configuration source.
+  /// </summary>
   TMemoryConfigurationSource = class(TInterfacedObject, IConfigurationSource)
   private
     FData: IDictionary<string, string>;
@@ -287,6 +299,8 @@ var
   Segment: string;
   Prefix: string;
   Len: Integer;
+  Pair: TPair<string, string>;
+  DelimiterIndex: Integer;
 begin
   Results := TCollections.CreateList<string>;
   try
@@ -301,13 +315,13 @@ begin
     
     if FData <> nil then
     begin
-      for var Pair in FData do
+      for Pair in FData do
       begin
         Key := Pair.Key;
         if (Len = 0) or (Key.StartsWith(Prefix, True)) then
         begin
           Segment := Key.Substring(Len);
-          var DelimiterIndex := Segment.IndexOf(TConfigurationPath.KeyDelimiter);
+          DelimiterIndex := Segment.IndexOf(TConfigurationPath.KeyDelimiter);
           if DelimiterIndex >= 0 then
             Segment := Segment.Substring(0, DelimiterIndex);
             
@@ -426,6 +440,8 @@ end;
 
 constructor TConfigurationRoot.Create(const Providers: IList<IConfigurationProvider>;
   AReloadOnChange: Boolean; AReloadIntervalMs: Integer);
+var
+  Provider: IConfigurationProvider;
 begin
   inherited Create;
   FLock := TCriticalSection.Create;
@@ -437,10 +453,10 @@ begin
   FCacheDirty := True;
 
   FProviders := TCollections.CreateList<IConfigurationProvider>;
-  for var Provider in Providers do
+  for Provider in Providers do
     FProviders.Add(Provider);
   
-  for var Provider in FProviders do
+  for Provider in FProviders do
     Provider.Load;
 
   RebuildCache;
@@ -457,10 +473,12 @@ begin
 end;
 
 procedure TConfigurationRoot.Reload;
+var
+  Provider: IConfigurationProvider;
 begin
   FLock.Enter;
   try
-    for var Provider in FProviders do
+    for Provider in FProviders do
       Provider.Load;
     RebuildCache;
   finally
@@ -471,14 +489,17 @@ end;
 procedure TConfigurationRoot.RebuildCache;
 var
   Value: string;
+  Provider: IConfigurationProvider;
+  Keys: TArray<string>;
+  Key: string;
 begin
   // Called inside FLock.Enter
   FKeyCache.Clear;
   // Iterate providers in order: last provider wins (overwrite earlier values)
-  for var Provider in FProviders do
+  for Provider in FProviders do
   begin
-    var Keys := Provider.GetChildKeys([], '');
-    for var Key in Keys do
+    Keys := Provider.GetChildKeys([], '');
+    for Key in Keys do
     begin
       if Provider.TryGet(Key, Value) then
         FKeyCache.AddOrSetValue(StringRawHashIgnoreCase(@Key, 0), Value);
@@ -490,18 +511,20 @@ end;
 function TConfigurationRoot.GetConfiguration(const Key: string): string;
 var
   Value: string;
+  KeyHash: Cardinal;
+  I: Integer;
 begin
   FLock.Enter;
   try
     // Try cache first (O(1) lookup with hash)
-    var KeyHash := StringRawHashIgnoreCase(@Key, 0);
+    KeyHash := StringRawHashIgnoreCase(@Key, 0);
     if (not FCacheDirty) and FKeyCache.TryGetValue(KeyHash, Value) then
       Exit(Value);
 
     // Cache miss or dirty - fall back to provider scan
     Result := '';
     // Reverse order: last provider wins
-    for var I := FProviders.Count - 1 downto 0 do
+    for I := FProviders.Count - 1 downto 0 do
     begin
       if FProviders[I].TryGet(Key, Value) then
         Exit(Value);
@@ -512,11 +535,13 @@ begin
 end;
 
 procedure TConfigurationRoot.SetConfiguration(const Key, Value: string);
+var
+  Provider: IConfigurationProvider;
 begin
   FLock.Enter;
   try
     // Set in all providers
-    for var Provider in FProviders do
+    for Provider in FProviders do
       Provider.Set_(Key, Value);
     // Invalidate cache
     FCacheDirty := True;
@@ -546,6 +571,7 @@ var
   Keys: TArray<string>;
   Provider: IConfigurationProvider;
   ChildPath: string;
+  I: Integer;
 begin
   FLock.Enter;
   try
@@ -559,7 +585,7 @@ begin
     // Provider.GetChildKeys usually adds to existing.
     
     SetLength(Result, Length(Keys));
-    for var I := 0 to High(Keys) do
+    for I := 0 to High(Keys) do
     begin
       ChildPath := TConfigurationPath.Combine(Path, Keys[I]);
       Result[I] := TConfigurationSection.Create(Self, ChildPath);
@@ -590,15 +616,17 @@ end;
 procedure TConfigurationRoot.CheckForChanges;
 var
   AnyChanged: Boolean;
+  Provider: IConfigurationProvider;
+  Tracker: IConfigurationChangeTracker;
 begin
   FLock.Enter;
   try
     AnyChanged := False;
-    for var Provider in FProviders do
+    for Provider in FProviders do
     begin
       if Supports(Provider, IConfigurationChangeTracker) then
       begin
-        var Tracker := Provider as IConfigurationChangeTracker;
+        Tracker := Provider as IConfigurationChangeTracker;
         if Tracker.HasChanged then
         begin
           Provider.Load;
@@ -653,24 +681,28 @@ end;
 function TConfigurationBuilder.Build: IConfigurationRoot;
 var
   Providers: IList<IConfigurationProvider>;
+  Source: IConfigurationSource;
+  Provider: IConfigurationProvider;
+  ReloadFlagObj: TObject;
+  ReloadEnabled: Boolean;
+  ReloadIntervalObj: TObject;
+  ReloadIntervalMs: Integer;
 begin
   Providers := TCollections.CreateList<IConfigurationProvider>;
   try
-    for var Source in FSources do
+    for Source in FSources do
     begin
-      var Provider := Source.Build(Self);
+      Provider := Source.Build(Self);
       if Assigned(Provider) then
         Providers.Add(Provider);
     end;
     
-    var ReloadFlagObj: TObject;
-    var ReloadEnabled := False;
+    ReloadEnabled := False;
     if FProperties.TryGetValue(CConfigReloadOnChangeKey, ReloadFlagObj) and
        (ReloadFlagObj is TBooleanBox) then
       ReloadEnabled := TBooleanBox(ReloadFlagObj).Value;
 
-    var ReloadIntervalObj: TObject;
-    var ReloadIntervalMs := 1000;
+    ReloadIntervalMs := 1000;
     if FProperties.TryGetValue(CConfigReloadIntervalKey, ReloadIntervalObj) and
        (ReloadIntervalObj is TIntBox) then
       ReloadIntervalMs := TIntBox(ReloadIntervalObj).Value;
@@ -705,36 +737,45 @@ begin
 end;
 
 function TDextConfiguration.Build: IConfigurationRoot;
+var
+  ValidateFlagObj: TObject;
+  ShouldValidate: Boolean;
+  RegistryObj: TObject;
+  Registry: TConfigurationValidationRegistry;
+  Errors: IList<string>;
+  Rule: TConfigurationValidationRule;
+  Section: IConfigurationSection;
+  Msg: string;
+  FullMessage: string;
+  I: Integer;
 begin
   Result := FBuilder.Build;
 
-  var ValidateFlagObj: TObject;
-  var ShouldValidate := False;
+  ShouldValidate := False;
   if FBuilder.Properties.TryGetValue(CConfigValidateOnBuildKey, ValidateFlagObj) and
      (ValidateFlagObj is TBooleanBox) then
     ShouldValidate := TBooleanBox(ValidateFlagObj).Value;
 
   if ShouldValidate then
   begin
-    var RegistryObj: TObject;
     if FBuilder.Properties.TryGetValue(CConfigValidatorRegistryKey, RegistryObj) and
        (RegistryObj is TConfigurationValidationRegistry) then
     begin
-      var Registry := TConfigurationValidationRegistry(RegistryObj);
-      var Errors := TCollections.CreateList<string>;
+      Registry := TConfigurationValidationRegistry(RegistryObj);
+      Errors := TCollections.CreateList<string>;
       try
-        for var Rule in Registry.GetRules do
+        for Rule in Registry.GetRules do
         begin
-          var Section := Result.GetSection(Rule.SectionPath);
-          var Msg := Rule.Validator(Section).Trim;
+          Section := Result.GetSection(Rule.SectionPath);
+          Msg := Rule.Validator(Section).Trim;
           if Msg <> '' then
             Errors.Add(Format('[%s] %s', [Rule.SectionPath, Msg]));
         end;
 
         if Errors.Count > 0 then
         begin
-          var FullMessage := 'Configuration validation failed:' + sLineBreak;
-          for var I := 0 to Errors.Count - 1 do
+          FullMessage := 'Configuration validation failed:' + sLineBreak;
+          for I := 0 to Errors.Count - 1 do
             FullMessage := FullMessage + Format('  %d) %s%s', [I + 1, Errors[I], sLineBreak]);
           raise EConfigurationException.Create(FullMessage);
         end;
@@ -836,21 +877,25 @@ end;
 { TMemoryConfigurationSource }
 
 constructor TMemoryConfigurationSource.Create(Data: IEnumerable<TPair<string, string>>);
+var
+  Pair: TPair<string, string>;
 begin
   inherited Create;
   FData := TCollections.CreateDictionary<string, string>;
   if Data <> nil then
   begin
-    for var Pair in Data do
+    for Pair in Data do
       FData.Add(Pair.Key, Pair.Value);
   end;
 end;
 
 constructor TMemoryConfigurationSource.Create(const Data: array of TPair<string, string>);
+var
+  Pair: TPair<string, string>;
 begin
   inherited Create;
   FData := TCollections.CreateDictionary<string, string>;
-  for var Pair in Data do
+  for Pair in Data do
     FData.Add(Pair.Key, Pair.Value);
 end;
 

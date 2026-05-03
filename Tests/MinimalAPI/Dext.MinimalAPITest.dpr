@@ -100,6 +100,9 @@ begin
   Result := FRequestId;
 end;
 
+var
+  WwwRoot, IndexHtml: string;
+  Host: IWebHost;
 begin
   try
     WriteLn('Dext Minimal API - Complete Feature Demo');
@@ -107,18 +110,18 @@ begin
     WriteLn;
 
     // Setup Static Files for testing
-    var WwwRoot := TPath.Combine(ExtractFilePath(ParamStr(0)), 'wwwroot');
+    WwwRoot := TPath.Combine(ExtractFilePath(ParamStr(0)), 'wwwroot');
     if not DirectoryExists(WwwRoot) then
       ForceDirectories(WwwRoot);
       
-    var IndexHtml := TPath.Combine(WwwRoot, 'index.html');
+    IndexHtml := TPath.Combine(WwwRoot, 'index.html');
     if not FileExists(IndexHtml) then
       TFile.WriteAllText(IndexHtml, '<html><body><h1>Hello from Static File!</h1></body></html>');
       
     WriteLn('Created static file at: ' + IndexHtml);
     WriteLn;
 
-    var Host := TDextWebHost.CreateDefaultBuilder
+    Host := TDextWebHost.CreateDefaultBuilder
       .ConfigureServices(procedure(Services: IServiceCollection)
       begin
         WriteLn('Registering services...');
@@ -220,8 +223,10 @@ begin
           App,
           '/api/users/{id}/name',
           procedure(UserId: Integer; UserService: IUserService; Ctx: IHttpContext)
+          var
+            UserName: string;
           begin
-            var UserName := UserService.GetUserName(UserId);
+            UserName := UserService.GetUserName(UserId);
             WriteLn(Format('  User %d name: %s', [UserId, UserName]));
             Ctx.Response.Json(Format('{"userId":%d,"name":"%s"}', [UserId, UserName]));
           end
@@ -260,9 +265,11 @@ begin
           App,
           '/api/users/{id}',
           procedure(UserId: Integer; UserService: IUserService; Ctx: IHttpContext)
+          var
+            Success: Boolean;
           begin
             WriteLn(Format('  DELETE User: %d', [UserId]));
-            var Success := UserService.DeleteUser(UserId);
+            Success := UserService.DeleteUser(UserId);
             Ctx.Response.Json(Format('{"userId":%d,"deleted":%s}', 
               [UserId, BoolToStr(Success, True).ToLower]));
           end

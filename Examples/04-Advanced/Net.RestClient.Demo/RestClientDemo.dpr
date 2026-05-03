@@ -1,4 +1,4 @@
-﻿program RestClientDemo;
+program RestClientDemo;
 
 {$APPTYPE CONSOLE}
 
@@ -58,41 +58,48 @@ begin
 end;
 
 procedure DemoRequestRequest;
+var
+  LRestClient: TRestClient;
 begin
   Writeln('--- Demo: TRestRequest Builder ---');
   Countdown.AddCount;
   
-  var RestClient := TRestClient.Create('https://jsonplaceholder.typicode.com');
-  
-  TRestRequest
-    .Create(RestClient, hmPOST, '/posts')
-    .Header('X-Custom-Header', 'DextValue')
-    .JsonBody('{"title": "foo", "body": "bar", "userId": 1}')
-    .Execute
-    .OnCompleteAsync(
-      procedure(Response: IRestResponse)
-      begin
-        Writeln('--- Demo: TRestRequest Response ---');
-        Writeln('POST Status: ', Response.StatusCode);
-        Writeln('POST Response: ', Response.ContentString);
-        Countdown.Signal;
-      end)
-    .OnExceptionAsync(
-      procedure(E: Exception)
-      begin
-        Writeln('--- Demo: TRestRequest Error ---');
-        Writeln('Error: ', E.Message);
-        Countdown.Signal;
-      end)
-    .Start;
+  LRestClient := TRestClient.Create('https://jsonplaceholder.typicode.com');
+  try
+    TRestRequest
+      .Create(LRestClient, hmPOST, '/posts')
+      .Header('X-Custom-Header', 'DextValue')
+      .JsonBody('{"title": "foo", "body": "bar", "userId": 1}')
+      .Execute
+      .OnCompleteAsync(
+        procedure(Response: IRestResponse)
+        begin
+          Writeln('--- Demo: TRestRequest Response ---');
+          Writeln('POST Status: ', Response.StatusCode);
+          Writeln('POST Response: ', Response.ContentString);
+          Countdown.Signal;
+        end)
+      .OnExceptionAsync(
+        procedure(E: Exception)
+        begin
+          Writeln('--- Demo: TRestRequest Error ---');
+          Writeln('Error: ', E.Message);
+          Countdown.Signal;
+        end)
+      .Start;
+  finally
+    // TRestClient is a record wrapper over interface; no manual Free required.
+  end;
 end;
 
 procedure DemoWithCancellation;
+var
+  CancelationTokenSource: TCancellationTokenSource;
 begin
   Writeln('--- Demo: Cancellation ---');
   Countdown.AddCount;
   
-  var CancelationTokenSource := TCancellationTokenSource.Create;
+  CancelationTokenSource := TCancellationTokenSource.Create;
   try
     RestClient('https://jsonplaceholder.typicode.com')
       .Get('/posts')
@@ -121,11 +128,13 @@ begin
 end;
 
 procedure DemoSynchronous;
+var
+  Response: TPost;
 begin
   Writeln('--- Demo: Synchronous Request ---');
   
   try
-    var Response := RestClient('https://jsonplaceholder.typicode.com')
+    Response := RestClient('https://jsonplaceholder.typicode.com')
       .Get<TPost>('/posts/1')
       .Await; // Blocks and runs on current thread
       
@@ -144,26 +153,29 @@ begin
 end;
 
 procedure DemoSynchronousList;
+var
+  posts: TList<TPost>;
+  p: TPost;
 begin
   Writeln('--- Demo: Synchronous List Request (TList) ---');
   Writeln;
 
   try
-    var posts := RestClient('https://jsonplaceholder.typicode.com')
+    posts := RestClient('https://jsonplaceholder.typicode.com')
       .Get<TList<TPost>>('/posts')
       .Await; // Blocks and runs on current thread
 
     try
       Writeln('--- Demo: Synchronous TList<TPost> ---');
       Writeln('--- Demo: Synchronous TList Count ' + posts.Count.ToString + ' ---');
-      for var p in posts do
+      for p in posts do
       begin
         Writeln('Synchronous success (TList)!ID: ', p.id);
       end;
     finally
       if posts <> nil then
       begin
-        for var p in posts do
+        for p in posts do
           p.Free;
         posts.Free;
       end;
@@ -176,19 +188,22 @@ begin
 end;
 
 procedure DemoSynchronousObjectList;
+var
+  posts: TObjectList<TPost>;
+  p: TPost;
 begin
   Writeln('--- Demo: Synchronous List Request (TObjectList) ---');
   Writeln;
 
   try
-    var posts := RestClient('https://jsonplaceholder.typicode.com')
+    posts := RestClient('https://jsonplaceholder.typicode.com')
       .Get<TObjectList<TPost>>('/posts')
       .Await; // Blocks and runs on current thread
 
     try
       Writeln('--- Demo: Synchronous TObjectList<TPost> ---');
       Writeln('--- Demo: Synchronous TObjectList Count ' + posts.Count.ToString + ' ---');
-      for var p in posts do
+      for p in posts do
       begin
         Writeln('Synchronous success (TObjectList)!ID: ', p.id);
       end;

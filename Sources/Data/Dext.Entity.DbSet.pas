@@ -28,37 +28,37 @@ unit Dext.Entity.DbSet;
 interface
 
 uses
-  Dext.Collections.Base,
-  Dext.Collections.Dict,
-  Dext.Collections,
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
   System.Variants,
-  Dext.Core.Reflection,
+  Dext.Collections,
+  Dext.Collections.Base,
+  Dext.Collections.Dict,
   Dext.Core.Activator,
+  Dext.Core.Reflection,
+  Dext.Core.SmartTypes,
   Dext.Core.ValueConverters,
-  Dext.Entity.TypeSystem,
   Dext.Entity.Attributes,
+  Dext.Entity.Collections,
   Dext.Entity.Core,
   Dext.Entity.Dialects,
-  Dext.Entity.Mapping,
   Dext.Entity.Drivers.Interfaces,
+  Dext.Entity.LazyLoading,
+  Dext.Entity.Mapping,
+  Dext.Entity.Prototype,
   Dext.Entity.Query,
-  Dext.Core.SmartTypes,
+  Dext.Entity.Tenancy,
+  Dext.Entity.TypeConverters,
+  Dext.Entity.TypeSystem,
+  Dext.MultiTenancy,
   Dext.Specifications.Base,
   Dext.Specifications.Interfaces,
   Dext.Specifications.SQL.Generator,
   Dext.Specifications.Types,
-  Dext.Entity.TypeConverters,
-  Dext.Entity.Prototype,
+  Dext.Threading.Async,
   Dext.Types.Nullable,
-  Dext.Types.UUID,
-  Dext.MultiTenancy,
-  Dext.Entity.Tenancy,
-  Dext.Entity.Collections,
-  Dext.Entity.LazyLoading,
-  Dext.Threading.Async;
+  Dext.Types.UUID;
 
 // Helper function to convert TValue to string for identity map keys
 // TValue.ToString does not work correctly for TGUID (returns type name, not value)
@@ -70,41 +70,38 @@ type
   /// </summary>
   TDbSet<T: class> = class(TInterfacedObject, IDbSet<T>, IDbSet)
   private
+    FColumns: IDictionary<string, string>;
     FContextPtr: Pointer;
-    FTableName: string;
-    FPKColumns: IList<string>; 
-    FProps: IDictionary<string, TRttiProperty>; 
-    FFields: IDictionary<string, TRttiField>; 
-    FColumns: IDictionary<string, string>;      
-    FIdentityMap: IDictionary<string, T>; 
-    FOrphans: IList<T>; // Stores detached objects until DbSet is destroyed
+    FFields: IDictionary<string, TRttiField>;
+    FIdentityMap: IDictionary<string, T>;
+    FIgnoreQueryFilters: Boolean; // Filters control
     FMap: TEntityMap;
-    // Filters control
-    FIgnoreQueryFilters: Boolean;
     FOnlyDeleted: Boolean;
+    FOrphans: IList<T>; // Stores detached objects until DbSet is destroyed
+    FPKColumns: IList<string>;
+    FProps: IDictionary<string, TRttiProperty>;
+    FTableName: string;
 
-
-
-    procedure MapEntity;
+    function CreateGenerator: TSqlGenerator<T>;
     function Hydrate(const Reader: IDbReader; const Tracking: Boolean = True): T;
+
+    procedure ExtractForeignKeys(const AEntities: IList<T>; PropertyToCheck: string; out IDs: IList<TValue>; out FKMap: IDictionary<T, TValue>);
+    procedure HandleTimestamps(const AEntity: TObject; AIsInsert: Boolean);
     procedure HydrateTarget(const Reader: IDbReader; Target: T);
-    procedure ExtractForeignKeys(const AEntities: IList<T>; PropertyToCheck: string;
-      out IDs: IList<TValue>; out FKMap: IDictionary<T, TValue>);
     procedure LoadAndAssign(const AEntities: IList<T>; const NavPropName: string);
     procedure LoadManyToMany(const AEntities: IList<T>; const NavPropName: string; const PropMap: TPropertyMap);
     procedure LoadOneToMany(const AEntities: IList<T>; const NavPropName: string; const PropMap: TPropertyMap);
-    function CreateGenerator: TSqlGenerator<T>;
+    procedure MapEntity;
     procedure ResetQueryFlags;
-    procedure HandleTimestamps(const AEntity: TObject; AIsInsert: Boolean);
   protected
     function GetEntityId(const AEntity: T): string; overload;
     function GetEntityId(const AEntity: TObject): string; overload;
     function GetPKColumns: TArray<string>;
     function GetRelatedId(const AObject: TObject): TValue;
-    procedure DoLoadIncludes(const AEntities: IList<T>; const AIncludes: TArray<string>);
     function GetItem(Index: Integer): T;
-    
+
     procedure ApplyTenantFilter(var ASpec: ISpecification<T>);
+    procedure DoLoadIncludes(const AEntities: IList<T>; const AIncludes: TArray<string>);
   public
     constructor Create(const AContext: IDbContext); reintroduce;
     destructor Destroy; override;
@@ -116,11 +113,17 @@ type
     function GetEntityType: PTypeInfo;
     function FindObject(const AId: Variant): TObject; overload;
     function FindObject(const AId: Integer): TObject; overload;
-    /// <summary>Adds a new entity to the context for later insertion.</summary>
+    /// <summary>
+    ///   Adds a new entity to the context for later insertion.
+    /// </summary>
     function Add(const AEntity: TObject): IDbSet; overload;
-    /// <summary>Marks an existing entity as modified for later update.</summary>
+    /// <summary>
+    ///   Marks an existing entity as modified for later update.
+    /// </summary>
     procedure Update(const AEntity: TObject); overload;
-    /// <summary>Marks an entity for logical or physical deletion.</summary>
+    /// <summary>
+    ///   Marks an entity for logical or physical deletion.
+    /// </summary>
     procedure Remove(const AEntity: TObject); overload;
     function ListObjects(const AExpression: IExpression): IList<TObject>; overload;
     function ListObjects(const ASpec: ISpecification): IList<TObject>; overload;
@@ -135,17 +138,29 @@ type
     procedure LinkManyToMany(const AEntity: TObject; const APropertyName: string; const ARelatedEntity: TObject); overload;
     procedure UnlinkManyToMany(const AEntity: TObject; const APropertyName: string; const ARelatedEntity: TObject); overload;
     
-    /// <summary>Adds a typed entity to the context.</summary>
+    /// <summary>
+    ///   Adds a typed entity to the context.
+    /// </summary>
     function Add(const AEntity: T): IDbSet<T>; overload;
-    /// <summary>Adds an entity using a Fluent Builder for initialization.</summary>
+    /// <summary>
+    ///   Adds an entity using a Fluent Builder for initialization.
+    /// </summary>
     function Add(const ABuilder: TFunc<IEntityBuilder<T>, T>): IDbSet<T>; overload;
-    /// <summary>Marks the typed entity for update.</summary>
+    /// <summary>
+    ///   Marks the typed entity for update.
+    /// </summary>
     function Update(const AEntity: T): IDbSet<T>; overload;
-    /// <summary>Marks the typed entity for deletion.</summary>
+    /// <summary>
+    ///   Marks the typed entity for deletion.
+    /// </summary>
     function Remove(const AEntity: T): IDbSet<T>; overload;
-    /// <summary>Removes the entity from change tracking without affecting the database.</summary>
+    /// <summary>
+    ///   Removes the entity from change tracking without affecting the database.
+    /// </summary>
     function Detach(const AEntity: T): IDbSet<T>; overload;
-    /// <summary>Finds an entity by its primary key (ID), first in cache, then in the database.</summary>
+    /// <summary>
+    ///   Finds an entity by its primary key (ID), first in cache, then in the database.
+    /// </summary>
     function Find(const AId: Variant): T; overload;
     function Find(const AId: Integer): T; overload;
     function Find(const AId: array of Integer): T; overload;
@@ -160,7 +175,9 @@ type
     procedure RemoveRange(const AEntities: TArray<T>); overload;
     procedure RemoveRange(const AEntities: IEnumerable<T>); overload;
 
-    /// <summary>Executes the query and returns a list of entities.</summary>
+    /// <summary>
+    ///   Executes the query and returns a list of entities.
+    /// </summary>
     function ToList: IList<T>; overload;
     function ToList(const ASpec: ISpecification<T>): IList<T>; overload;
 
@@ -184,7 +201,9 @@ type
 
     function Query(const ASpec: ISpecification<T>): TFluentQuery<T>; overload;
     function Query(const AExpression: IExpression): TFluentQuery<T>; overload;
-    /// <summary>Starts a fluent query over all entities in the set.</summary>
+    /// <summary>
+    ///   Starts a fluent query over all entities in the set.
+    /// </summary>
     function QueryAll: TFluentQuery<T>;
     
     /// <summary>
@@ -194,13 +213,21 @@ type
     function AsNoTracking: TFluentQuery<T>;
 
     // Soft Delete Control
-    /// <summary>Ignores global filters (e.g. Soft Delete) in the current query.</summary>
+    /// <summary>
+    ///   Ignores global filters (e.g. Soft Delete) in the current query.
+    /// </summary>
     function IgnoreQueryFilters: IDbSet<T>;
-    /// <summary>Filters only records that suffered logical deletion (Soft Delete).</summary>
+    /// <summary>
+    ///   Filters only records that suffered logical deletion (Soft Delete).
+    /// </summary>
     function OnlyDeleted: IDbSet<T>;
-    /// <summary>Forces the physical deletion of a record, even if Soft Delete is active.</summary>
+    /// <summary>
+    ///   Forces the physical deletion of a record, even if Soft Delete is active.
+    /// </summary>
     function HardDelete(const AEntity: T): IDbSet<T>;
-    /// <summary>Restores a logically deleted entity (Soft Delete).</summary>
+    /// <summary>
+    ///   Restores a logically deleted entity (Soft Delete).
+    /// </summary>
     function Restore(const AEntity: T): IDbSet<T>;
 
     property Items[Index: Integer]: T read GetItem; default;
@@ -211,22 +238,34 @@ type
     /// </summary>
     function Prototype: T; overload;
     
-    /// <summary>Returns a prototype of any type for use in complex Joins.</summary>
+    /// <summary>
+    ///   Returns a prototype of any type for use in complex Joins.
+    /// </summary>
     function Prototype<TEntity: class>: TEntity; overload;
     
-    /// <summary>Links two entities in a Many-to-Many relationship (Intersection Table).</summary>
+    /// <summary>
+    ///   Links two entities in a Many-to-Many relationship (Intersection Table).
+    /// </summary>
     procedure LinkManyToMany(const AEntity: T; const APropertyName: string; const ARelatedEntity: TObject); overload;
     
-    /// <summary>Removes the link between two entities in a Many-to-Many relationship.</summary>
+    /// <summary>
+    ///   Removes the link between two entities in a Many-to-Many relationship.
+    /// </summary>
     procedure UnlinkManyToMany(const AEntity: T; const APropertyName: string; const ARelatedEntity: TObject); overload;
     
-    /// <summary>Synchronizes a Many-to-Many relationship, replacing existing links with the provided ones.</summary>
+    /// <summary>
+    ///   Synchronizes a Many-to-Many relationship, replacing existing links with the provided ones.
+    /// </summary>
     procedure SyncManyToMany(const AEntity: T; const APropertyName: string; const ARelatedEntities: TArray<TObject>);
     
     // New Methods Implementation
-    /// <summary>Executes the query asynchronously, returning results without blocking the UI thread.</summary>
+    /// <summary>
+    ///   Executes the query asynchronously, returning results without blocking the UI thread.
+    /// </summary>
     function ToListAsync: TAsyncBuilder<IList<T>>;
-    /// <summary>Creates a query based on raw SQL, allowing mapping to entities.</summary>
+    /// <summary>
+    ///   Creates a query based on raw SQL, allowing mapping to entities.
+    /// </summary>
     function FromSql(const ASql: string; const AParams: array of TValue): TFluentQuery<T>; overload;
     function FromSql(const ASql: string): TFluentQuery<T>; overload;
     function TryLock(const AEntity: T; const AToken: string; ADurationMinutes: Integer = 30): Boolean;
@@ -241,16 +280,17 @@ type
     class constructor Create;
   end;
 
+  /// <summary>
+  ///   Factory for dynamically creating DbSet instances based on RTTI contexts.
+  /// </summary>
   TDynamicDbSetFactory<T: class> = class(TInterfacedObject, IDynamicDbSetFactory)
   public
     function CreateDbSet(const AContext: IInterface): IInterface;
   end;
 
-
-
-function TValueToVariant(const AValue: TValue): Variant;
-
-type
+  /// <summary>
+  ///   Iterator for traversing query results using raw SQL commands.
+  /// </summary>
   TSqlQueryIterator<T: class> = class(TQueryIterator<T>)
   private
     FDbSet: TDbSet<T>;
@@ -282,6 +322,7 @@ type
     destructor Destroy; override;
   end;
 
+function TValueToVariant(const AValue: TValue): Variant;
 
 implementation
 
@@ -289,8 +330,8 @@ uses
   Data.DB,
   System.Diagnostics,
   System.JSON,
-  Dext.Logging.Telemetry,
   Dext.Entity.ProxyFactory,
+  Dext.Logging.Telemetry,
   Dext.Utils;
 
 function TValueToKeyString(const AValue: TValue): string;
@@ -314,6 +355,9 @@ end;
 
 function TValueToVariant(const AValue: TValue): Variant;
 var
+  G: TGUID;
+  TypeName: string;
+  U: TUUID;
   Unwrapped: TValue;
   VTypeName: string;
 begin
@@ -338,18 +382,16 @@ begin
   // Handle explicit types that don't convert to Variant automatically
   if (AValue.Kind = tkRecord) and (AValue.TypeInfo <> nil) then
   begin
-    var TypeName := string(AValue.TypeInfo.Name);
+    TypeName := string(AValue.TypeInfo.Name);
 
     if TypeName = 'TGUID' then 
     begin
-      var G: TGUID;
       AValue.ExtractRawData(@G);
       Exit(GUIDToString(G));
     end;
 
     if TypeName = 'TUUID' then
     begin
-      var U: TUUID;
       AValue.ExtractRawData(@U);
       Exit(U.ToString);
     end;
@@ -363,10 +405,6 @@ begin
       Result := AValue.ToString;
   end;
 end;
-
-
-
-
 
 { TSqlQueryIterator<T> }
 
@@ -385,10 +423,12 @@ end;
 function TSqlQueryIterator<T>.MoveNextCore: Boolean;
 var
   Cmd: IDbCommand;
+  SW: TStopwatch;
 begin
+  Result := False;
   if not FInitialized then
   begin
-    var SW := TStopwatch.StartNew;
+    SW := TStopwatch.StartNew;
     try
       FReader := Cmd.ExecuteQuery;
       FInitialized := True;
@@ -406,9 +446,7 @@ begin
   begin
     FCurrent := FDbSet.Hydrate(FReader, False); // Default to NoTracking for raw SQL for now
     Result := True;
-  end
-  else
-    Result := False;
+  end;
 end;
 
 { TStreamingViewIterator<T> }
@@ -433,10 +471,11 @@ end;
 
 function TStreamingViewIterator<T>.MoveNextCore: Boolean;
 var
-  Gen: TSqlGenerator<T>;
   Cmd: IDbCommand;
-  SQL: string;
+  Gen: TSqlGenerator<T>;
   LParamPair: TPair<string, TValue>;
+  ParamType: TFieldType;
+  SQL: string;
 begin
   if not FInitialized then
   begin
@@ -447,7 +486,6 @@ begin
       
       for LParamPair in Gen.Params do
       begin
-        var ParamType: TFieldType;
         if Gen.ParamTypes.TryGetValue(LParamPair.Key, ParamType) then
           Cmd.AddParam(LParamPair.Key, LParamPair.Value, ParamType)
         else
@@ -478,7 +516,6 @@ begin
 end;
 
 function TDbSet<T>.GetFContext: IDbContext;
-
 begin
   Result := IDbContext(FContextPtr);
 end;
@@ -511,13 +548,14 @@ end;
 
 procedure TDbSet<T>.MapEntity;
 var
+  Attr: TCustomAttribute;
   ColName, FieldName, KeyProp: string;
-  IsMapped: Boolean;
-  PropMap: TPropertyMap;
-  Handler: IPropertyHandler;
-  Meta: TTypeMetadata;
-  SpecTable: TableAttribute;
   Field: TRttiField;
+  Handler: IPropertyHandler;
+  IsMapped: Boolean;
+  Meta: TTypeMetadata;
+  PropMap: TPropertyMap;
+  SpecTable: TableAttribute;
 begin
   Meta := TReflection.GetMetadata(TypeInfo(T));
   FMap := TEntityMap(FContext.GetMapping(TypeInfo(T)));
@@ -526,7 +564,14 @@ begin
     FTableName := FMap.TableName;
   if FTableName = '' then
   begin
-    SpecTable := Meta.RttiType.GetAttribute<TableAttribute>;
+    SpecTable := nil;
+    for Attr in Meta.RttiType.GetAttributes do
+      if Attr is TableAttribute then
+      begin
+        SpecTable := TableAttribute(Attr);
+        Break;
+      end;
+      
     if (SpecTable <> nil) and (SpecTable.Name <> '') then
       FTableName := SpecTable.Name;
   end;
@@ -565,9 +610,10 @@ begin
     if ColName = '' then
       ColName := Handler.GetColumnName();
 
-    if ColName = '' then
-      if Handler.GetMember() is TRttiProperty then
-        ColName := FContext.NamingStrategy.GetColumnName(TRttiProperty(Handler.GetMember()));
+    // If ColName matches Property Name, it means it's the default name. 
+    // We should apply Naming Strategy (e.g. SnakeCase) if available.
+    if (ColName = Handler.GetName()) and (FContext.NamingStrategy <> nil) and (Handler.GetMember() is TRttiProperty) then
+      ColName := FContext.NamingStrategy.GetColumnName(TRttiProperty(Handler.GetMember()));
 
     if ((PropMap <> nil) and PropMap.IsPK) or Handler.GetIsPK() then
     begin
@@ -625,11 +671,13 @@ begin
 end;
 
 function TDbSet<T>.GetTableName: string;
+var
+  Schema: string;
 begin
   Result := FContext.Dialect.QuoteIdentifier(FTableName);
   if (FContext.GetTenantProvider <> nil) and (FContext.GetTenantProvider.Tenant <> nil) then
   begin
-    var Schema := FContext.GetTenantProvider.Tenant.Schema;
+    Schema := FContext.GetTenantProvider.Tenant.Schema;
     if (Schema <> '') and FContext.Dialect.UseSchemaPrefix then
        Result := FContext.Dialect.QuoteIdentifier(Schema) + '.' + Result;
   end;
@@ -647,10 +695,10 @@ end;
 
 function TDbSet<T>.GetEntityId(const AEntity: T): string;
 var
-  Prop: TRttiProperty;
-  Val: TValue;
-  SB: TStringBuilder;
   i: Integer;
+  Prop: TRttiProperty;
+  SB: TStringBuilder;
+  Val: TValue;
 begin
   if FPKColumns.Count = 0 then
     raise Exception.Create('No Primary Key defined for entity ' + FTableName);
@@ -707,18 +755,24 @@ end;
 
 function TDbSet<T>.Hydrate(const Reader: IDbReader; const Tracking: Boolean): T;
 var
+  ColName, PKCol: string;
+  DiscVal: Variant;
+  i: Integer;
   PKVal: string;
+  PKValues: IDictionary<string, string>;
+  SB: TStringBuilder;
+  SubMap: TEntityMap;
 begin
   PKVal := '';
   
   if FPKColumns.Count > 0 then
   begin
-    var PKValues := TCollections.CreateDictionary<string, string>;
+    PKValues := TCollections.CreateDictionary<string, string>;
     try
-      for var i := 0 to Reader.GetColumnCount - 1 do
+      for i := 0 to Reader.GetColumnCount - 1 do
       begin
-        var ColName := Reader.GetColumnName(i);
-        for var PKCol in FPKColumns do
+        ColName := Reader.GetColumnName(i);
+        for PKCol in FPKColumns do
         begin
           if SameText(PKCol, ColName) then
           begin
@@ -734,9 +788,9 @@ begin
       end
       else
       begin
-        var SB := TStringBuilder.Create;
+        SB := TStringBuilder.Create;
         try
-          for var i := 0 to FPKColumns.Count - 1 do
+          for i := 0 to FPKColumns.Count - 1 do
           begin
             if i > 0 then SB.Append('|');
             if PKValues.ContainsKey(FPKColumns[i]) then
@@ -763,19 +817,23 @@ begin
   if (FMap <> nil) and (FMap.InheritanceStrategy = TInheritanceStrategy.TablePerHierarchy) and 
      (FMap.DiscriminatorColumn <> '') then
   begin
-     var DiscVal := Reader.GetValue(FMap.DiscriminatorColumn).AsVariant;
-     var SubMap := FContext.ModelBuilder.FindMapByDiscriminator(TypeInfo(T), DiscVal);
+     DiscVal := Reader.GetValue(FMap.DiscriminatorColumn).AsVariant;
+     SubMap := FContext.ModelBuilder.FindMapByDiscriminator(TypeInfo(T), DiscVal);
      if (SubMap <> nil) and (SubMap.EntityType <> TypeInfo(T)) then
         Result := T(TActivator.CreateInstance(GetTypeData(SubMap.EntityType)^.ClassType, []))
      else
         Result := TEntityProxyFactory.CreateInstance<T>(FContext);
   end
   else
+  begin
     Result := TEntityProxyFactory.CreateInstance<T>(FContext);
+  end;
 
   try
     if Tracking and (PKVal <> '') then
+    begin
       FIdentityMap.Add(PKVal, Result);
+    end;
     
     HydrateTarget(Reader, Result);
   except
@@ -790,11 +848,16 @@ end;
 
 procedure TDbSet<T>.HydrateTarget(const Reader: IDbReader; Target: T);
 var
-  i: Integer;
   ColName: string;
-  Val: TValue;
-  Prop: TRttiProperty;
+  Converter: ITypeConverter;
   Field: TRttiField;
+  i: Integer;
+  Prefix: string;
+  Prop: TRttiProperty;
+  PropMap: TPropertyMap;
+  PropTypeName: string;
+  SeparatorIdx: Integer;
+  Val: TValue;
 begin
   TLazyInjector.Inject(FContext, Target);
   
@@ -806,8 +869,8 @@ begin
     if FProps.TryGetValue(ColName.ToLower, Prop) then
     begin
       try
-        var Converter: ITypeConverter := nil;
-        var PropMap: TPropertyMap := nil;
+        Converter := nil;
+        PropMap := nil;
         
         if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
 
@@ -829,7 +892,7 @@ begin
       except
         on E: Exception do
         begin
-          var PropTypeName := '';
+          PropTypeName := '';
           if Prop.PropertyType <> nil then
             PropTypeName := Prop.PropertyType.Name;
           raise Exception.CreateFmt(
@@ -841,12 +904,12 @@ begin
     else
     begin
       // Multi-Mapping
-      var SeparatorIdx := ColName.IndexOf('_');
+      SeparatorIdx := ColName.IndexOf('_');
       if SeparatorIdx < 0 then SeparatorIdx := ColName.IndexOf('.');
       
       if SeparatorIdx > 0 then
       begin
-        var Prefix := ColName.Substring(0, SeparatorIdx);
+        Prefix := ColName.Substring(0, SeparatorIdx);
         if FProps.TryGetValue(Prefix.ToLower, Prop) and (Prop.PropertyType.TypeKind = tkClass) then
            TReflection.SetValueByPath(TObject(Target), ColName, Val);
       end;
@@ -891,11 +954,13 @@ begin
 end;
 
 function TDbSet<T>.Add(const AEntity: T): IDbSet<T>;
+var
+  Id: string;
 begin
   FContext.ChangeTracker.Track(AEntity, esAdded);
   
   // Ensure the DbSet owns this entity if it's not already tracked
-  var Id := GetEntityId(AEntity);
+  Id := GetEntityId(AEntity);
   if (Id = '') or (not FIdentityMap.ContainsKey(Id)) then
   begin
     if not FOrphans.Contains(AEntity) then
@@ -913,11 +978,13 @@ begin
 end;
 
 function TDbSet<T>.Update(const AEntity: T): IDbSet<T>;
+var
+  Id: string;
 begin
   FContext.ChangeTracker.Track(AEntity, esModified);
   
   // Ensure the DbSet owns this entity if it's not already tracked
-  var Id := GetEntityId(AEntity);
+  Id := GetEntityId(AEntity);
   if (Id <> '') and (not FIdentityMap.ContainsKey(Id)) then
   begin
     if not FOrphans.Contains(AEntity) then
@@ -994,10 +1061,10 @@ end;
 
 procedure TDbSet<T>.HandleTimestamps(const AEntity: TObject; AIsInsert: Boolean);
 var
-  Typ: TRttiType;
-  Prop: TRttiProperty;
   Attr: TCustomAttribute;
   NowVal: TDateTime;
+  Prop: TRttiProperty;
+  Typ: TRttiType;
 begin
   NowVal := Now;
   Typ := TReflection.Context.GetType(T);
@@ -1019,17 +1086,28 @@ end;
 
 procedure TDbSet<T>.PersistAdd(const AEntity: TObject);
 var
-  Generator: TSqlGenerator<T>;
-  Sql: string;
-  Cmd: IDbCommand;
-  Prop, AutoIncProp: TRttiProperty;
-  PKVal: Variant;
-  RawPKVal: TValue;
-  UseReturning: Boolean;
-  RetVal: TValue;
+  Attr, ColAttr: TCustomAttribute;
   AutoIncColumn: string;
-  Attr: TCustomAttribute;
+  Cmd: IDbCommand;
+  Converter: ITypeConverter;
+  Generator: TSqlGenerator<T>;
+  IdCmd: IDbCommand;
+  IdVal: TValue;
+  LastIdSQL: string;
+  NewId: string;
+  Pair: TPair<string, TValue>;
+  ParamType: TFieldType;
+  Payload: TJSONObject;
+  PKConvert: TValue;
+  PKVal: Variant;
+  Prop, AutoIncProp: TRttiProperty;
   PropMap: TPropertyMap;
+  ReturningClause: string;
+  RetVal, RawPKVal: TValue;
+  Sql: string;
+  SW: TStopwatch;
+  UseReturning: Boolean;
+  ValuesPos: Integer;
 begin
   HandleTimestamps(AEntity, True);
   Generator := CreateGenerator;
@@ -1063,7 +1141,7 @@ begin
           AutoIncProp := Prop;
           AutoIncColumn := Prop.Name;
           // Check for Column attribute
-          for var ColAttr in Prop.GetAttributes do
+          for ColAttr in Prop.GetAttributes do
             if ColAttr is ColumnAttribute then
               AutoIncColumn := ColumnAttribute(ColAttr).Name;
           Break;
@@ -1079,10 +1157,10 @@ begin
     UseReturning := (AutoIncColumn <> '') and FContext.Dialect.SupportsInsertReturning;
     if UseReturning then
     begin
-      var ReturningClause := FContext.Dialect.GetReturningSQL(AutoIncColumn);
+      ReturningClause := FContext.Dialect.GetReturningSQL(AutoIncColumn);
       if FContext.Dialect.GetReturningPosition = rpBeforeValues then
       begin
-        var ValuesPos := Pos(' VALUES ', UpperCase(Sql));
+        ValuesPos := Pos(' VALUES ', UpperCase(Sql));
         if ValuesPos > 0 then
           Insert(' ' + ReturningClause + ' ', Sql, ValuesPos)
         else
@@ -1092,9 +1170,8 @@ begin
         Sql := Sql + ' ' + ReturningClause;
     end;
     Cmd := FContext.Connection.CreateCommand(Sql);
-    for var Pair in Generator.Params do
+    for Pair in Generator.Params do
     begin
-      var ParamType: TFieldType;
       if Generator.ParamTypes.TryGetValue(Pair.Key, ParamType) then
         Cmd.AddParam(Pair.Key, Pair.Value, ParamType)
       else
@@ -1102,17 +1179,17 @@ begin
     end;
     if UseReturning then
     begin
-      var SW := TStopwatch.StartNew;
+      SW := TStopwatch.StartNew;
       try
         RetVal := Cmd.ExecuteScalar;
-        var Payload := TJSONObject.Create;
+        Payload := TJSONObject.Create;
         Payload.AddPair('sql', Sql);
         Payload.AddPair('rows', TJSONNumber.Create(1));
         TDiagnosticSource.Instance.Write('SQL.Insert', Payload, 'SQL', SW.ElapsedMilliseconds);
       except
         on E: Exception do
         begin
-          var Payload := TJSONObject.Create;
+          Payload := TJSONObject.Create;
           Payload.AddPair('sql', Sql);
           Payload.AddPair('rows', TJSONNumber.Create(1));
           TDiagnosticSource.Instance.Write('SQL.Insert', Payload, 'SQL', SW.ElapsedMilliseconds, 'Error', E.Message);
@@ -1120,22 +1197,20 @@ begin
         end;
       end;
       RawPKVal := RetVal;
-      // We no longer call RetVal.AsVariant because calling AsVariant on a TGUID Record TValue 
-      // throws an EInvalidCast ('Invalid class typecast') natively in Delphi.
     end
     else
     begin
-      var SW := TStopwatch.StartNew;
+      SW := TStopwatch.StartNew;
       try
         Cmd.ExecuteNonQuery;
-        var Payload := TJSONObject.Create;
+        Payload := TJSONObject.Create;
         Payload.AddPair('sql', Sql);
         Payload.AddPair('rows', TJSONNumber.Create(1));
         TDiagnosticSource.Instance.Write('SQL.Insert', Payload, 'SQL', SW.ElapsedMilliseconds);
       except
         on E: Exception do
         begin
-          var Payload := TJSONObject.Create;
+          Payload := TJSONObject.Create;
           Payload.AddPair('sql', Sql);
           Payload.AddPair('rows', TJSONNumber.Create(1));
           TDiagnosticSource.Instance.Write('SQL.Insert', Payload, 'SQL', SW.ElapsedMilliseconds, 'Error', E.Message);
@@ -1144,11 +1219,11 @@ begin
       end;
       if AutoIncColumn <> '' then
       begin
-         var LastIdSQL := FContext.Dialect.GetLastInsertIdSQL;
+         LastIdSQL := FContext.Dialect.GetLastInsertIdSQL;
          if LastIdSQL <> '' then
          begin
-           var IdCmd := FContext.Connection.CreateCommand(LastIdSQL);
-           var IdVal := IdCmd.ExecuteScalar;
+           IdCmd := FContext.Connection.CreateCommand(LastIdSQL);
+           IdVal := IdCmd.ExecuteScalar;
            RawPKVal := IdVal;
          end
          else
@@ -1164,8 +1239,8 @@ begin
          raise Exception.Create('Failed to retrieve AutoInc ID for ' + GetTableName + '.');
        
         // Convert raw value using specific type converters BEFORE Reflection assigns it
-        var PKConvert := RawPKVal;
-        var Converter := TTypeConverterRegistry.Instance.GetConverter(AutoIncProp.PropertyType.Handle);
+        PKConvert := RawPKVal;
+        Converter := TTypeConverterRegistry.Instance.GetConverter(AutoIncProp.PropertyType.Handle);
         if Converter <> nil then
           PKConvert := Converter.FromDatabase(PKConvert, AutoIncProp.PropertyType.Handle);
           
@@ -1174,7 +1249,7 @@ begin
       end;
      
      // Add to identity map using full entity ID
-     var NewId := GetEntityId(T(AEntity)); 
+     NewId := GetEntityId(T(AEntity)); 
      if not FIdentityMap.ContainsKey(NewId) then
      begin
        if FOrphans.Contains(T(AEntity)) then
@@ -1189,15 +1264,17 @@ end;
 
 procedure TDbSet<T>.PersistAddRange(const AEntities: TArray<TObject>);
 var
-  Generator: TSqlGenerator<T>;
-  Sql: string;
   Cmd: IDbCommand;
   EntitiesT: TArray<T>;
+  Generator: TSqlGenerator<T>;
+  Helper: TNullableHelper;
   i: Integer;
-  Props: IList<TPair<TRttiProperty, string>>;
+  Pair: TPair<TRttiProperty, string>;
+  ParamName: string;
   ParamValues: TArray<TValue>;
   Prop: TRttiProperty;
-  ParamName: string;
+  Props: IList<TPair<TRttiProperty, string>>;
+  Sql: string;
   Val: TValue;
 begin
   if Length(AEntities) = 0 then Exit;
@@ -1215,7 +1292,7 @@ begin
       Cmd := FContext.Connection.CreateCommand(Sql) as IDbCommand;
       Cmd.SetArraySize(Length(EntitiesT));
       SetLength(ParamValues, Length(EntitiesT));
-      for var Pair in Props do
+      for Pair in Props do
       begin
         Prop := Pair.Key;
         ParamName := Pair.Value;
@@ -1224,7 +1301,7 @@ begin
           Val := Prop.GetValue(Pointer(EntitiesT[i]));
           if IsNullable(Val.TypeInfo) then
           begin
-             var Helper := TNullableHelper.Create(Val.TypeInfo);
+             Helper := TNullableHelper.Create(Val.TypeInfo);
              if Helper.HasValue(Val.GetReferenceToRawData) then
                ParamValues[i] := Helper.GetValue(Val.GetReferenceToRawData)
              else
@@ -1246,26 +1323,27 @@ end;
 
 procedure TDbSet<T>.PersistUpdate(const AEntity: TObject);
 var
-  Generator: TSqlGenerator<T>;
-  Sql, Id: string;
   Cmd: IDbCommand;
-  RowsAffected: Integer;
-  Prop: TRttiProperty;
-  Val: TValue;
-  NewVer: Integer;
-  Meta: TTypeMetadata;
+  Generator: TSqlGenerator<T>;
   Handler: IPropertyHandler;
-  SW: TStopwatch;
+  Meta: TTypeMetadata;
+  NewVer: Integer;
+  Pair: TPair<string, TValue>;
+  ParamType: TFieldType;
   Payload: TJSONObject;
+  Prop: TRttiProperty;
+  RowsAffected: Integer;
+  Sql, Id: string;
+  SW: TStopwatch;
+  Val: TValue;
 begin
   HandleTimestamps(AEntity, False);
   Generator := CreateGenerator;
   try
     Sql := Generator.GenerateUpdate(T(AEntity));
     Cmd := FContext.Connection.CreateCommand(Sql);
-    for var Pair in Generator.Params do
+    for Pair in Generator.Params do
     begin
-      var ParamType: TFieldType;
       if Generator.ParamTypes.TryGetValue(Pair.Key, ParamType) then
         Cmd.AddParam(Pair.Key, Pair.Value, ParamType)
       else
@@ -1321,16 +1399,25 @@ end;
 
 procedure TDbSet<T>.PersistRemove(const AEntity: TObject);
 var
-  Generator: TSqlGenerator<T>;
-  Sql: string;
+  Attr: TCustomAttribute;
   Cmd: IDbCommand;
+  ColumnName: string;
+  DeletedVal: Variant;
+  Generator: TSqlGenerator<T>;
+  IsSoftDelete: Boolean;
+  Key: string;
+  P: TRttiProperty;
+  Pair: TPair<string, TValue>;
+  ParamType: TFieldType;
+  Payload: TJSONObject;
+  Prop: TRttiProperty;
+  PropName: string;
+  RowsAffected: Integer;
   RType: TRttiType;
   SoftDeleteAttr: SoftDeleteAttribute;
-  Prop: TRttiProperty;
-  ColumnName: string;
-  IsSoftDelete: Boolean;
-  PropName: string;
-  DeletedVal: Variant;
+  Sql: string;
+  SW: TStopwatch;
+  ValToSet: TValue;
 begin
   IsSoftDelete := False;
   PropName := '';
@@ -1348,7 +1435,7 @@ begin
     RType := TReflection.Context.GetType(T);
     if RType <> nil then
     begin
-      for var Attr in RType.GetAttributes do
+      for Attr in RType.GetAttributes do
       begin
         if Attr is SoftDeleteAttribute then
         begin
@@ -1372,7 +1459,7 @@ begin
       Prop := nil;
       ColumnName := PropName; // Use PropName as search key
       
-      for var P in RType.GetProperties do
+      for P in RType.GetProperties do
       begin
         // Check match by Property Name
         if SameText(P.Name, ColumnName) then
@@ -1382,7 +1469,7 @@ begin
         end;
 
         // Check match by Column Name (Only relevant if PropName was actually a Column Name from Attribute)
-        for var Attr in P.GetAttributes do
+        for Attr in P.GetAttributes do
         begin
           if Attr is ColumnAttribute then
           begin
@@ -1398,27 +1485,25 @@ begin
       
       if Prop <> nil then
       begin
-          // Set the soft delete value
-          var ValToSet: TValue;
-          
-          if Prop.PropertyType.Handle = TypeInfo(Boolean) then
-            ValToSet := TValue.From(Boolean(DeletedVal))
-          else 
-            ValToSet := TValue.FromVariant(DeletedVal);
+        // Set the soft delete value
+        if Prop.PropertyType.Handle = TypeInfo(Boolean) then
+          ValToSet := TValue.From(Boolean(DeletedVal))
+        else
+          ValToSet := TValue.FromVariant(DeletedVal);
             
-          TReflection.SetValue(Pointer(AEntity), Prop, ValToSet);
+        TReflection.SetValue(Pointer(AEntity), Prop, ValToSet);
           
-          // Use PersistUpdate to save the change
-          PersistUpdate(AEntity);
+        // Use PersistUpdate to save the change
+        PersistUpdate(AEntity);
           
-          // Remove from identity map (entity is "deleted" from context perspective)
-          var Key := GetEntityId(T(AEntity));
-          if FIdentityMap.ContainsKey(Key) then
-            FIdentityMap.Remove(Key)
-          else
-            AEntity.Free;
-          Exit;
-        end;
+        // Remove from identity map (entity is "deleted" from context perspective)
+        Key := GetEntityId(T(AEntity));
+        if FIdentityMap.ContainsKey(Key) then
+          FIdentityMap.Remove(Key)
+        else
+          AEntity.Free;
+        Exit;
+      end;
     end;
   end;
   
@@ -1427,25 +1512,24 @@ begin
   try
     Sql := Generator.GenerateDelete(T(AEntity));
     Cmd := FContext.Connection.CreateCommand(Sql);
-    for var Pair in Generator.Params do
+    for Pair in Generator.Params do
     begin
-      var ParamType: TFieldType;
       if Generator.ParamTypes.TryGetValue(Pair.Key, ParamType) then
         Cmd.AddParam(Pair.Key, Pair.Value, ParamType)
       else
         Cmd.AddParam(Pair.Key, Pair.Value);
     end;
-    var SW := TStopwatch.StartNew;
+    SW := TStopwatch.StartNew;
     try
-      var RowsAffected := Cmd.ExecuteNonQuery;
-      var Payload := TJSONObject.Create;
+      RowsAffected := Cmd.ExecuteNonQuery;
+      Payload := TJSONObject.Create;
       Payload.AddPair('sql', Sql);
       Payload.AddPair('rows', TJSONNumber.Create(RowsAffected));
       TDiagnosticSource.Instance.Write('SQL.Delete', Payload, 'SQL', SW.ElapsedMilliseconds);
     except
       on E: Exception do
       begin
-        var Payload := TJSONObject.Create;
+        Payload := TJSONObject.Create;
         Payload.AddPair('sql', Sql);
         Payload.AddPair('rows', TJSONNumber.Create(0));
         TDiagnosticSource.Instance.Write('SQL.Delete', Payload, 'SQL', SW.ElapsedMilliseconds, 'Error', E.Message);
@@ -1460,13 +1544,16 @@ end;
 
 function TDbSet<T>.TryLock(const AEntity: T; const AToken: string; ADurationMinutes: Integer): Boolean;
 var
-  Typ: TRttiType;
-  Prop, TokenProp, ExpiryProp: TRttiProperty;
-  TokenCol, ExpiryCol: string;
-  Sql: string;
   Cmd: IDbCommand;
-  PKCols: TArray<string>;
+  CurCol: string;
+  Done: Boolean;
   i: Integer;
+  PKCols: TArray<string>;
+  PMap: TPropertyMap;
+  Prop, TokenProp, ExpiryProp: TRttiProperty;
+  Sql: string;
+  TokenCol, ExpiryCol: string;
+  Typ: TRttiType;
 begin
   Result := False;
   TokenProp := nil;
@@ -1489,7 +1576,6 @@ begin
   ExpiryCol := ExpiryProp.Name;
   if FMap <> nil then
   begin
-    var PMap: TPropertyMap;
     if FMap.Properties.TryGetValue(TokenProp.Name, PMap) and (PMap.ColumnName <> '') then TokenCol := PMap.ColumnName;
     if FMap.Properties.TryGetValue(ExpiryProp.Name, PMap) and (PMap.ColumnName <> '') then ExpiryCol := PMap.ColumnName;
   end;
@@ -1522,13 +1608,12 @@ begin
   for i := 0 to High(PKCols) do
   begin
     // Simple lookup: Find property matching PK column or name
-    var Done := False;
+    Done := False;
     for Prop in Typ.GetProperties do
     begin
-       var CurCol: string := Prop.Name;
+       CurCol := Prop.Name;
        if FMap <> nil then
        begin
-         var PMap: TPropertyMap;
          if FMap.Properties.TryGetValue(Prop.Name, PMap) and (PMap.ColumnName <> '') then CurCol := PMap.ColumnName;
        end;
        if SameText(CurCol, PKCols[i]) then
@@ -1552,13 +1637,15 @@ end;
 
 function TDbSet<T>.Unlock(const AEntity: T): Boolean;
 var
-  Typ: TRttiType;
-  Prop, TokenProp, ExpiryProp: TRttiProperty;
-  TokenCol, ExpiryCol: string;
-  Sql: string;
   Cmd: IDbCommand;
-  PKCols: TArray<string>;
+  CurCol: string;
   i: Integer;
+  PKCols: TArray<string>;
+  PMap: TPropertyMap;
+  Prop, TokenProp, ExpiryProp: TRttiProperty;
+  Sql: string;
+  TokenCol, ExpiryCol: string;
+  Typ: TRttiType;
 begin
   Result := False;
   TokenProp := nil;
@@ -1578,7 +1665,6 @@ begin
   ExpiryCol := ExpiryProp.Name;
   if FMap <> nil then
   begin
-    var PMap: TPropertyMap;
     if FMap.Properties.TryGetValue(TokenProp.Name, PMap) and (PMap.ColumnName <> '') then TokenCol := PMap.ColumnName;
     if FMap.Properties.TryGetValue(ExpiryProp.Name, PMap) and (PMap.ColumnName <> '') then ExpiryCol := PMap.ColumnName;
   end;
@@ -1593,18 +1679,14 @@ begin
     Sql := Sql + FContext.Dialect.QuoteIdentifier(PKCols[i]) + ' = :pk' + IntToStr(i);
   end;
 
-  // Important: only unlock if I am the owner (optional business rule?)
-  // For now, let's keep it simple: just unlock.
-  
   Cmd := FContext.Connection.CreateCommand(Sql);
   for i := 0 to High(PKCols) do
   begin
     for Prop in Typ.GetProperties do
     begin
-       var CurCol: string := Prop.Name;
+       CurCol := Prop.Name;
        if FMap <> nil then
        begin
-         var PMap: TPropertyMap;
          if FMap.Properties.TryGetValue(Prop.Name, PMap) and (PMap.ColumnName <> '') then CurCol := PMap.ColumnName;
        end;
        if SameText(CurCol, PKCols[i]) then
@@ -1659,20 +1741,24 @@ begin
   end;
 end;
 
-function TDbSet<T>.ListObjects(const AExpression: IExpression): IList<TObject>;
+function TDbSet<T>.ListObjects(const AExpression: Dext.Specifications.Interfaces.IExpression): IList<TObject>;
 var
+  i: Integer;
   Items: IList<T>;
 begin
   Items := ToList(AExpression);
   Result := TCollections.CreateList<TObject>;
-  for var i := 0 to Items.Count - 1 do
+  for i := 0 to Items.Count - 1 do
     Result.Add(TObject(Items[i]));
 end;
 
-function TDbSet<T>.ListObjects(const ASpec: ISpecification): IList<TObject>;
+function TDbSet<T>.ListObjects(const ASpec: Dext.Specifications.Interfaces.ISpecification): IList<TObject>;
 var
-  TypedSpec: ISpecification<T>;
+  i: Integer;
+  Incl: string;
   Items: IList<T>;
+  Order: IOrderBy;
+  TypedSpec: ISpecification<T>;
 begin
   if ASpec = nil then
     Exit(ListObjects(IExpression(nil)));
@@ -1695,19 +1781,18 @@ begin
       TypedSpec.Take(ASpec.GetTake);
     end;
     
-    for var Order in ASpec.GetOrderBy do
+    for Order in ASpec.GetOrderBy do
       TypedSpec.OrderBy(Order);
       
-    for var Incl in ASpec.GetIncludes do
+    for Incl in ASpec.GetIncludes do
       TypedSpec.Include(Incl);
       
     Items := ToList(TypedSpec);
   end;
 
-  for var i := 0 to Items.Count - 1 do
+  for i := 0 to Items.Count - 1 do
     Result.Add(TObject(Items[i]));
 end;
-
 
 function TDbSet<T>.ToList: IList<T>;
 begin
@@ -1720,13 +1805,10 @@ begin
     raise Exception.Create('ToListAsync requires a pooled connection to ensure thread safety.');
 
   Result := TAsyncTask.Run<IList<T>>(
-    TFunc<IList<T>>(
-      function: IList<T>
+    TFunc<IList<T>>(function: IList<T>
       begin
         Result := Self.ToList;
-      end
-    )
-  );
+      end));
 end;
 
 function TDbSet<T>.ToList(const AExpression: IExpression): IList<T>;
@@ -1739,14 +1821,19 @@ end;
 
 function TDbSet<T>.ToList(const ASpec: ISpecification<T>): IList<T>;
 var
-  Generator: TSqlGenerator<T>;
-  Sql: string;
-  Reader: IDbReader;
   Cmd: IDbCommand;
   Entity: T;
+  Generator: TSqlGenerator<T>;
   IsProjection: Boolean;
-  Tracking: Boolean;
   LSpec: ISpecification<T>;
+  Pair: TPair<string, TValue>;
+  ParamType: TFieldType;
+  Payload: TJSONObject;
+  Reader: IDbReader;
+  RowCount: Integer;
+  Sql: string;
+  SW: TStopwatch;
+  Tracking: Boolean;
 begin
   LSpec := ASpec;
   ApplyTenantFilter(LSpec);
@@ -1777,9 +1864,8 @@ begin
       Sql := Generator.GenerateSelect;
       
     Cmd := FContext.Connection.CreateCommand(Sql);
-    for var Pair in Generator.Params do
+    for Pair in Generator.Params do
     begin
-      var ParamType: TFieldType;
       if Generator.ParamTypes.TryGetValue(Pair.Key, ParamType) then
         Cmd.AddParam(Pair.Key, Pair.Value, ParamType)
       else
@@ -1787,9 +1873,9 @@ begin
     end;
     
     try
-      var SW := TStopwatch.StartNew;
+      SW := TStopwatch.StartNew;
       Reader := Cmd.ExecuteQuery;
-      var RowCount := 0;
+      RowCount := 0;
       while Reader.Next do
       begin
         Inc(RowCount);
@@ -1797,14 +1883,13 @@ begin
         Result.Add(Entity);
       end;
       
-      var Payload := TJSONObject.Create;
+      Payload := TJSONObject.Create;
       Payload.AddPair('sql', Sql);
       Payload.AddPair('rows', TJSONNumber.Create(RowCount));
       TDiagnosticSource.Instance.Write('SQL.Query', Payload, 'SQL', SW.ElapsedMilliseconds);
     except
       on E: Exception do
       begin
-        SafeWriteLn('ERROR in TDbSet.ToList during fetch: ' + E.Message);
         raise;
       end;
     end;
@@ -1819,22 +1904,19 @@ end;
 
 function TDbSet<T>.FromSql(const ASql: string; const AParams: array of TValue): TFluentQuery<T>;
 var
+  i: Integer;
   LParams: TArray<TValue>;
-  I: Integer;
 begin
   SetLength(LParams, Length(AParams));
-  for I := 0 to Length(AParams) - 1 do
-    LParams[I] := AParams[I];
+  for i := 0 to Length(AParams) - 1 do
+    LParams[i] := AParams[i];
 
   Result := TFluentQuery<T>.Create(
-    TFunc<TQueryIterator<T>>(
-      function: TQueryIterator<T>
+    TFunc<TQueryIterator<T>>(function: TQueryIterator<T>
       begin
         Result := TSqlQueryIterator<T>.Create(Self, ASql, LParams);
-      end
-    ),
-    FContext.Connection
-  );
+      end),
+      FContext.Connection);
 end;
 
 function TDbSet<T>.FromSql(const ASql: string): TFluentQuery<T>;
@@ -1852,7 +1934,7 @@ begin
   if GetTypeData(TypeInfo(T))^.ClassType.GetInterfaceEntry(ITenantAware) = nil then Exit;
 
   Provider := FContext.TenantProvider;
-  
+
   if (Provider = nil) or (Provider.Tenant = nil) then Exit;
 
   if ASpec = nil then
@@ -1865,20 +1947,33 @@ end;
 procedure TDbSet<T>.ExtractForeignKeys(const AEntities: IList<T>; PropertyToCheck: string;
   out IDs: IList<TValue>; out FKMap: IDictionary<T, TValue>);
 var
+  Attr: TCustomAttribute;
   Ent: T;
-  Val: TValue;
+  FKAttr: ForeignKeyAttribute;
+  FKProp: TRttiProperty;
+  FoundFK: string;
+  NavProp: TRttiProperty;
+  Pair: TPair<string, string>;
   Typ: TRttiType;
+  Val: TValue;
 begin
   IDs := TCollections.CreateList<TValue>;
   FKMap := TCollections.CreateDictionary<T, TValue>;
   Typ := TReflection.Context.GetType(T);
-  var NavProp := Typ.GetProperty(PropertyToCheck);
+  NavProp := Typ.GetProperty(PropertyToCheck);
   if NavProp = nil then Exit;
-  var FoundFK := '';
-  var FKAttr := NavProp.GetAttribute<ForeignKeyAttribute>;
+  FoundFK := '';
+  FKAttr := nil;
+  for Attr in NavProp.GetAttributes do
+    if Attr is ForeignKeyAttribute then
+    begin
+      FKAttr := ForeignKeyAttribute(Attr);
+      Break;
+    end;
+
   if FKAttr <> nil then
   begin
-    for var Pair in FColumns do
+    for Pair in FColumns do
     begin
       if SameText(Pair.Value, FKAttr.ColumnName) then
       begin
@@ -1889,7 +1984,7 @@ begin
   end;
   if FoundFK = '' then
     FoundFK := PropertyToCheck + 'Id';
-  var FKProp := Typ.GetProperty(FoundFK);
+  FKProp := Typ.GetProperty(FoundFK);
   if FKProp = nil then Exit;
   for Ent in AEntities do
   begin
@@ -1905,14 +2000,22 @@ end;
 
 procedure TDbSet<T>.LoadAndAssign(const AEntities: IList<T>; const NavPropName: string);
 var
-  IDs: IList<TValue>;
+  Expr: IExpression;
   FKMap: IDictionary<T, TValue>;
-  TargetType: TRttiType;
-  TargetDbSet: IDbSet;
+  FkVal: string;
+  IDs: IList<TValue>;
+  IdValues: TArray<Variant>;
+  k: Integer;
+  KeyStr: string;
   LoadedMap: IDictionary<string, TObject>;
   NavProp: TRttiProperty;
-  TargetList: IList<TObject>;
   Obj: TObject;
+  Pair: TPair<T, TValue>;
+  Parent: T;
+  TargetDbSet: IDbSet;
+  TargetList: IList<TObject>;
+  TargetRefId: string;
+  TargetType: TRttiType;
 begin
   IDs := nil;
   FKMap := nil;
@@ -1928,28 +2031,25 @@ begin
 
     // Use Variant array to preserve types (Integer, String, GUID) for correct parameter binding
     // Ensure we handle Nullable types correctly before converting to variant
-    var IdValues: TArray<Variant>;
     SetLength(IdValues, IDs.Count);
-    for var k := 0 to IDs.Count - 1 do
+    for k := 0 to IDs.Count - 1 do
       IdValues[k] := TValueToVariant(IDs[k]);
 
     // Use Variant array to preserve types (Integer, String, GUID) for correct parameter binding
-    var Expr: IExpression := TPropExpression.Create('Id').&In(IdValues);
-
+    Expr := TPropExpression.Create('Id').&In(IdValues);
     TargetList := TargetDbSet.ListObjects(Expr);
-
     LoadedMap := TCollections.CreateDictionary<string, TObject>;
     for Obj in TargetList do
     begin
-      var TargetRefId := TargetDbSet.GetEntityId(Obj);
-      var KeyStr := TValueToKeyString(TargetRefId);
+      TargetRefId := TargetDbSet.GetEntityId(Obj);
+      KeyStr := TValueToKeyString(TargetRefId);
       LoadedMap.AddOrSetValue(KeyStr, Obj);
     end;
     
-    for var Pair in FKMap do
+    for Pair in FKMap do
     begin
-      var Parent := Pair.Key;
-      var FkVal := TValueToKeyString(Pair.Value);
+      Parent := Pair.Key;
+      FkVal := TValueToKeyString(Pair.Value);
       try
         if LoadedMap.ContainsKey(FkVal) then
         begin
@@ -1972,10 +2072,11 @@ end;
 
 procedure TDbSet<T>.DoLoadIncludes(const AEntities: IList<T>; const AIncludes: TArray<string>);
 var
+  IncludePath: string;
   PropMap: TPropertyMap;
 begin
   if (AEntities = nil) or (AEntities.Count = 0) then Exit;
-  for var IncludePath in AIncludes do
+  for IncludePath in AIncludes do
   begin
     // Check if this is a Many-to-Many relationship
     PropMap := nil;
@@ -1999,24 +2100,39 @@ end;
 
 procedure TDbSet<T>.LoadOneToMany(const AEntities: IList<T>; const NavPropName: string; const PropMap: TPropertyMap);
 var
-  ParentIds: IList<TValue>;
-  ParentMap: IDictionary<string, T>;
+  AddMethod: TRttiMethod;
+  ClassName: string;
   Ent: T;
   EntId: TValue;
-  TargetDbSet: IDbSet;
-  TargetType: TRttiType;
-  TargetList: IList<TObject>;
-  Obj: TObject;
-  NavProp: TRttiProperty;
-  TargetFKPropName: string;
-  TargetFKValue: TValue;
-  TargetFKStr: string;
-  ListIntf: IInterface;
-  TargetPropName: string;
-  ObjProp: TRttiProperty;
-  Val: TValue;
-  TargetMap: TEntityMap;
+  Expr: IExpression;
+  GenericTypeName: string;
+  i: Integer;
+  IdValues: TArray<Variant>;
+  IntfTyp: TRttiType;
   InversePropMap: TPropertyMap;
+  KeyStr: string;
+  ListIntf: IInterface;
+  NavProp: TRttiProperty;
+  NewList: TObject;
+  Obj: TObject;
+  ObjProp: TRttiProperty;
+  P: TPair<string, TPropertyMap>;
+  Parent: T;
+  ParentClassName: string;
+  ParentIds: IList<TValue>;
+  ParentMap: IDictionary<string, T>;
+  PropType: TRttiType;
+  StartPos, EndPos: Integer;
+  TargetDbSet: IDbSet;
+  TargetFKPropName: string;
+  TargetFKStr: string;
+  TargetFKValue: TValue;
+  TargetList: IList<TObject>;
+  TargetMap: TEntityMap;
+  TargetPropName: string;
+  TargetType: TRttiType;
+  TypeName: string;
+  Val: TValue;
 begin
   NavProp := TReflection.Context.GetType(T).GetProperty(NavPropName);
   if NavProp = nil then Exit;
@@ -2031,11 +2147,7 @@ begin
       if not EntId.IsEmpty then
       begin
         // Ensure ID is unwrapped if it is a Smart Type (Prop<T>)
-
-        
-
-
-        var KeyStr := TValueToKeyString(EntId);
+        KeyStr := TValueToKeyString(EntId);
         if not ParentIds.Contains(EntId) then
           ParentIds.Add(EntId);
         ParentMap.AddOrSetValue(KeyStr, Ent);
@@ -2045,15 +2157,15 @@ begin
 
     // 2. Identify Target Type (from IList<TTarget>)
     TargetType := nil;
-    var PropType := NavProp.PropertyType;
+    PropType := NavProp.PropertyType;
     if PropType.TypeKind = tkInterface then
     begin
-      var TypeName := PropType.Name;
-      var StartPos := Pos('<', TypeName);
-      var EndPos := Pos('>', TypeName);
+      TypeName := PropType.Name;
+      StartPos := Pos('<', TypeName);
+      EndPos := Pos('>', TypeName);
       if (StartPos > 0) and (EndPos > StartPos) then
       begin
-        var GenericTypeName := Copy(TypeName, StartPos + 1, EndPos - StartPos - 1);
+        GenericTypeName := Copy(TypeName, StartPos + 1, EndPos - StartPos - 1);
         TargetType := TReflection.Context.FindType(GenericTypeName);
       end;
     end;
@@ -2075,10 +2187,10 @@ begin
     // If still empty, scan target properties for any ForeignKey attribute pointing to our class name
     if (TargetFKPropName = '') and (TargetMap <> nil) then
     begin
-       var ParentClassName := T.ClassName;
+       ParentClassName := T.ClassName;
        if ParentClassName.StartsWith('T') then ParentClassName := Copy(ParentClassName, 2, MaxInt);
        
-       for var P in TargetMap.Properties do
+       for P in TargetMap.Properties do
        begin
           if SameText(P.Key, ParentClassName) or SameText(P.Key, ParentClassName + 'Id') then
           begin
@@ -2094,7 +2206,7 @@ begin
     // Fallback guess
     if TargetFKPropName = '' then
     begin
-       var ClassName := T.ClassName;
+       ClassName := T.ClassName;
        if ClassName.StartsWith('T') then ClassName := Copy(ClassName, 2, MaxInt);
        TargetFKPropName := ClassName + 'Id';
     end;
@@ -2102,7 +2214,7 @@ begin
     TargetPropName := TargetFKPropName;
     if TargetMap <> nil then
     begin
-       for var P in TargetMap.Properties do
+       for P in TargetMap.Properties do
        begin
           if SameText(P.Key, TargetFKPropName) or SameText(P.Value.ColumnName, TargetFKPropName) then
           begin
@@ -2112,13 +2224,12 @@ begin
        end;
     end;
 
-    var IdValues: TArray<Variant>;
     SetLength(IdValues, ParentIds.Count);
-    for var i := 0 to ParentIds.Count - 1 do
+    for i := 0 to ParentIds.Count - 1 do
       IdValues[i] := TValueToVariant(ParentIds[i]);
 
     // Query targets using Property Name
-    var Expr := TPropExpression.Create(TargetPropName).&In(IdValues);
+    Expr := TPropExpression.Create(TargetPropName).&In(IdValues);
     
     TargetList := TargetDbSet.ListObjects(Expr);
 
@@ -2137,14 +2248,14 @@ begin
           
           if ParentMap.ContainsKey(TargetFKStr) then
           begin
-             var Parent := ParentMap[TargetFKStr];
+             Parent := ParentMap[TargetFKStr];
              Val := NavProp.GetValue(Pointer(Parent));
 
              // Ensure List is initialized
              if Val.IsEmpty or ((Val.Kind = tkInterface) and (Val.AsInterface = nil)) then
              begin
-                 var NewList := TTrackingListFactory.CreateList(TargetType.Handle, FContext, Parent, NavProp.Name);
-                 TReflection.SetValue(Pointer(Parent), NavProp, NewList);
+                  NewList := TTrackingListFactory.CreateList(TargetType.Handle, FContext, TObject(Parent), NavProp.Name);
+                  TReflection.SetValue(Pointer(Parent), NavProp, TValue.From<TObject>(NewList));
                  Val := NavProp.GetValue(Pointer(Parent));
              end;
 
@@ -2153,8 +2264,8 @@ begin
                 ListIntf := Val.AsInterface;
                 if ListIntf <> nil then
                 begin
-                   var IntfTyp := TReflection.Context.GetType(Val.TypeInfo);
-                   var AddMethod := IntfTyp.GetMethod('Add');
+                   IntfTyp := TReflection.Context.GetType(Val.TypeInfo);
+                   AddMethod := IntfTyp.GetMethod('Add');
                    if AddMethod <> nil then
                    begin
                       AddMethod.Invoke(Val, [Obj]);
@@ -2164,7 +2275,6 @@ begin
           end;
        end;
     end;
-
   finally
     ParentIds := nil;
     ParentMap := nil;
@@ -2173,26 +2283,33 @@ end;
 
 procedure TDbSet<T>.LoadManyToMany(const AEntities: IList<T>; const NavPropName: string; const PropMap: TPropertyMap);
 var
-  NavProp: TRttiProperty;
-  SQL: string;
+  AllRelatedIds: IList<TValue>;
+  Cmd: IDbCommand;
+  CollValue: TValue;
   Ent: T;
   EntId: TValue;
   EntityIds: IList<TValue>;
-  Reader: IDbReader;
-  TargetIds: IDictionary<string, IList<TValue>>; // EntityId -> List of RelatedIds
-  AllRelatedIds: IList<TValue>;
-  RelatedObjects: IDictionary<string, TObject>; // RelatedId -> Object
-  LTargetType: TRttiType;
-  RelatedDbSet: IDbSet;
+  i: Integer;
   IdValues: TArray<Variant>;
-  RelatedExpr: IExpression;
-  LoadedList: IList<TObject>;
-  CollValue: TValue;
-  TheList: IList<TObject>;
+  LeftKey: string;
   LEntIdStr, LObjId, LRelIdStr, LTypeName, LGenericTypeName: string;
+  LoadedList: IList<TObject>;
   LStartPos, LEndPos: Integer;
-  PropType: TRttiType;
+  LTargetType: TRttiType;
+  NavProp: TRttiProperty;
   NewList: IList<TObject>;
+  Obj: TObject;
+  PropType: TRttiType;
+  Reader: IDbReader;
+  RelatedDbSet: IDbSet;
+  RelatedExpr: IExpression;
+  RelatedObjects: IDictionary<string, TObject>; // RelatedId -> Object
+  RelId: TValue;
+  RightKey: TValue;
+  SB: TStringBuilder;
+  SQL: string;
+  TargetIds: IDictionary<string, IList<TValue>>; // EntityId -> List of RelatedIds
+  TheList: IList<TObject>;
 begin
   if PropMap.JoinTableName = '' then Exit;
 
@@ -2211,7 +2328,7 @@ begin
     if EntityIds.Count = 0 then Exit;
 
     // Build SQL to query join table
-    var SB := TStringBuilder.Create;
+    SB := TStringBuilder.Create;
     try
       SB.Append('SELECT ');
       SB.Append(FContext.Dialect.QuoteIdentifier(PropMap.LeftKeyColumn));
@@ -2222,7 +2339,7 @@ begin
       SB.Append(' WHERE ');
       SB.Append(FContext.Dialect.QuoteIdentifier(PropMap.LeftKeyColumn));
       SB.Append(' IN (');
-      for var i := 0 to EntityIds.Count - 1 do
+      for i := 0 to EntityIds.Count - 1 do
       begin
         if i > 0 then SB.Append(', ');
         SB.Append(':p' + IntToStr(i + 1));
@@ -2233,8 +2350,8 @@ begin
       SB.Free;
     end;
 
-    var Cmd := FContext.Connection.CreateCommand(SQL);
-    for var i := 0 to EntityIds.Count - 1 do
+    Cmd := FContext.Connection.CreateCommand(SQL);
+    for i := 0 to EntityIds.Count - 1 do
       Cmd.AddParam('p' + IntToStr(i + 1), EntityIds[i]);
 
     Reader := Cmd.ExecuteQuery;
@@ -2244,8 +2361,8 @@ begin
     try
       while Reader.Next do
       begin
-        var LeftKey := Reader.GetValue(0).ToString;
-        var RightKey := Reader.GetValue(1);
+        LeftKey := Reader.GetValue(0).ToString;
+        RightKey := Reader.GetValue(1);
 
         if not TargetIds.ContainsKey(LeftKey) then
           TargetIds.Add(LeftKey, TCollections.CreateList<TValue>);
@@ -2277,7 +2394,7 @@ begin
 
         RelatedDbSet := FContext.DataSet(LTargetType.Handle);
         SetLength(IdValues, AllRelatedIds.Count);
-        for var i := 0 to AllRelatedIds.Count - 1 do
+        for i := 0 to AllRelatedIds.Count - 1 do
           IdValues[i] := TValueToVariant(AllRelatedIds[i]);
 
         RelatedExpr := TPropExpression.Create('Id').&In(IdValues);
@@ -2285,7 +2402,7 @@ begin
 
         RelatedObjects := TCollections.CreateDictionary<string, TObject>;
         try
-          for var Obj in LoadedList do
+          for Obj in LoadedList do
           begin
             LObjId := RelatedDbSet.GetEntityId(Obj);
             RelatedObjects.AddOrSetValue(LObjId, Obj);
@@ -2308,7 +2425,7 @@ begin
             begin
               if TargetIds.ContainsKey(LEntIdStr) then
               begin
-                for var RelId in TargetIds[LEntIdStr] do
+                for RelId in TargetIds[LEntIdStr] do
                 begin
                   LRelIdStr := RelId.ToString;
                   if RelatedObjects.ContainsKey(LRelIdStr) then
@@ -2331,9 +2448,10 @@ end;
 
 procedure TDbSet<T>.LinkManyToMany(const AEntity: T; const APropertyName: string; const ARelatedEntity: TObject);
 var
+  Cmd: IDbCommand;
+  EntityId, RelatedId: TValue;
   PropMap: TPropertyMap;
   SQL: string;
-  EntityId, RelatedId: TValue;
 begin
   if FMap = nil then Exit;
   if not FMap.Properties.TryGetValue(APropertyName, PropMap) then Exit;
@@ -2346,7 +2464,7 @@ begin
   SQL := TJoinTableSQLHelper.GenerateInsert(FContext.Dialect,
     PropMap.JoinTableName, PropMap.LeftKeyColumn, PropMap.RightKeyColumn);
     
-  var Cmd := FContext.Connection.CreateCommand(SQL);
+  Cmd := FContext.Connection.CreateCommand(SQL);
   Cmd.AddParam('p1', EntityId);
   Cmd.AddParam('p2', RelatedId);
   Cmd.Execute;
@@ -2354,9 +2472,10 @@ end;
 
 procedure TDbSet<T>.UnlinkManyToMany(const AEntity: T; const APropertyName: string; const ARelatedEntity: TObject);
 var
+  Cmd: IDbCommand;
+  EntityId, RelatedId: TValue;
   PropMap: TPropertyMap;
   SQL: string;
-  EntityId, RelatedId: TValue;
 begin
   if FMap = nil then Exit;
   if not FMap.Properties.TryGetValue(APropertyName, PropMap) then Exit;
@@ -2369,7 +2488,7 @@ begin
   SQL := TJoinTableSQLHelper.GenerateDelete(FContext.Dialect,
     PropMap.JoinTableName, PropMap.LeftKeyColumn, PropMap.RightKeyColumn);
     
-  var Cmd := FContext.Connection.CreateCommand(SQL);
+  Cmd := FContext.Connection.CreateCommand(SQL);
   Cmd.AddParam('p1', EntityId);
   Cmd.AddParam('p2', RelatedId);
   Cmd.Execute;
@@ -2389,10 +2508,11 @@ end;
 
 procedure TDbSet<T>.SyncManyToMany(const AEntity: T; const APropertyName: string; const ARelatedEntities: TArray<TObject>);
 var
-  PropMap: TPropertyMap;
-  SQL: string;
+  Cmd, CmdLoop: IDbCommand;
   EntityId, RelatedId: TValue;
+  PropMap: TPropertyMap;
   RelEnt: TObject;
+  SQL: string;
 begin
   if FMap = nil then Exit;
   if not FMap.Properties.TryGetValue(APropertyName, PropMap) then Exit;
@@ -2405,7 +2525,7 @@ begin
   SQL := TJoinTableSQLHelper.GenerateDeleteByLeft(FContext.Dialect,
     PropMap.JoinTableName, PropMap.LeftKeyColumn);
     
-  var Cmd := FContext.Connection.CreateCommand(SQL);
+  Cmd := FContext.Connection.CreateCommand(SQL);
   Cmd.AddParam('p1', EntityId);
   Cmd.Execute;
   
@@ -2416,7 +2536,7 @@ begin
   for RelEnt in ARelatedEntities do
   begin
     RelatedId := GetRelatedId(RelEnt);
-    var CmdLoop := FContext.Connection.CreateCommand(SQL);
+    CmdLoop := FContext.Connection.CreateCommand(SQL);
     CmdLoop.AddParam('p1', EntityId);
     CmdLoop.AddParam('p2', RelatedId);
     CmdLoop.Execute;
@@ -2430,9 +2550,14 @@ end;
 
 function TDbSet<T>.Find(const AId: Variant): T;
 var
-  L: IList<T>;
-  VariantArray: TArray<Variant>;
+  Expr: IExpression;
   i: Integer;
+  L: IList<T>;
+  PKProp: TRttiProperty;
+  PropName: string;
+  Spec: ISpecification<T>;
+  Val: TValue;
+  VariantArray: TArray<Variant>;
 begin
   // Check if AId is a VarArray (composite key)
   if VarIsArray(AId) then
@@ -2448,12 +2573,11 @@ begin
   end;
 
   // Single key lookup
-  var PropName: string := 'Id';
-  var Val: TValue := TValue.Empty;
+  PropName := 'Id';
+  Val := TValue.Empty;
   
   if FPKColumns.Count > 0 then
   begin
-    var PKProp: TRttiProperty;
     // FProps keys are lowercased in MapEntity
     if FProps.TryGetValue(FPKColumns[0].ToLower, PKProp) then
     begin
@@ -2471,8 +2595,8 @@ begin
   if Val.IsEmpty then
     Val := TValue.FromVariant(AId);
 
-  var Expr: IExpression := TPropExpression.Create(PropName) = Val;
-  var Spec: ISpecification<T> := TSpecification<T>.Create(Expr);
+  Expr := TPropExpression.Create(PropName) = Val;
+  Spec := TSpecification<T>.Create(Expr);
   L := ToList(Spec);
   if L.Count > 0 then
   begin
@@ -2485,10 +2609,13 @@ end;
 
 function TDbSet<T>.Find(const AId: array of Variant): T;
 var
-  L: IList<T>;
   Expr: IExpression;
   i: Integer;
+  KeyExpr: IExpression;
+  L: IList<T>;
+  Pair: TPair<string, string>;
   PropName: string;
+  Spec: ISpecification<T>;
 begin
   if Length(AId) = 1 then
   begin
@@ -2506,7 +2633,7 @@ begin
   begin
     // Find the property name for this PK column
     PropName := '';
-    for var Pair in FColumns do
+    for Pair in FColumns do
     begin
       if SameText(Pair.Value, FPKColumns[i]) then
       begin
@@ -2520,7 +2647,7 @@ begin
       PropName := FPKColumns[i];
 
     // Create the equality expression for this key component
-    var KeyExpr: IExpression := TBinaryExpression.Create(PropName, boEqual, TValue.FromVariant(AId[i]));
+    KeyExpr := TBinaryExpression.Create(PropName, boEqual, TValue.FromVariant(AId[i]));
 
     // Combine with AND
     if Expr = nil then
@@ -2530,7 +2657,7 @@ begin
   end;
 
   // Execute the query
-  var Spec: ISpecification<T> := TSpecification<T>.Create(Expr);
+  Spec := TSpecification<T>.Create(Expr);
   L := ToList(Spec);
   
   if L.Count > 0 then
@@ -2541,8 +2668,8 @@ end;
 
 function TDbSet<T>.Find(const AId: array of Integer): T;
 var
-  VarArray: TArray<Variant>;
   i: Integer;
+  VarArray: TArray<Variant>;
 begin
   SetLength(VarArray, Length(AId));
   for i := 0 to High(AId) do
@@ -2552,46 +2679,45 @@ end;
 
 function TDbSet<T>.Query(const ASpec: ISpecification<T>): TFluentQuery<T>;
 var
-  LSelf: IDbSet<T>; 
-  LSpec: ISpecification<T>;
-  LFactory: TFunc<TQueryIterator<T>>;
+  Factory: TFunc<TQueryIterator<T>>;
+  SelfDbSet: IDbSet<T>;
+  Spec: ISpecification<T>;
 begin
-  LSpec := ASpec;
-  LSelf := Self; 
-  LFactory := function: TQueryIterator<T>
+  Spec := ASpec;
+  SelfDbSet := Self; 
+  Factory := function: TQueryIterator<T>
     begin
       Result := TSpecificationQueryIterator<T>.Create(
         function: IList<T>
         begin
-          Result := LSelf.ToList(LSpec);
+          Result := SelfDbSet.ToList(Spec);
         end);
     end;
 
   Result := TFluentQuery<T>.Create(
-    LFactory,
-    LSpec as ISpecification,
+    Factory,
+    Spec as ISpecification,
     TFunc<ISpecification, Integer>(
       function(S: ISpecification): Integer
       begin
-        Result := LSelf.Count(S as ISpecification<T>);
+        Result := SelfDbSet.Count(S as ISpecification<T>);
       end),
     TFunc<ISpecification, Boolean>(
       function(S: ISpecification): Boolean
       begin
-        Result := LSelf.Any(S as ISpecification<T>);
+        Result := SelfDbSet.Any(S as ISpecification<T>);
       end),
     TFunc<ISpecification, T>(
       function(S: ISpecification): T
       begin
-        Result := LSelf.FirstOrDefault(S as ISpecification<T>);
+        Result := SelfDbSet.FirstOrDefault(S as ISpecification<T>);
       end),
     FContext.Connection,
     TFunc<IEnumerator<T>>(
       function: IEnumerator<T>
       begin
-        Result := LSelf.RequestStreamingIterator(LSpec);
-      end)
-  );
+        Result := SelfDbSet.RequestStreamingIterator(Spec);
+      end));
 end;
 
 function TDbSet<T>.Query(const AExpression: IExpression): TFluentQuery<T>;
@@ -2632,29 +2758,32 @@ end;
 
 function TDbSet<T>.Any(const AExpression: IExpression): Boolean;
 var
-  Generator: TSqlGenerator<T>;
-  Sql: string;
   Cmd: IDbCommand;
+  Generator: TSqlGenerator<T>;
+  Pair: TPair<string, TValue>;
+  ParamType: TFieldType;
+  Reader: IDbReader;
+  Spec: ISpecification<T>;
+  Sql: string;
 begin
   Generator := CreateGenerator;
   try
-    var Spec: ISpecification<T> := TSpecification<T>.Create(AExpression);
+    Spec := TSpecification<T>.Create(AExpression);
     ApplyTenantFilter(Spec);
     Spec.Take(1);
     
     Sql := Generator.GenerateSelect(Spec); 
     
     Cmd := FContext.Connection.CreateCommand(Sql) as IDbCommand;
-    for var Pair in Generator.Params do
+    for Pair in Generator.Params do
     begin
-      var ParamType: TFieldType;
       if Generator.ParamTypes.TryGetValue(Pair.Key, ParamType) then
         Cmd.AddParam(Pair.Key, Pair.Value, ParamType)
       else
         Cmd.AddParam(Pair.Key, Pair.Value);
     end;
     
-    var Reader := Cmd.ExecuteQuery;
+    Reader := Cmd.ExecuteQuery;
     Result := Reader.Next;
   finally
     Generator.Free;
@@ -2692,10 +2821,13 @@ end;
 
 function TDbSet<T>.Count(const ASpec: ISpecification<T>): Integer;
 var
-  Generator: TSqlGenerator<T>;
-  Sql: string;
   Cmd: IDbCommand;
+  Generator: TSqlGenerator<T>;
   LSpec: ISpecification<T>;
+  Pair: TPair<string, TValue>;
+  ParamType: TFieldType;
+  Sql: string;
+  Val: TValue;
 begin
   Generator := CreateGenerator;
   try
@@ -2704,15 +2836,14 @@ begin
     Sql := Generator.GenerateCount(LSpec);
     
     Cmd := FContext.Connection.CreateCommand(Sql);
-    for var Pair in Generator.Params do
+    for Pair in Generator.Params do
     begin
-      var ParamType: TFieldType;
       if Generator.ParamTypes.TryGetValue(Pair.Key, ParamType) then
         Cmd.AddParam(Pair.Key, Pair.Value, ParamType)
       else
         Cmd.AddParam(Pair.Key, Pair.Value);
     end;
-    var Val := Cmd.ExecuteScalar;
+    Val := Cmd.ExecuteScalar;
     if Val.IsEmpty then Result := 0 else Result := Val.AsInteger;
   finally
     Generator.Free;
@@ -2724,8 +2855,6 @@ function TDbSet<T>.Any(const ASpec: ISpecification<T>): Boolean;
 begin
   Result := Count(ASpec) > 0;
 end;
-
-
 
 function TDbSet<T>.FirstOrDefault(const ASpec: ISpecification<T>): T;
 var
@@ -2741,9 +2870,6 @@ begin
   else
     Result := nil;
 end;
-
-
-
 
 function TDbSet<T>.IgnoreQueryFilters: IDbSet<T>;
 begin
@@ -2763,20 +2889,20 @@ begin
   FOnlyDeleted := False;
 end;
 
-
 function TDbSet<T>.HardDelete(const AEntity: T): IDbSet<T>;
 var
-  Generator: TSqlGenerator<T>;
-  Sql: string;
   Cmd: IDbCommand;
+  Generator: TSqlGenerator<T>;
+  Pair: TPair<string, TValue>;
+  ParamType: TFieldType;
+  Sql: string;
 begin
   Generator := CreateGenerator;
   try
     Sql := Generator.GenerateDelete(AEntity);
     Cmd := FContext.Connection.CreateCommand(Sql);
-    for var Pair in Generator.Params do
+    for Pair in Generator.Params do
     begin
-      var ParamType: TFieldType;
       if Generator.ParamTypes.TryGetValue(Pair.Key, ParamType) then
         Cmd.AddParam(Pair.Key, Pair.Value, ParamType)
       else
@@ -2797,13 +2923,16 @@ end;
 
 function TDbSet<T>.Restore(const AEntity: T): IDbSet<T>;
 var
-  RType: TRttiType;
-  SoftDeleteAttr: SoftDeleteAttribute;
-  Prop: TRttiProperty;
+  Attr: TCustomAttribute;
   ColumnName: string;
   IsSoftDelete: Boolean;
-  PropName: string;
   NotDeletedVal: Variant;
+  P: TRttiProperty;
+  Prop: TRttiProperty;
+  PropName: string;
+  RType: TRttiType;
+  SoftDeleteAttr: SoftDeleteAttribute;
+  ValToSet: TValue;
 begin
   IsSoftDelete := False;
   PropName := '';
@@ -2821,7 +2950,7 @@ begin
     RType := TReflection.Context.GetType(T);
     if RType <> nil then
     begin
-      for var Attr in RType.GetAttributes do
+      for Attr in RType.GetAttributes do
       begin
         if Attr is SoftDeleteAttribute then
         begin
@@ -2844,7 +2973,7 @@ begin
         Prop := nil;
         ColumnName := PropName;
         
-        for var P in RType.GetProperties do
+        for P in RType.GetProperties do
         begin
            if SameText(P.Name, ColumnName) then
            begin
@@ -2852,7 +2981,7 @@ begin
              Break;
            end;
            
-           for var Attr in P.GetAttributes do
+           for Attr in P.GetAttributes do
            begin
              if Attr is ColumnAttribute then
              begin
@@ -2868,8 +2997,6 @@ begin
         
         if Prop <> nil then
         begin
-          var ValToSet: TValue;
-          
           if Prop.PropertyType.Handle = TypeInfo(Boolean) then
             ValToSet := TValue.From(Boolean(NotDeletedVal))
           else 
@@ -2893,9 +3020,6 @@ begin
   Result := Dext.Entity.Prototype.Prototype.Entity<TEntity>;
 end;
 
-
-
-
 { TDynamicDbSetFactory<T> }
 
 function TDynamicDbSetFactory<T>.CreateDbSet(const AContext: IInterface): IInterface;
@@ -2904,5 +3028,4 @@ begin
 end;
 
 end.
-
 

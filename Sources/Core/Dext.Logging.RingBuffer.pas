@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -39,6 +39,10 @@ const
 
 type
   PLogEntry = ^TLogEntry;
+
+  /// <summary>
+  ///   Represents a single log event entry within the ring buffer.
+  /// </summary>
   TLogEntry = record
     SequenceId: Int64;
     TimeStamp: TDateTime;
@@ -69,6 +73,9 @@ type
   end;
 
   // Alignment and padding to ensure cache line exclusivity
+  /// <summary>
+  ///   Aligned pointers for the ring buffer to avoid false sharing.
+  /// </summary>
   TRingBufferPointers = record
     Head: Int64; // Producer index
     padding1: array[0..55] of Byte; 
@@ -120,7 +127,7 @@ end;
 
 function TRingBuffer.TryWrite(out Entry: PLogEntry): Boolean;
 var
-  CurrentHead, NextHead, Cap: Int64;
+  CurrentHead, NextHead, Cap, Tail: Int64;
 begin
   Cap := Length(FBuffer);
   
@@ -129,7 +136,7 @@ begin
     CurrentHead := TInterlocked.Read(FPointers.Head);
     
     // Check if full (Head wraps around and "catches" Tail)
-    var Tail := TInterlocked.Read(FPointers.Tail);
+    Tail := TInterlocked.Read(FPointers.Tail);
     if (CurrentHead - Tail) >= Cap then
     begin
       Result := False; // Buffer Full

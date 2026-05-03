@@ -74,9 +74,12 @@ var
   RouteParams: TRouteValueDictionary;
   Metadata: TEndpointMetadata;
   IndyContext: TDextIndyHttpContext;
+  Path: string;
+  Method: string;
+  Scheme: string;
 begin
-  var Path := AContext.Request.Path;
-  var Method := AContext.Request.Method;
+  Path := AContext.Request.Path;
+  Method := AContext.Request.Method;
 
   // Use RouteMatcher via interface with Method support
   if FRouteMatcher.FindMatchingRoute(AContext, Handler, RouteParams, Metadata) then
@@ -98,7 +101,7 @@ begin
         if (AContext.User = nil) or not AContext.User.Identity.IsAuthenticated then
         begin          
           AContext.Response.StatusCode := 401;
-          for var Scheme in Metadata.Security do
+          for Scheme in Metadata.Security do
           begin
             if SameText(Scheme, 'Basic') then
             begin

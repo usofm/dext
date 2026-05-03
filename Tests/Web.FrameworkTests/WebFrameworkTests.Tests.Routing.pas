@@ -5,6 +5,7 @@ interface
 uses
   System.SysUtils,
   System.Classes,
+  System.Net.HttpClient,
   Dext.Web.ApplicationBuilder.Extensions,
   Dext.Web.HandlerInvoker,
   Dext.Web.Interfaces,
@@ -70,11 +71,13 @@ begin
 end;
 
 procedure TRoutingTest.Run;
+var
+  Resp: System.Net.HttpClient.IHTTPResponse;
 begin
   Log('Running Routing Tests...');
 
   // Test GET
-  var Resp := FClient.Get(GetBaseUrl + '/test/get');
+  Resp := FClient.Get(GetBaseUrl + '/test/get');
   AssertTrue(Resp.StatusCode = 200, 'GET /test/get returned 200', 'GET /test/get returned ' + Resp.StatusCode.ToString);
   AssertEqual('GET OK', Resp.ContentAsString, 'GET Body');
   

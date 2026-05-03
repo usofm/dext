@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.Migrations;
+unit EntityDemo.Tests.Migrations;
 
 interface
 
@@ -6,6 +6,7 @@ uses
   System.SysUtils,
   System.Classes,
   System.IOUtils,
+  Dext.Collections,
   Dext.Entity.Migrations.Operations,
   Dext.Entity.Migrations.Builder,
   Dext.Entity.Migrations.Model,
@@ -67,6 +68,34 @@ end;
 procedure TMigrationsTest.Run;
 var
   Builder: TSchemaBuilder;
+  Op: TCreateTableOperation;
+  Dialects: TArray<ISQLDialect>;
+  DialectNames: TArray<string>;
+  i: Integer;
+  OpGeneric: TMigrationOperation;
+  SQL: string;
+  PrevModel, CurrModel: TSnapshotModel;
+  Table, PrevTable: TSnapshotTable;
+  Col, PrevCol, IdCol: TSnapshotColumn;
+  Ops: IList<TMigrationOperation>;
+  Conn: TFDConnection;
+  Dialect: ISQLDialect;
+  DemoContext: TEntityDemoContext;
+  Model: TSnapshotModel;
+  UserTable: TSnapshotTable;
+  GenBuilder: TSchemaBuilder;
+  UnitCode: string;
+  Lines: TArray<string>;
+  RunnerConn: TFDConnection;
+  RunnerDialect: ISQLDialect;
+  RunnerContext: TDbContext;
+  Migrator: TMigrator;
+  Tables: TStringList;
+  Qry: Variant;
+  ContextFactory: TFunc<IDbContext>;
+  CLI: TDextCLI;
+  Args: TCommandLineArgs;
+  ListCmd, UpCmd: IConsoleCommand;
 begin
   Log('🏗️ Running Migrations Builder Tests...');
 
@@ -100,7 +129,7 @@ begin
     // Inspect first operation
     if Builder.Operations[0] is TCreateTableOperation then
     begin
-      var Op := TCreateTableOperation(Builder.Operations[0]);
+      Op := TCreateTableOperation(Builder.Operations[0]);
       Log('   ✅ First operation is CreateTable: ' + Op.Name);
       Log('      Columns: ' + Op.Columns.Count.ToString);
     end;
@@ -108,7 +137,6 @@ begin
     Log('');
     Log('📝 Generating SQL for Dialects...');
     
-    var Dialects: TArray<ISQLDialect>;
     SetLength(Dialects, 5);
     Dialects[0] := TSQLiteDialect.Create;
     Dialects[1] := TPostgreSQLDialect.Create;
@@ -116,14 +144,14 @@ begin
     Dialects[3] := TFirebirdDialect.Create;
     Dialects[4] := TMySQLDialect.Create;
     
-    var DialectNames: TArray<string> := ['SQLite', 'PostgreSQL', 'SQL Server', 'Firebird', 'MySQL'];
+    DialectNames := ['SQLite', 'PostgreSQL', 'SQL Server', 'Firebird', 'MySQL'];
     
-    for var i := 0 to High(Dialects) do
+    for i := 0 to High(Dialects) do
     begin
       Log('   🔹 ' + DialectNames[i] + ':');
-      for var Op in Builder.Operations do
+      for OpGeneric in Builder.Operations do
       begin
-        var SQL := Dialects[i].GenerateMigration(Op);
+        SQL := Dialects[i].GenerateMigration(OpGeneric);
         Log('      ' + SQL);
       end;
       Log('');
@@ -136,15 +164,15 @@ begin
   // --- Model Differ Test ---
   Log('🔍 Running Model Differ Tests...');
   
-  var PrevModel := TSnapshotModel.Create;
-  var CurrModel := TSnapshotModel.Create;
+  PrevModel := TSnapshotModel.Create;
+  CurrModel := TSnapshotModel.Create;
   try
     // Setup Previous Model (Empty)
     
     // Setup Current Model (1 Table)
-    var Table := TSnapshotTable.Create;
+    Table := TSnapshotTable.Create;
     Table.Name := 'Users';
-    var Col := TSnapshotColumn.Create;
+    Col := TSnapshotColumn.Create;
     Col.Name := 'Id';
     Col.ColumnType := 'INTEGER';
     Col.IsPrimaryKey := True;
@@ -159,7 +187,7 @@ begin
     CurrModel.Tables.Add(Table);
     
     // Diff 1: Empty -> Users
-    var Ops := TModelDiffer.Diff(CurrModel, PrevModel);
+    Ops := TModelDiffer.Diff(CurrModel, PrevModel);
     Log('   Diff 1 (Add Table): ' + Ops.Count.ToString + ' operations.');
     if (Ops.Count > 0) and (Ops[0] is TCreateTableOperation) then
       Log('   ✅ Detected CreateTable Users')
@@ -167,9 +195,9 @@ begin
       Log('   ❌ Failed to detect CreateTable');
 
     // Setup Previous Model to match Current
-    var PrevTable := TSnapshotTable.Create;
+    PrevTable := TSnapshotTable.Create;
     PrevTable.Name := 'Users';
-    var PrevCol := TSnapshotColumn.Create;
+    PrevCol := TSnapshotColumn.Create;
     PrevCol.Name := 'Id';
     PrevCol.ColumnType := 'INTEGER';
     PrevCol.IsPrimaryKey := True;
@@ -223,8 +251,8 @@ begin
   Log('🔍 Running Extractor Tests...');
   
   // Create a temporary context with SQLite
-  var Conn := TFDConnection.Create(nil);
-  var Dialect: ISQLDialect := TSQLiteDialect.Create;
+  Conn := TFDConnection.Create(nil);
+  Dialect := TSQLiteDialect.Create;
   // Context removed as it was unused and leaking
   try
     // Register Entities (Users is already registered in EntityDemo.Entities)
@@ -236,19 +264,19 @@ begin
     // But we are using base TDbContext here.
     // Let's use the TTestDbContext defined in EntityDemo.Tests.Base (it's TEntityDemoContext).
     
-    var DemoContext: TEntityDemoContext := TEntityDemoContext.Create(TFireDACConnection.Create(Conn, False), Dialect);
+    DemoContext := TEntityDemoContext.Create(TFireDACConnection.Create(Conn, False), Dialect);
     try
-      var Model := TDbContextModelExtractor.Extract(DemoContext);
+      Model := TDbContextModelExtractor.Extract(DemoContext);
       try
         Log('   Extracted Tables: ' + Model.Tables.Count.ToString);
         
-        var UserTable := Model.FindTable('Users');
+        UserTable := Model.FindTable('Users');
         if UserTable <> nil then
         begin
           Log('   ✅ Found Table: Users');
           Log('      Columns: ' + UserTable.Columns.Count.ToString);
           
-          var IdCol := UserTable.FindColumn('Id');
+          IdCol := UserTable.FindColumn('Id');
           if IdCol <> nil then
             Log('      ✅ Found Column: Id (' + IdCol.ColumnType + ')')
           else
@@ -273,7 +301,7 @@ begin
   
   // Reuse the Builder from the first test (we need to recreate it or use a new one)
   // Let's create a new simple builder for generation test
-  var GenBuilder := TSchemaBuilder.Create;
+  GenBuilder := TSchemaBuilder.Create;
   try
     GenBuilder.CreateTable('Products', procedure(T: TTableBuilder)
     begin
@@ -284,13 +312,13 @@ begin
     
     GenBuilder.AddColumn('Products', 'Stock', 'INTEGER', 0, False);
     
-    var UnitCode := TMigrationGenerator.GenerateUnit('Migrations.Test', 'TMigration_20231001_Initial', GenBuilder.Operations);
+    UnitCode := TMigrationGenerator.GenerateUnit('Migrations.Test', 'TMigration_20231001_Initial', GenBuilder.Operations);
     
     Log('   Generated Code:');
     Log('   ---------------------------------------------------');
     // Log only first few lines to avoid spamming
-    var Lines := UnitCode.Split([sLineBreak]);
-    for var i := 0 to Min(15, High(Lines)) do
+    Lines := UnitCode.Split([sLineBreak]);
+    for i := 0 to Min(15, High(Lines)) do
       Log('   ' + Lines[i]);
     Log('   ... (truncated)');
     Log('   ---------------------------------------------------');
@@ -313,13 +341,13 @@ begin
   RegisterMigration(TTestMigration.Create);
   
   // Create Context (using SQLite)
-  var RunnerConn := TFDConnection.Create(nil);
+  RunnerConn := TFDConnection.Create(nil);
   // Configure SQLite in Memory or File? Let's use file to be sure
   RunnerConn.DriverName := 'SQLite';
   RunnerConn.Params.Values['Database'] := TPath.Combine(ExtractFilePath(ParamStr(0)), 'runner_test.db');
   
-  var RunnerDialect: ISQLDialect := TSQLiteDialect.Create;
-  var RunnerContext: TDbContext := TDbContext.Create(TFireDACConnection.Create(RunnerConn, False), RunnerDialect);
+  RunnerDialect := TSQLiteDialect.Create;
+  RunnerContext := TDbContext.Create(TFireDACConnection.Create(RunnerConn, False), RunnerDialect);
   try
     // Ensure clean state
     try
@@ -328,13 +356,13 @@ begin
     except
     end;
     
-    var Migrator := TMigrator.Create(RunnerContext);
+    Migrator := TMigrator.Create(RunnerContext);
     try
       Migrator.Migrate;
       Log('   ✅ Migration executed.');
       
       // Verify Table Exists
-      var Tables := TStringList.Create;
+      Tables := TStringList.Create;
       try
         RunnerConn.GetTableNames('', '', '', Tables);
         if Tables.IndexOf('TestMigratedTable') >= 0 then
@@ -346,7 +374,7 @@ begin
       end;
         
       // Verify History
-      var Qry := RunnerConn.ExecSQLScalar('SELECT COUNT(*) FROM __DextMigrations WHERE Id = ''20231001_TestMigration''');
+      Qry := RunnerConn.ExecSQLScalar('SELECT COUNT(*) FROM __DextMigrations WHERE Id = ''20231001_TestMigration''');
       if Integer(Qry) > 0 then
         Log('   ✅ Migration recorded in history.')
       else
@@ -365,30 +393,32 @@ begin
   Log('💻 Running CLI Tests...');
   
   // Create a factory for the context
-  var ContextFactory: TFunc<IDbContext> := function: IDbContext
+  ContextFactory := function: IDbContext
+  var
+    C: TFDConnection;
   begin
-    var C := TFDConnection.Create(nil);
+    C := TFDConnection.Create(nil);
     C.DriverName := 'SQLite';
     C.Params.Values['Database'] := TPath.Combine(ExtractFilePath(ParamStr(0)), 'runner_test.db');
     Result := TDbContext.Create(TFireDACConnection.Create(C, True), TSQLiteDialect.Create);
   end;
   
-  var CLI := TDextCLI.Create(ContextFactory);
+  CLI := TDextCLI.Create(ContextFactory);
   try
     // Mock command line args? 
     // TDextCLI reads ParamStr. We can't easily mock ParamStr in a running app.
     // However, we can test the Command classes directly or overload Run to accept args.
     // For now, let's just instantiate the commands manually to verify they compile and run logic.
     
-    var Args := TCommandLineArgs.Create;
+    Args := TCommandLineArgs.Create;
     try
       Log('   Testing migrate:list command logic...');
-      var ListCmd: IConsoleCommand := TMigrateListCommand.Create(ContextFactory);
+      ListCmd := TMigrateListCommand.Create(ContextFactory);
       ListCmd.Execute(Args);
       Log('   ✅ migrate:list executed.');
       
       Log('   Testing migrate:up command logic...');
-      var UpCmd: IConsoleCommand := TMigrateUpCommand.Create(ContextFactory);
+      UpCmd := TMigrateUpCommand.Create(ContextFactory);
       UpCmd.Execute(Args);
       Log('   ✅ migrate:up executed.');
     finally

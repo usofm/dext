@@ -233,6 +233,7 @@ procedure TEntityMetadataParser.ExtractMembers(AMetadata: TEntityClassMetadata; 
     MName, MType, AlignAttr: string;
     Member: TEntityMemberMetadata;
     TempValue: string;
+    JoinArgs: TArray<string>;
   begin
     for CChild in ContextNode.ChildNodes do
     begin
@@ -275,7 +276,7 @@ procedure TEntityMetadataParser.ExtractMembers(AMetadata: TEntityClassMetadata; 
         Member.HasJoin := HasAttribute(FMemberAttributes, 'Join', CChild);
         if Member.HasJoin then
         begin
-          var JoinArgs := GetAttributeArguments(FMemberAttributes, 'Join', CChild);
+          JoinArgs := GetAttributeArguments(FMemberAttributes, 'Join', CChild);
           if Length(JoinArgs) >= 1 then Member.JoinColumn := JoinArgs[0];
           if Length(JoinArgs) >= 2 then Member.JoinTargetColumn := JoinArgs[1];
         end;

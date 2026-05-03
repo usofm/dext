@@ -1,4 +1,4 @@
-unit Dext.Entity.Design.Metadata.Tests;
+﻿unit Dext.Entity.Design.Metadata.Tests;
 
 interface
 
@@ -38,6 +38,7 @@ const
 var
   BaseDir: string;
   ResultPath: string;
+  CurrentDir: string;
 begin
   BaseDir := ExcludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)));
   
@@ -55,7 +56,7 @@ begin
   if FileExists(ResultPath) then Exit(ResultPath);
 
   // Try 4: Recursive search up
-  var CurrentDir := BaseDir;
+  CurrentDir := BaseDir;
   while Length(CurrentDir) > 3 do
   begin
     ResultPath := TPath.Combine(CurrentDir, DEMO_REL_PATH);
@@ -68,21 +69,25 @@ end;
 
 function TEntityDesignMetadataTests.FindEntity(const AEntities: IList<TEntityClassMetadata>;
   const AClassName: string): TEntityClassMetadata;
+var
+  i: Integer;
 begin
   Result := nil;
-  for var i := 0 to AEntities.Count - 1 do
+  for i := 0 to AEntities.Count - 1 do
     if SameText(AEntities[i].EntityClassName, AClassName) then
       Exit(AEntities[i]);
 end;
 
 function TEntityDesignMetadataTests.FindMember(AEntity: TEntityClassMetadata;
   const AMemberName: string): TEntityMemberMetadata;
+var
+  i: Integer;
 begin
   Result := nil;
   if AEntity = nil then
     Exit;
 
-  for var i := 0 to AEntity.Members.Count - 1 do
+  for i := 0 to AEntity.Members.Count - 1 do
   begin
     if SameText(AEntity.Members[i].Name, AMemberName) then
       Exit(AEntity.Members[i]);
