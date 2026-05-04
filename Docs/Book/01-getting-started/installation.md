@@ -22,7 +22,7 @@ Using an environment variable simplifies your Library Paths and allows you to sw
     - *Example*: `C:\dev\Dext\DextRepository\Sources`
     - *Note*: Ensure it points to the `Sources` folder, not the root, to match the paths below.
 
-    ![DEXT Environment Variable](../../../Images/ide-env-var.png)
+    ![DEXT Environment Variable](../../Images/ide-env-var.png)
 
 ### 2. Configure Library Path (DCUs)
 

@@ -72,17 +72,19 @@ Mapeamento automático via *Convention over Configuration* e propriedades estrut
 [DataApi('/api/orders')] // Exposto automaticamente como REST API (Zero-Code API)!
 TOrder = class
 private
-  FId: Integer;
-  FStatus: TOrderStatus;
-  FTotal: Nullable<Currency>;
+  FId: IntType;
+  FStatus: Prop<TOrderStatus>;
+  FNotes: StringType;
+  FTotal: CurrencyType;
   FItems: Lazy<IList<TOrderItem>>;
 public
   [PK, AutoInc]
-  property Id: Integer read FId write FId;
-  property Status: TOrderStatus read FStatus write FStatus;
+  property Id: IntType read FId write FId;
+  property Status: Prop<TOrderStatus> read FStatus write FStatus;
+  property Notes: StringType read FNotes write FNotes;
   
-  // Propriedades explícitas para lidar nativamente com nulos e Lazy Loading
-  property Total: Nullable<Currency> read FTotal write FTotal;
+  // Smart Types para lidar nativamente com nulos, validação e Lazy Loading
+  property Total: CurrencyType read FTotal write FTotal;
   property Items: Lazy<IList<TOrderItem>> read FItems write FItems;
 end;
 ```

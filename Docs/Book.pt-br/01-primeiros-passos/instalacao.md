@@ -52,7 +52,7 @@ Utilizar uma variável de ambiente simplifica seus Library Paths e permite alter
     * *Exemplo:* `C:\dev\Dext\DextRepository\Sources`
     * *Nota:* Aponte para a pasta `Sources`, não a raiz.
 
-    ![Variável de Ambiente DEXT](../../../Images/ide-env-var.png)
+    ![Variável de Ambiente DEXT](../../Images/ide-env-var.png)
 
 ## 3. Configuração do Library Path (DCUs)
 
