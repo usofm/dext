@@ -90,6 +90,7 @@
 //---------------------------------------------------------------------------
 
 {$IFDEF DEXT_ENABLE_ENTITY}
+  {.$DEFINE DEXT_USE_ENTITY_PREFIX}
   // Enable/Disable specific database drivers to avoid unnecessary dependencies.
   // Useful for Delphi Professional/Community editions.
   // ---------------------------------------------------------------------------

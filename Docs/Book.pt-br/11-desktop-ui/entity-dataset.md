@@ -114,3 +114,11 @@ Se você já possui o **EntityDAC** da Devart instalado na sua IDE do Delphi, po
    * Procure os pacotes do Devart EntityDAC na lista e **desmarque-os**.
    * Clique em **Save**.
    * Agora você poderá instalar o pacote `Dext.EF.Design.bpl` e usar os componentes `TEntityDataSet` e `TEntityDataProvider` nos seus forms tranquilamente.
+
+4. **Coexistência via Prefixo (Experimental):**
+   Caso precise ter ambas as bibliotecas instaladas simultaneamente (ex: durante uma fase de migração), você pode habilitar o prefixo nos nomes:
+   * Abra o arquivo `Sources\Dext.inc`.
+   * Descomente `{$DEFINE DEXT_USE_ENTITY_PREFIX}`.
+   * Recompile o framework.
+   * Os componentes serão registrados como **`TDextEntityDataSet`** e **`TDextEntityDataProvider`**.
+

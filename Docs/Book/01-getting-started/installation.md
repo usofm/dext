@@ -102,6 +102,18 @@ If you are using Delphi Enterprise/Architect and want to use other databases (Po
 
 > **Note:** The `Dext.inc` file is automatically copied to the output folder (`Output`) during the Build process, ensuring that your applications use the same directive definitions as the compiled framework.
 
+### 5. Component Naming Conflicts (e.g., Devart EntityDAC)
+
+If you have other libraries installed (like Devart EntityDAC) that use the same component names (`TEntityDataSet`, `TEntityDataProvider`), you will encounter an IDE conflict during installation.
+
+To resolve this, Dext provides a naming prefix option:
+
+1. Open `Sources\Dext.inc`.
+2. Uncomment the directive: `{$DEFINE DEXT_USE_ENTITY_PREFIX}`.
+3. Rebuild the framework.
+
+This will register the components as **`TDextEntityDataSet`** and **`TDextEntityDataProvider`**, allowing them to coexist with other libraries in the same IDE.
+
 ---
 
 ## Troubleshooting

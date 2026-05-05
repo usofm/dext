@@ -2,16 +2,18 @@ unit Dext.EF.Design.Editors;
 
 interface
 
+{$I Dext.Inc}
+
 uses
-  System.SysUtils,
-  System.Classes,
-  System.RegularExpressions,
-  System.IOUtils,
-  DesignIntf,
   DesignEditors,
+  DesignIntf,
+  System.Classes,
+  System.IOUtils,
+  System.RegularExpressions,
+  System.SysUtils,
   ToolsAPI,
-  VCLEditors,
   Vcl.Dialogs,
+  VCLEditors,
   Data.DB,
   Dext.Collections,
   Dext.Collections.Base,
@@ -24,6 +26,13 @@ uses
   Dext.EF.Design.EntitySelection;
 
 type
+{$IFDEF DEXT_USE_ENTITY_PREFIX}
+  TDextEntityDataSet = class(TEntityDataSet)
+  end;
+  TDextEntityDataProvider = class(TEntityDataProvider)
+  end;
+{$ENDIF}
+
   /// <summary>Property editor for selecting a TEntityDataProvider in the Object Inspector.</summary>
   TEntityDataProviderComponentProperty = class(TComponentProperty)
   public
@@ -727,15 +736,27 @@ begin
 end;
 
 procedure RegisterEditors;
+var
+  DataSetClass: TComponentClass;
+  ProviderClass: TComponentClass;
 begin
-  RegisterComponents('Dext Entity', [TEntityDataProvider, TEntityDataSet]);
-  RegisterPropertyEditor(TypeInfo(string), TEntityDataSet, 'EntityClassName', TEntityClassNameProperty);
-  RegisterComponentEditor(TEntityDataProvider, TEntityDataProviderEditor);
-  RegisterSelectionEditor(TEntityDataSet, TEntityDataSetSelectionEditor);
+{$IFDEF DEXT_USE_ENTITY_PREFIX}
+  DataSetClass := TDextEntityDataSet;
+  ProviderClass := TDextEntityDataProvider;
+{$ELSE}
+  DataSetClass := TEntityDataSet;
+  ProviderClass := TEntityDataProvider;
+{$ENDIF}
+  RegisterComponents('Dext Entity', [ProviderClass, DataSetClass]);
+  RegisterPropertyEditor(TypeInfo(string), DataSetClass, 'EntityClassName', TEntityClassNameProperty);
+  RegisterComponentEditor(ProviderClass, TEntityDataProviderEditor);
+  RegisterSelectionEditor(DataSetClass, TEntityDataSetSelectionEditor);
 end;
 
 initialization
   GOnGetSourceContent := GetModuleContent;
+
 finalization
   GOnGetSourceContent := nil;
+
 end.

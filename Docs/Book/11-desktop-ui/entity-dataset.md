@@ -114,3 +114,11 @@ If you already have **EntityDAC** by Devart installed in your Delphi IDE, you mi
    * Find the Devart EntityDAC packages in the list and **uncheck** them.
    * Click **Save**.
    * You can now safely install the `Dext.EF.Design.bpl` package and use `TEntityDataSet` and `TEntityDataProvider` on your forms.
+
+4. **Coexistence via Prefixing (Experimental):**
+   If you need to have both libraries installed simultaneously (e.g., during a migration phase), you can enable the naming prefix:
+   * Open `Sources\Dext.inc`.
+   * Uncomment `{$DEFINE DEXT_USE_ENTITY_PREFIX}`.
+   * Rebuild the framework.
+   * The components will be registered as **`TDextEntityDataSet`** and **`TDextEntityDataProvider`**.
+
