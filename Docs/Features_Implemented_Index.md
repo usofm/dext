@@ -541,6 +541,14 @@ Fluent API based on the `Should(Value)` pattern.
 - **Interception Engine** — Proxy engine for method interception, base for Mocks and AOP (Aspect-Oriented Programming) features.
 - **Design-Time Experts** — IDE Grid Data Preview and specialized metadata property editors.
 
+### 12.5 Design-Time Scaffolding Experts (`Dext.EF.Design.Scaffolding`)
+- **TSelectionEditor Integration** — Non-invasive context menu integration for `TFDConnection` and `TDataSet` (FireDAC and Generic). Dext menus coexist with native IDE menus.
+- **TTableSelectionForm** — Advanced selection UI with real-time filtering, "Select All/None" shortcuts, and live table/selection counters.
+- **Live Scaffolding Preview** — High-fidelity preview window with real-time code generation, statistics (Entities/Metadata/Lines), and style switching (POCO vs. Smart).
+- **Smart PascalCase Engine** — Acronym-aware naming logic (`EmployeeID` → `EmployeeId`, `ReportsTo` preserved) with support for `snake_case` and `ALL_CAPS` normalization.
+- **Enhanced Meta-Inference** — Precise AutoInc detection via RTTI and `ftAutoInc`, ensuring 1:1 parity with database schema.
+- **IOTA Automation** — Seamless creation of new units in memory and automatic association with the active Delphi project.
+
 ---
 
 ## 🛠️ 13. Dext CLI & Scaffolding (`Tools\Dext.Tool.Scaffolding`)

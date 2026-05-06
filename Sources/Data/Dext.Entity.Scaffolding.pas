@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -29,6 +29,7 @@ interface
 
 uses
   System.SysUtils,
+  System.Character,
   System.Classes,
   FireDAC.Comp.Client,
   Dext.Collections.Base,
@@ -801,9 +802,10 @@ end;
 
 function TDelphiEntityGenerator.CleanName(const AName: string): string;
 var
+  CleanedName: string;
+  i: Integer;
   Parts: TArray<string>;
   S: string;
-  CleanedName: string;
 begin
   Result := '';
   CleanedName := AName.Replace('"', '').Replace('''', '').Replace('[', '').Replace(']', '');
@@ -814,7 +816,22 @@ begin
   end;
   Parts := CleanedName.Split(['_', '-', ' '], TStringSplitOptions.ExcludeEmpty);
   for S in Parts do
-    if S.Length > 0 then Result := Result + UpperCase(S.Chars[0]) + S.Substring(1).ToLower;
+  begin
+    if S.Length > 0 then
+    begin
+      Result := Result + UpperCase(S.Chars[0]);
+      for i := 1 to S.Length - 1 do
+      begin
+        // If current is uppercase and previous was also uppercase, lowercase it (acronym handling)
+        // e.g., EmployeeID -> EmployeeId, HTTP -> Http
+        if (S.Chars[i] >= 'A') and (S.Chars[i] <= 'Z') and
+           (S.Chars[i-1] >= 'A') and (S.Chars[i-1] <= 'Z') then
+          Result := Result + S.Chars[i].ToLower
+        else
+          Result := Result + S.Chars[i];
+      end;
+    end;
+  end;
 end;
 
 function TDelphiEntityGenerator.CleanMappingName(const AName: string): string;
@@ -912,7 +929,8 @@ begin
     SB.AppendLine('  Dext.Types.Lazy,');
     if AGenerateMetadata then
     begin
-      SB.AppendLine('  Dext.Entity.TypeSystem,');
+      if APropertyStyle = psPOCO then
+        SB.AppendLine('  Dext.Entity.TypeSystem,');
       SB.AppendLine('  Dext.Specifications.Types,');
     end;
     SB.AppendLine('  System.SysUtils,');
@@ -1016,7 +1034,7 @@ begin
         SB.AppendLine('');
       end;
       
-      if AGenerateMetadata then
+      if AGenerateMetadata and (APropertyStyle = psPOCO) then
       begin
         for Table in ATables do
         begin
@@ -1066,7 +1084,7 @@ begin
          SB.AppendLine('end;' + sLineBreak);
       end;
       
-      if AGenerateMetadata then
+      if AGenerateMetadata and (APropertyStyle = psPOCO) then
       begin
         for Table in ATables do
         begin

@@ -48,6 +48,8 @@ contains
   Dext.EF.Design.Expert in 'Design\Dext.EF.Design.Expert.pas',
   Dext.EF.Design.Preview in 'Design\Dext.EF.Design.Preview.pas',
   Dext.EF.Design.Registration in 'Design\Dext.EF.Design.Registration.pas',
-  Dext.EF.Design.EntitySelection in 'Design\Dext.EF.Design.EntitySelection.pas';
+  Dext.EF.Design.EntitySelection in 'Design\Dext.EF.Design.EntitySelection.pas',
+  Dext.EF.Design.Scaffolding.Helpers in 'Design\Dext.EF.Design.Scaffolding.Helpers.pas',
+  Dext.EF.Design.Scaffolding.Preview in 'Design\Dext.EF.Design.Scaffolding.Preview.pas';
 
 end.

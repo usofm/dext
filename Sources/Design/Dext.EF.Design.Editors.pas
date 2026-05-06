@@ -5,6 +5,7 @@ interface
 {$I Dext.Inc}
 
 uses
+  Data.DB,
   DesignEditors,
   DesignIntf,
   System.Classes,
@@ -12,9 +13,14 @@ uses
   System.RegularExpressions,
   System.SysUtils,
   ToolsAPI,
+  Vcl.CheckLst,
+  Vcl.Controls,
   Vcl.Dialogs,
+  Vcl.ExtCtrls,
+  Vcl.Forms,
+  Vcl.Graphics,
+  Vcl.StdCtrls,
   VCLEditors,
-  Data.DB,
   Dext.Collections,
   Dext.Collections.Base,
   Dext.Entity.DataSet,
@@ -23,7 +29,12 @@ uses
   Dext.Entity.Metadata,
   Dext.EF.Design.Metadata,
   Dext.EF.Design.Preview,
-  Dext.EF.Design.EntitySelection;
+  Dext.EF.Design.EntitySelection,
+  Dext.Entity.Scaffolding,
+  Dext.EF.Design.Scaffolding.Helpers,
+  Dext.EF.Design.Scaffolding.Preview,
+  FireDAC.Comp.Client,
+  FireDAC.Comp.DataSet;
 
 type
 {$IFDEF DEXT_USE_ENTITY_PREFIX}
@@ -65,10 +76,31 @@ type
     procedure ExecuteVerb(Index: Integer; const List: IDesignerSelections); override;
   end;
 
+  TScaffoldingConnectionSelectionEditor = class(TSelectionEditor)
+  public
+    procedure ExecuteVerb(Index: Integer; const List: IDesignerSelections); override;
+    function GetVerb(Index: Integer): string; override;
+    function GetVerbCount: Integer; override;
+  end;
+
+  TScaffoldingDataSetSelectionEditor = class(TSelectionEditor)
+  public
+    procedure ExecuteVerb(Index: Integer; const List: IDesignerSelections); override;
+    function GetVerb(Index: Integer): string; override;
+    function GetVerbCount: Integer; override;
+  end;
+
 function FindOwnerProject(ADesigner: IDesigner): IOTAProject;
 procedure RegisterEditors;
 
 implementation
+
+uses
+  System.UITypes,
+  System.Generics.Collections,
+  Vcl.Buttons;
+
+function InputCombo(const ACaption, APrompt: string; const AItems: TStrings; var AValue: string): Boolean; forward;
 
 function FindOwnerProject(ADesigner: IDesigner): IOTAProject;
 var
@@ -735,6 +767,406 @@ begin
   Result := 6;
 end;
 
+type
+  TTableSelectionForm = class(TForm)
+  private
+    FCheckList: TCheckListBox;
+    FFilterEdit: TEdit;
+    FStatsLabel: TLabel;
+    FSelectedLabel: TLabel;
+    FAllItems: TStringList;
+    FCheckedItems: TDictionary<string, Boolean>;
+    procedure RebuildList;
+    procedure OnFilterChange(Sender: TObject);
+    procedure OnSelectAll(Sender: TObject);
+    procedure OnUnselectAll(Sender: TObject);
+    procedure OnCheckClick(Sender: TObject);
+  public
+    constructor Create(const ACaption: string; AItems: TStrings); reintroduce;
+    destructor Destroy; override;
+    function GetSelected(ASelected: TStrings): Boolean;
+  end;
+
+{ TTableSelectionForm }
+
+constructor TTableSelectionForm.Create(const ACaption: string; AItems: TStrings);
+var
+  TopPanel, BottomPanel: TPanel;
+  BtnOk, BtnCancel, BtnAll, BtnNone: TButton;
+  I: Integer;
+begin
+  inherited CreateNew(nil);
+  FCheckedItems := TDictionary<string, Boolean>.Create;
+  FAllItems := TStringList.Create;
+  FAllItems.Assign(AItems);
+  for I := 0 to FAllItems.Count - 1 do
+    FCheckedItems.Add(FAllItems[I], False);
+
+  Caption := ACaption;
+  Width := 450;
+  Height := 550;
+  Position := poScreenCenter;
+
+  TopPanel := TPanel.Create(Self);
+  TopPanel.Parent := Self;
+  TopPanel.Align := alTop;
+  TopPanel.Height := 80;
+  TopPanel.BevelOuter := bvNone;
+
+  FFilterEdit := TEdit.Create(Self);
+  FFilterEdit.Parent := TopPanel;
+  FFilterEdit.Align := alTop;
+  FFilterEdit.Margins.SetBounds(10, 10, 10, 5);
+  FFilterEdit.AlignWithMargins := True;
+  FFilterEdit.TextHint := 'Filter tables...';
+  FFilterEdit.OnChange := OnFilterChange;
+
+  BtnAll := TButton.Create(Self);
+  BtnAll.Parent := TopPanel;
+  BtnAll.Caption := 'Select All';
+  BtnAll.Left := 10;
+  BtnAll.Top := 45;
+  BtnAll.Width := 100;
+  BtnAll.OnClick := OnSelectAll;
+
+  BtnNone := TButton.Create(Self);
+  BtnNone.Parent := TopPanel;
+  BtnNone.Caption := 'Unselect All';
+  BtnNone.Left := 120;
+  BtnNone.Top := 45;
+  BtnNone.Width := 100;
+  BtnNone.OnClick := OnUnselectAll;
+
+  FStatsLabel := TLabel.Create(Self);
+  FStatsLabel.Parent := TopPanel;
+  FStatsLabel.Left := 230;
+  FStatsLabel.Top := 50;
+  FStatsLabel.Caption := 'Tables: 0';
+
+  BottomPanel := TPanel.Create(Self);
+  BottomPanel.Parent := Self;
+  BottomPanel.Align := alBottom;
+  BottomPanel.Height := 50;
+  BottomPanel.BevelOuter := bvNone;
+
+  FSelectedLabel := TLabel.Create(Self);
+  FSelectedLabel.Parent := BottomPanel;
+  FSelectedLabel.Left := 10;
+  FSelectedLabel.Top := 15;
+  FSelectedLabel.Caption := 'Selected: 0';
+  FSelectedLabel.Font.Color := clRed;
+  FSelectedLabel.Font.Style := [fsBold];
+
+  BtnCancel := TButton.Create(Self);
+  BtnCancel.Parent := BottomPanel;
+  BtnCancel.Caption := 'Cancel';
+  BtnCancel.Cancel := True;
+  BtnCancel.ModalResult := mrCancel;
+  BtnCancel.Width := 80;
+  BtnCancel.Height := 30;
+  BtnCancel.Top := 10;
+  BtnCancel.Left := BottomPanel.Width - 90;
+  BtnCancel.Anchors := [akRight, akBottom];
+
+  BtnOk := TButton.Create(Self);
+  BtnOk.Parent := BottomPanel;
+  BtnOk.Caption := 'OK';
+  BtnOk.Default := True;
+  BtnOk.ModalResult := mrOk;
+  BtnOk.Width := 80;
+  BtnOk.Height := 30;
+  BtnOk.Top := 10;
+  BtnOk.Left := BtnCancel.Left - 85; // 5px gap (85 - 80)
+  BtnOk.Anchors := [akRight, akBottom];
+
+  FCheckList := TCheckListBox.Create(Self);
+  FCheckList.Parent := Self;
+  FCheckList.Align := alClient;
+  FCheckList.AlignWithMargins := True;
+  FCheckList.OnClickCheck := OnCheckClick;
+
+  RebuildList;
+end;
+
+destructor TTableSelectionForm.Destroy;
+begin
+  FAllItems.Free;
+  FCheckedItems.Free;
+  inherited;
+end;
+
+function TTableSelectionForm.GetSelected(ASelected: TStrings): Boolean;
+var
+  Pair: TPair<string, Boolean>;
+begin
+  Result := False;
+  if ShowModal = mrOk then
+  begin
+    ASelected.Clear;
+    for Pair in FCheckedItems do
+      if Pair.Value then
+        ASelected.Add(Pair.Key);
+    Result := ASelected.Count > 0;
+  end;
+end;
+
+procedure TTableSelectionForm.OnCheckClick(Sender: TObject);
+var
+  I, Count: Integer;
+begin
+  if FCheckList.ItemIndex >= 0 then
+    FCheckedItems.AddOrSetValue(FCheckList.Items[FCheckList.ItemIndex], FCheckList.Checked[FCheckList.ItemIndex]);
+    
+  Count := 0;
+  for I := 0 to FAllItems.Count - 1 do
+    if FCheckedItems[FAllItems[I]] then
+      Inc(Count);
+  FSelectedLabel.Caption := 'Selected: ' + IntToStr(Count);
+end;
+
+procedure TTableSelectionForm.OnFilterChange(Sender: TObject);
+begin
+  RebuildList;
+end;
+
+procedure TTableSelectionForm.OnSelectAll(Sender: TObject);
+var
+  I, Count: Integer;
+begin
+  for I := 0 to FCheckList.Items.Count - 1 do
+  begin
+    FCheckList.Checked[I] := True;
+    FCheckedItems.AddOrSetValue(FCheckList.Items[I], True);
+  end;
+  
+  Count := 0;
+  for I := 0 to FAllItems.Count - 1 do
+    if FCheckedItems[FAllItems[I]] then
+      Inc(Count);
+  FSelectedLabel.Caption := 'Selected: ' + IntToStr(Count);
+end;
+
+procedure TTableSelectionForm.OnUnselectAll(Sender: TObject);
+var
+  I, Count: Integer;
+begin
+  for I := 0 to FCheckList.Items.Count - 1 do
+  begin
+    FCheckList.Checked[I] := False;
+    FCheckedItems.AddOrSetValue(FCheckList.Items[I], False);
+  end;
+  
+  Count := 0;
+  for I := 0 to FAllItems.Count - 1 do
+    if FCheckedItems[FAllItems[I]] then
+      Inc(Count);
+  FSelectedLabel.Caption := 'Selected: ' + IntToStr(Count);
+end;
+
+procedure TTableSelectionForm.RebuildList;
+var
+  S, Filter: string;
+begin
+  Filter := FFilterEdit.Text;
+  FCheckList.Items.BeginUpdate;
+  try
+    FCheckList.Items.Clear;
+    for S in FAllItems do
+    begin
+      if (Filter = '') or (S.ToLower.Contains(Filter.ToLower)) then
+      begin
+        FCheckList.Items.Add(S);
+        FCheckList.Checked[FCheckList.Items.Count - 1] := FCheckedItems[S];
+      end;
+    end;
+  finally
+    FCheckList.Items.EndUpdate;
+  end;
+  FStatsLabel.Caption := Format('Visible: %d / Total: %d', [FCheckList.Items.Count, FAllItems.Count]);
+end;
+
+function MultiInput(const ACaption: string; const AItems: TStrings; ASelected: TStrings): Boolean;
+var
+  Form: TTableSelectionForm;
+begin
+  Form := TTableSelectionForm.Create(ACaption, AItems);
+  try
+    Result := Form.GetSelected(ASelected);
+  finally
+    Form.Free;
+  end;
+end;
+
+{ TScaffoldingConnectionSelectionEditor }
+
+procedure TScaffoldingConnectionSelectionEditor.ExecuteVerb(Index: Integer; const List: IDesignerSelections);
+var
+  Conn: TFDConnection;
+  Tables, SelectedTables: TStringList;
+  MetaArray: TArray<TMetaTable>;
+  Path: string;
+  I: Integer;
+begin
+  if (List.Count = 0) or not (List[0] is TFDConnection) then
+    Exit;
+    
+  Conn := TFDConnection(List[0]);
+
+  case Index of
+    0: // Dext: Generate Entities from Tables...
+    begin
+      Tables := TStringList.Create;
+      SelectedTables := TStringList.Create;
+      try
+        Conn.GetTableNames('', '', '', Tables);
+        if Tables.Count = 0 then
+        begin
+          MessageDlg('No tables found in this connection.', mtWarning, [mbOK], 0);
+          Exit;
+        end;
+
+        if not MultiInput('Select Tables to Scaffold', Tables, SelectedTables) then
+          Exit;
+
+        SetLength(MetaArray, SelectedTables.Count);
+        for I := 0 to SelectedTables.Count - 1 do
+          MetaArray[I] := TScaffoldingHelper.GetTableMetadata(Conn, SelectedTables[I]);
+        
+        // Suggested path: current module path
+        Path := '';
+        if (BorlandIDEServices as IOTAModuleServices).CurrentModule <> nil then
+          Path := ExtractFilePath((BorlandIDEServices as IOTAModuleServices).CurrentModule.FileName);
+        
+        if Path = '' then
+          Path := TPath.GetDocumentsPath;
+
+        ShowScaffoldingPreview(MetaArray, Path);
+      finally
+        Tables.Free;
+        SelectedTables.Free;
+      end;
+    end;
+  end;
+end;
+
+function TScaffoldingConnectionSelectionEditor.GetVerb(Index: Integer): string;
+begin
+  case Index of
+    0: Result := 'Dext: Scaffolding -> Generate Entities from Tables...';
+  end;
+end;
+
+function TScaffoldingConnectionSelectionEditor.GetVerbCount: Integer;
+begin
+  Result := 1;
+end;
+
+{ TScaffoldingDataSetSelectionEditor }
+
+procedure TScaffoldingDataSetSelectionEditor.ExecuteVerb(Index: Integer; const List: IDesignerSelections);
+var
+  DS: TDataSet;
+  Meta: TMetaTable;
+  Path: string;
+begin
+  if (List.Count = 0) or not (List[0] is TDataSet) then
+    Exit;
+    
+  DS := TDataSet(List[0]);
+
+  case Index of
+    0: // Dext: Create Entity from this Dataset...
+    begin
+      if DS.FieldCount = 0 then
+      begin
+        MessageDlg('Dataset has no fields. Open the dataset or add fields before generating.', mtError, [mbOK], 0);
+        Exit;
+      end;
+      
+      Meta := TScaffoldingHelper.DataSetToMetaTable(DS);
+      
+      // Suggested path: current module path
+      Path := '';
+      if (BorlandIDEServices as IOTAModuleServices).CurrentModule <> nil then
+        Path := ExtractFilePath((BorlandIDEServices as IOTAModuleServices).CurrentModule.FileName);
+      
+      if Path = '' then
+        Path := TPath.GetDocumentsPath;
+
+      ShowScaffoldingPreview([Meta], Path);
+    end;
+  end;
+end;
+
+function TScaffoldingDataSetSelectionEditor.GetVerb(Index: Integer): string;
+begin
+  case Index of
+    0: Result := 'Dext: Create Entity from this Dataset...';
+  end;
+end;
+
+function TScaffoldingDataSetSelectionEditor.GetVerbCount: Integer;
+begin
+  Result := 1;
+end;
+
+function InputCombo(const ACaption, APrompt: string; const AItems: TStrings; var AValue: string): Boolean;
+var
+  Form: TForm;
+  Lbl: TLabel;
+  Combo: TComboBox;
+  BtnOk, BtnCancel: TButton;
+begin
+  Result := False;
+  Form := TForm.Create(nil);
+  try
+    Form.Caption := ACaption;
+    Form.Width := 300;
+    Form.Height := 160;
+    Form.Position := poScreenCenter;
+    Form.BorderStyle := bsDialog;
+    
+    Lbl := TLabel.Create(Form);
+    Lbl.Parent := Form;
+    Lbl.Caption := APrompt;
+    Lbl.Left := 10;
+    Lbl.Top := 10;
+    
+    Combo := TComboBox.Create(Form);
+    Combo.Parent := Form;
+    Combo.Style := csDropDownList;
+    Combo.Left := 10;
+    Combo.Top := 30;
+    Combo.Width := 260;
+    Combo.Items.Assign(AItems);
+    Combo.ItemIndex := 0;
+    
+    BtnOk := TButton.Create(Form);
+    BtnOk.Parent := Form;
+    BtnOk.Caption := 'OK';
+    BtnOk.Default := True;
+    BtnOk.ModalResult := mrOk;
+    BtnOk.Left := 110;
+    BtnOk.Top := 80;
+    
+    BtnCancel := TButton.Create(Form);
+    BtnCancel.Parent := Form;
+    BtnCancel.Caption := 'Cancel';
+    BtnCancel.Cancel := True;
+    BtnCancel.ModalResult := mrCancel;
+    BtnCancel.Left := 195;
+    BtnCancel.Top := 80;
+    
+    if Form.ShowModal = mrOk then
+    begin
+      AValue := Combo.Text;
+      Result := True;
+    end;
+  finally
+    Form.Free;
+  end;
+end;
+
 procedure RegisterEditors;
 var
   DataSetClass: TComponentClass;
@@ -751,6 +1183,9 @@ begin
   RegisterPropertyEditor(TypeInfo(string), DataSetClass, 'EntityClassName', TEntityClassNameProperty);
   RegisterComponentEditor(ProviderClass, TEntityDataProviderEditor);
   RegisterSelectionEditor(DataSetClass, TEntityDataSetSelectionEditor);
+
+  RegisterSelectionEditor(TFDConnection, TScaffoldingConnectionSelectionEditor);
+  RegisterSelectionEditor(TDataSet, TScaffoldingDataSetSelectionEditor);
 end;
 
 initialization
