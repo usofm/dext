@@ -430,6 +430,8 @@ begin
   begin
     SW := TStopwatch.StartNew;
     try
+      Cmd := FDbSet.FContext.Connection.CreateCommand(FSql);
+      Cmd.BindSequentialParams(FParams);
       FReader := Cmd.ExecuteQuery;
       FInitialized := True;
       TDiagnosticSource.Instance.Write('SQL.Query', TJSONObject.Create(TJSONPair.Create('sql', FSql)), 'SQL', SW.ElapsedMilliseconds);
