@@ -70,6 +70,15 @@ type
     /// <summary>Instantiates a class using a generic type parameter without any manual arguments.</summary>
     class function CreateInstance<T: class>: T; overload;
 
+    /// <summary>
+    ///   Creates an instance using only RTTI, without requiring a configured ServiceProvider.
+    ///   Prefers the parameterless constructor. For interface types, handles IList, IDictionary,
+    ///   and types registered via RegisterDefault. Returns TValue.Empty when instantiation is
+    ///   not possible. In DEBUG builds, emits diagnostic messages via OutputDebugString.
+    ///   Designed for standalone JSON serialization in legacy projects without full DI setup.
+    /// </summary>
+    class function CreateInstanceRttiOnly(AType: PTypeInfo): TValue;
+
     /// <summary>Registers a default implementation class for a specific base class.</summary>
     class procedure RegisterDefault(ABase: TClass; AImpl: TClass); overload;
     
@@ -109,6 +118,9 @@ implementation
 
 uses
   System.Classes,
+  {$IFDEF MSWINDOWS}
+  Winapi.Windows,
+  {$ENDIF}
   Dext.Core.Reflection;
 
 { TActivator }
@@ -136,6 +148,104 @@ end;
 class function TActivator.GetRttiContext: TRttiContext;
 begin
   Result := TReflection.Context;
+end;
+
+class function TActivator.CreateInstanceRttiOnly(AType: PTypeInfo): TValue;
+var
+  BestMethod: TRttiMethod;
+  Entry: TConstructorEntry;
+  HasDIConstructors: Boolean;
+  Method: TRttiMethod;
+  RegisteredImpl: TClass;
+  TargetClass: TClass;
+  TypeObj: TRttiType;
+begin
+  Result := TValue.Empty;
+  if AType = nil then
+    Exit;
+
+  case AType.Kind of
+    tkClass:
+    begin
+      TargetClass := ResolveImplementation(AType.TypeData.ClassType);
+
+      // Fast path: reuse cached parameterless constructor
+      FLock.BeginRead;
+      try
+        if FConstructorCache.TryGetValue(TargetClass, Entry) then
+          if (Entry.Method <> nil) and (Length(Entry.ParamTypes) = 0) then
+            Exit(TValue.From(Entry.Method.Invoke(TargetClass, []).AsObject));
+      finally
+        FLock.EndRead;
+      end;
+
+      TypeObj := GetRttiContext.GetType(TargetClass);
+      if TypeObj = nil then
+        Exit;
+
+      BestMethod := nil;
+      HasDIConstructors := False;
+      for Method in TypeObj.GetMethods do
+      begin
+        if not Method.IsConstructor then Continue;
+        if Length(Method.GetParameters) = 0 then
+        begin
+          BestMethod := Method;
+          Break;
+        end;
+        if (Length(Method.GetParameters) > 0) and
+           (Method.GetParameters[0].ParamType.TypeKind in [tkInterface, tkClass]) then
+          HasDIConstructors := True;
+      end;
+
+      if BestMethod <> nil then
+      begin
+        Entry.Method := BestMethod;
+        Entry.ParamTypes := nil;
+        FLock.BeginWrite;
+        try
+          FConstructorCache.AddOrSetValue(TargetClass, Entry);
+        finally
+          FLock.EndWrite;
+        end;
+        {$IFDEF DEBUG}
+        if HasDIConstructors then
+          OutputDebugString(PChar(
+            '[Dext.Json] INFO: Deserializing "' + TargetClass.ClassName + '" via RTTI-only ' +
+            '(no ServiceProvider configured). DI constructor detected but ignored. ' +
+            'Use JsonSettings.ServiceProvider(sp) for full DI support.'));
+        {$ENDIF}
+        Result := TValue.From(BestMethod.Invoke(TargetClass, []).AsObject);
+      end
+      else
+      begin
+        {$IFDEF DEBUG}
+        OutputDebugString(PChar(
+          '[Dext.Json] WARNING: Cannot instantiate "' + TargetClass.ClassName + '" — ' +
+          'no parameterless constructor found. ' +
+          'Use JsonSettings.ServiceProvider(sp) to enable DI-based construction.'));
+        {$ENDIF}
+      end;
+    end;
+
+    tkInterface:
+    begin
+      // IList<T>, IDictionary<K,V> and RegisterDefault mappings work with nil provider
+      if IsListType(AType) or IsDictionaryType(AType) or
+         FInterfaceDefaultImpl.TryGetValue(AType, RegisteredImpl) then
+        Result := CreateInstance(nil, AType)
+      else
+      begin
+        {$IFDEF DEBUG}
+        OutputDebugString(PChar(
+          '[Dext.Json] WARNING: Cannot instantiate interface "' + string(AType^.Name) + '" — ' +
+          'no implementation registered. ' +
+          'Use TActivator.RegisterDefault<IService, TImpl> or ' +
+          'configure a ServiceProvider via JsonSettings.ServiceProvider(sp).'));
+        {$ENDIF}
+      end;
+    end;
+  end;
 end;
 
 class procedure TActivator.RegisterDefault(ABase: TClass; AImpl: TClass);

@@ -221,6 +221,7 @@ type
   TDextSerializer = class
   private
     FSettings: TJsonSettings;
+    function CreateInstanceForDeserialization(AType: PTypeInfo): TValue;
   protected
     function GetFieldName(AField: TRttiField): string;
     function GetRecordName(ARttiType: TRttiType): string;
@@ -622,6 +623,14 @@ begin
   FSettings := ASettings;
 end;
 
+function TDextSerializer.CreateInstanceForDeserialization(AType: PTypeInfo): TValue;
+begin
+  if FSettings.FServiceProvider <> nil then
+    Result := TActivator.CreateInstance(FSettings.FServiceProvider, AType)
+  else
+    Result := TActivator.CreateInstanceRttiOnly(AType);
+end;
+
 function TDextSerializer.Deserialize<T>(const AJson: string): T;
 var
   JsonNode: IDextJsonNode;
@@ -676,7 +685,7 @@ begin
   end
   else
   begin
-    Result := TActivator.CreateInstance(FSettings.FServiceProvider, AType);
+    Result := CreateInstanceForDeserialization(AType);
     Instance := Result.AsObject;
   end;
 
@@ -759,7 +768,30 @@ begin
           jntObject:
             begin
               if (Prop.PropertyType.TypeKind = tkClass) or (Prop.PropertyType.TypeKind = tkInterface) then
-                Val := DeserializeObject(Node as IDextJsonObject, Prop.PropertyType.Handle)
+              begin
+                // Check if the property already holds an instance (e.g. created in constructor).
+                // If so, populate it in-place instead of creating a new one.
+                var ExistingPropVal := Prop.GetValue(Instance);
+                var ExistingObj: TObject := nil;
+                if not ExistingPropVal.IsEmpty then
+                begin
+                  if Prop.PropertyType.TypeKind = tkClass then
+                    ExistingObj := ExistingPropVal.AsObject
+                  else if (Prop.PropertyType.TypeKind = tkInterface) and
+                          (ExistingPropVal.AsInterface <> nil) then
+                    ExistingObj := ExistingPropVal.AsInterface as TObject;
+                end;
+
+                if ExistingObj <> nil then
+                begin
+                  // Populate the existing instance in-place using its actual runtime type.
+                  // Leave Val = Empty so Handler.SetValue is skipped — the reference is already correct.
+                  DeserializeObject(Node as IDextJsonObject,
+                    TReflection.Context.GetType(ExistingObj.ClassType).Handle, ExistingObj);
+                end
+                else
+                  Val := DeserializeObject(Node as IDextJsonObject, Prop.PropertyType.Handle);
+              end
               else if (Prop.PropertyType.TypeKind = tkRecord) then
                 Val := DeserializeRecord(Node as IDextJsonObject, Prop.PropertyType.Handle)
               else if IsDictionaryType(Prop.PropertyType.Handle) then
@@ -1707,7 +1739,7 @@ begin
       raise EDextJsonException.CreateFmt('Could not determine element type for %s', [AType.NameFld.ToString]);
 
     // Instantiate via Activator (Handles DI, Fallbacks and Factory)
-    Result := TActivator.CreateInstance(FSettings.FServiceProvider, AType);
+    Result := CreateInstanceForDeserialization(AType);
 
     RttiType := TReflection.GetMetadata(AType).RttiType;
 
@@ -1866,7 +1898,7 @@ begin
       raise EDextJsonException.CreateFmt('Could not determine dictionary types for %s', [string(AType^.Name)]);
 
     // Instantiate via Activator
-    Result := TActivator.CreateInstance(FSettings.FServiceProvider, AType);
+    Result := CreateInstanceForDeserialization(AType);
 
     RttiType := TReflection.GetMetadata(AType).RttiType;
 
