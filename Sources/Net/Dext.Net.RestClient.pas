@@ -128,7 +128,45 @@ uses
     function Header(const AName, AValue: string): IRestClient;
     /// <summary>Defines the default Content-Type for requests.</summary>
     function ContentType(AValue: TDextContentType): IRestClient;
-    
+
+    // === ContentType shortcuts ===
+    /// <summary>Sets Content-Type to application/json.</summary>
+    function ContentTypeJson: IRestClient;
+    /// <summary>Sets Content-Type to application/xml.</summary>
+    function ContentTypeXml: IRestClient;
+    /// <summary>Sets Content-Type to application/x-www-form-urlencoded.</summary>
+    function ContentTypeForm: IRestClient;
+    /// <summary>Sets Content-Type to multipart/form-data.</summary>
+    function ContentTypeMultipart: IRestClient;
+    /// <summary>Sets Content-Type to application/octet-stream.</summary>
+    function ContentTypeBinary: IRestClient;
+    /// <summary>Sets Content-Type to text/plain.</summary>
+    function ContentTypePlainText: IRestClient;
+
+    // === POST with JSON string payload ===
+    /// <summary>
+    ///   Executes an asynchronous POST sending a raw JSON string.
+    ///   Encapsulates stream creation and UTF-8 encoding internally.
+    /// </summary>
+    function PostJson(const APayload: string): TAsyncBuilder<IRestResponse>; overload;
+    /// <summary>
+    ///   Executes an asynchronous POST to AEndpoint sending a raw JSON string.
+    ///   Encapsulates stream creation and UTF-8 encoding internally.
+    /// </summary>
+    function PostJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
+
+    // === PUT with JSON string payload ===
+    /// <summary>
+    ///   Executes an asynchronous PUT sending a raw JSON string.
+    ///   Encapsulates stream creation and UTF-8 encoding internally.
+    /// </summary>
+    function PutJson(const APayload: string): TAsyncBuilder<IRestResponse>; overload;
+    /// <summary>
+    ///   Executes an asynchronous PUT to AEndpoint sending a raw JSON string.
+    ///   Encapsulates stream creation and UTF-8 encoding internally.
+    /// </summary>
+    function PutJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
+
     /// <summary>Executes an asynchronous HTTP request.</summary>
     function ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
       const ABody: TStream = nil; AOwnsBody: Boolean = False;
@@ -158,6 +196,16 @@ uses
     function Auth(AProvider: IAuthenticationProvider): IRestClient;
     function Header(const AName, AValue: string): IRestClient;
     function ContentType(AValue: TDextContentType): IRestClient;
+    function ContentTypeJson: IRestClient;
+    function ContentTypeXml: IRestClient;
+    function ContentTypeForm: IRestClient;
+    function ContentTypeMultipart: IRestClient;
+    function ContentTypeBinary: IRestClient;
+    function ContentTypePlainText: IRestClient;
+    function PostJson(const APayload: string): TAsyncBuilder<IRestResponse>; overload;
+    function PostJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
+    function PutJson(const APayload: string): TAsyncBuilder<IRestResponse>; overload;
+    function PutJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
 
     function ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
       const ABody: TStream = nil; AOwnsBody: Boolean = False;
@@ -201,6 +249,20 @@ uses
     function Header(const AName, AValue: string): TRestClient;
     function ContentType(AValue: TDextContentType): TRestClient;
 
+    // === ContentType shortcuts ===
+    /// <summary>Sets Content-Type to application/json.</summary>
+    function ContentTypeJson: TRestClient;
+    /// <summary>Sets Content-Type to application/xml.</summary>
+    function ContentTypeXml: TRestClient;
+    /// <summary>Sets Content-Type to application/x-www-form-urlencoded.</summary>
+    function ContentTypeForm: TRestClient;
+    /// <summary>Sets Content-Type to multipart/form-data.</summary>
+    function ContentTypeMultipart: TRestClient;
+    /// <summary>Sets Content-Type to application/octet-stream.</summary>
+    function ContentTypeBinary: TRestClient;
+    /// <summary>Sets Content-Type to text/plain.</summary>
+    function ContentTypePlainText: TRestClient;
+
     // HTTP Operations
     /// <summary>Executes an asynchronous GET and returns the raw response.</summary>
     function Get(const AEndpoint: string = ''): TAsyncBuilder<IRestResponse>; overload;
@@ -212,11 +274,31 @@ uses
     function Post(const AEndpoint: string; const ABody: TStream): TAsyncBuilder<IRestResponse>; overload;
     /// <summary>Executes a POST sending an object serialized as JSON and awaits a typed response.</summary>
     function Post<TRes: class>(const AEndpoint: string; const ABody: TRes): TAsyncBuilder<IRestResponse<TRes>>; overload;
-    
+    /// <summary>
+    ///   Executes an asynchronous POST sending a raw JSON string.
+    ///   Encapsulates stream creation and UTF-8 encoding internally.
+    /// </summary>
+    function PostJson(const APayload: string): TAsyncBuilder<IRestResponse>; overload;
+    /// <summary>
+    ///   Executes an asynchronous POST to AEndpoint sending a raw JSON string.
+    ///   Encapsulates stream creation and UTF-8 encoding internally.
+    /// </summary>
+    function PostJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
+
     function Put(const AEndpoint: string = ''): TAsyncBuilder<IRestResponse>; overload;
     function Put(const AEndpoint: string; const ABody: TStream): TAsyncBuilder<IRestResponse>; overload;
     function Put<TRes: class>(const AEndpoint: string; const ABody: TRes): TAsyncBuilder<IRestResponse<TRes>>; overload;
     function Put<T: class>(const AEndpoint: string = ''): TAsyncBuilder<T>; overload;
+    /// <summary>
+    ///   Executes an asynchronous PUT sending a raw JSON string.
+    ///   Encapsulates stream creation and UTF-8 encoding internally.
+    /// </summary>
+    function PutJson(const APayload: string): TAsyncBuilder<IRestResponse>; overload;
+    /// <summary>
+    ///   Executes an asynchronous PUT to AEndpoint sending a raw JSON string.
+    ///   Encapsulates stream creation and UTF-8 encoding internally.
+    /// </summary>
+    function PutJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
 
     function Delete(const AEndpoint: string = ''): TAsyncBuilder<IRestResponse>; overload;
     function Delete<T: class>(const AEndpoint: string = ''): TAsyncBuilder<T>; overload;
@@ -389,6 +471,60 @@ function TRestClientImpl.ContentType(AValue: TDextContentType): IRestClient;
 begin
   FContentType := AValue;
   Result := Self;
+end;
+
+function TRestClientImpl.ContentTypeJson: IRestClient;
+begin
+  Result := ContentType(ctJson);
+end;
+
+function TRestClientImpl.ContentTypeXml: IRestClient;
+begin
+  Result := ContentType(ctXml);
+end;
+
+function TRestClientImpl.ContentTypeForm: IRestClient;
+begin
+  Result := ContentType(ctFormUrlEncoded);
+end;
+
+function TRestClientImpl.ContentTypeMultipart: IRestClient;
+begin
+  Result := ContentType(ctMultipartFormData);
+end;
+
+function TRestClientImpl.ContentTypeBinary: IRestClient;
+begin
+  Result := ContentType(ctBinary);
+end;
+
+function TRestClientImpl.ContentTypePlainText: IRestClient;
+begin
+  Result := ContentType(ctText);
+end;
+
+function TRestClientImpl.PostJson(const APayload: string): TAsyncBuilder<IRestResponse>;
+begin
+  Result := PostJson('', APayload);
+end;
+
+function TRestClientImpl.PostJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>;
+begin
+  ContentTypeJson; // Set Content-Type automatically
+  Result := ExecuteAsync(hmPOST, AEndpoint,
+    TStringStream.Create(APayload, TEncoding.UTF8), True);
+end;
+
+function TRestClientImpl.PutJson(const APayload: string): TAsyncBuilder<IRestResponse>;
+begin
+  Result := PutJson('', APayload);
+end;
+
+function TRestClientImpl.PutJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>;
+begin
+  ContentTypeJson; // Set Content-Type automatically
+  Result := ExecuteAsync(hmPUT, AEndpoint,
+    TStringStream.Create(APayload, TEncoding.UTF8), True);
 end;
 
 function TRestClientImpl.Header(const AName, AValue: string): IRestClient;
@@ -584,6 +720,62 @@ function TRestClient.ContentType(AValue: TDextContentType): TRestClient;
 begin
   FInstance.ContentType(AValue);
   Result := Self;
+end;
+
+function TRestClient.ContentTypeJson: TRestClient;
+begin
+  FInstance.ContentTypeJson;
+  Result := Self;
+end;
+
+function TRestClient.ContentTypeXml: TRestClient;
+begin
+  FInstance.ContentTypeXml;
+  Result := Self;
+end;
+
+function TRestClient.ContentTypeForm: TRestClient;
+begin
+  FInstance.ContentTypeForm;
+  Result := Self;
+end;
+
+function TRestClient.ContentTypeMultipart: TRestClient;
+begin
+  FInstance.ContentTypeMultipart;
+  Result := Self;
+end;
+
+function TRestClient.ContentTypeBinary: TRestClient;
+begin
+  FInstance.ContentTypeBinary;
+  Result := Self;
+end;
+
+function TRestClient.ContentTypePlainText: TRestClient;
+begin
+  FInstance.ContentTypePlainText;
+  Result := Self;
+end;
+
+function TRestClient.PostJson(const APayload: string): TAsyncBuilder<IRestResponse>;
+begin
+  Result := FInstance.PostJson(APayload);
+end;
+
+function TRestClient.PostJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>;
+begin
+  Result := FInstance.PostJson(AEndpoint, APayload);
+end;
+
+function TRestClient.PutJson(const APayload: string): TAsyncBuilder<IRestResponse>;
+begin
+  Result := FInstance.PutJson(APayload);
+end;
+
+function TRestClient.PutJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>;
+begin
+  Result := FInstance.PutJson(AEndpoint, APayload);
 end;
 
 function TRestClient.Header(const AName, AValue: string): TRestClient;
