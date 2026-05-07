@@ -1321,6 +1321,7 @@ begin
   Should(LObj.Items).NotBeNil;
   FMasterDS.Cancel;
 end;
+
 procedure TEntityDataSetAutomationTests.Test_MasterDetail_ID_Sync_Nested;
 var
   LItemsField: TDataSetField;

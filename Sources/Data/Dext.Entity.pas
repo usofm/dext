@@ -97,8 +97,31 @@ type
   TypeConverterAttribute = Dext.Entity.Attributes.TypeConverterAttribute;
   StoredProcedureAttribute = Dext.Entity.Attributes.StoredProcedureAttribute;
   DbParamAttribute = Dext.Entity.Attributes.DbParamAttribute;
+  CurrencyAttribute = Dext.Entity.Attributes.CurrencyAttribute;
+  CaptionAttribute = Dext.Entity.Attributes.CaptionAttribute;
+  DisplayLabelAttribute = Dext.Entity.Attributes.DisplayLabelAttribute;
+  DisplayFormatAttribute = Dext.Entity.Attributes.DisplayFormatAttribute;
+  AlignmentAttribute = Dext.Entity.Attributes.AlignmentAttribute;
+  EditMaskAttribute = Dext.Entity.Attributes.EditMaskAttribute;
+  DisplayWidthAttribute = Dext.Entity.Attributes.DisplayWidthAttribute;
   LockTokenAttribute = Dext.Entity.Attributes.LockTokenAttribute;
-  LockExpirationAttribute = Dext.Entity.Attributes.LockExpirationAttribute;
+  LockExpirationAttribute = Dext.Entity.Attributes.LockExpirationAttribute;  
+  VisibleAttribute = Dext.Entity.Attributes.VisibleAttribute;
+  ReadOnlyAttribute = Dext.Entity.Attributes.ReadOnlyAttribute;
+  DefaultValueAttribute = Dext.Entity.Attributes.DefaultValueAttribute;
+
+  // Short Aliases
+  PK = Dext.Entity.Attributes.PK;
+  FK = Dext.Entity.Attributes.FK;
+  Caption = Dext.Entity.Attributes.Caption;
+  DisplayLabel = Dext.Entity.Attributes.DisplayLabel;
+  DisplayFormat = Dext.Entity.Attributes.DisplayFormat;
+  Alignment = Dext.Entity.Attributes.Alignment;
+  EditMask = Dext.Entity.Attributes.EditMask;
+  DisplayWidth = Dext.Entity.Attributes.DisplayWidth;
+  Visible = Dext.Entity.Attributes.Visible;
+  ReadOnly = Dext.Entity.Attributes.ReadOnly;
+  DefaultValue = Dext.Entity.Attributes.DefaultValue;
 
   // Dext.Entity.Cache
   TSQLCache = Dext.Entity.Cache.TSQLCache;

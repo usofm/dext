@@ -214,6 +214,7 @@ type
     property Active stored IsActiveStored;
     property DataProvider: TEntityDataProvider read FDataProvider write SetDataProvider;
     property EntityClassName: string read FEntityClassName write SetEntityClassName;
+    property FieldDefs;
     property Filter;
     property Filtered;
     property FilterOptions;
@@ -270,7 +271,6 @@ implementation
 uses
   System.StrUtils,
   System.AnsiStrings,
-  FireDAC.Comp.Client,
   Dext.Core.ValueConverters,
   Dext.DI.Attributes,
   Dext.Entity,
@@ -417,15 +417,15 @@ end;
 
 function TEntityDataSet.StringToFieldType(const ATypeName: string): TFieldType;
 begin
-  if SameText(ATypeName, 'string') then Result := ftWideString
-  else if SameText(ATypeName, 'Integer') or SameText(ATypeName, 'Int32') then Result := ftInteger
-  else if SameText(ATypeName, 'LargeInt') or SameText(ATypeName, 'Int64') then Result := ftLargeint
-  else if SameText(ATypeName, 'Double') or SameText(ATypeName, 'Float') then Result := ftFloat
-  else if SameText(ATypeName, 'Currency') or SameText(ATypeName, 'Money') then Result := ftCurrency
-  else if SameText(ATypeName, 'TDateTime') or SameText(ATypeName, 'DateTime') then Result := ftDateTime
-  else if SameText(ATypeName, 'TDate') or SameText(ATypeName, 'Date') then Result := ftDate
-  else if SameText(ATypeName, 'TTime') or SameText(ATypeName, 'Time') then Result := ftTime
-  else if SameText(ATypeName, 'Boolean') then Result := ftBoolean
+  if SameText(ATypeName, 'string') or SameText(ATypeName, 'StringType') then Result := ftWideString
+  else if SameText(ATypeName, 'Integer') or SameText(ATypeName, 'Int32') or SameText(ATypeName, 'IntType') then Result := ftInteger
+  else if SameText(ATypeName, 'LargeInt') or SameText(ATypeName, 'Int64') or SameText(ATypeName, 'Int64Type') or SameText(ATypeName, 'LargeIntType') then Result := ftLargeint
+  else if SameText(ATypeName, 'Double') or SameText(ATypeName, 'Float') or SameText(ATypeName, 'FloatType') then Result := ftFloat
+  else if SameText(ATypeName, 'Currency') or SameText(ATypeName, 'Money') or SameText(ATypeName, 'CurrencyType') then Result := ftCurrency
+  else if SameText(ATypeName, 'TDateTime') or SameText(ATypeName, 'DateTime') or SameText(ATypeName, 'DateTimeType') then Result := ftDateTime
+  else if SameText(ATypeName, 'TDate') or SameText(ATypeName, 'Date') or SameText(ATypeName, 'DateType') then Result := ftDate
+  else if SameText(ATypeName, 'TTime') or SameText(ATypeName, 'Time') or SameText(ATypeName, 'TimeType') then Result := ftTime
+  else if SameText(ATypeName, 'Boolean') or SameText(ATypeName, 'BoolType') or SameText(ATypeName, 'BooleanType') then Result := ftBoolean
   else if SameText(ATypeName, 'TBytes') or SameText(ATypeName, 'Blob') then Result := ftBlob
   else if SameText(ATypeName, 'TGUID') then Result := ftGuid
   else if ATypeName.StartsWith('I', True) or ATypeName.StartsWith('TList<', True) or ATypeName.StartsWith('TObjectList<', True) then Result := ftUnknown
@@ -439,7 +439,7 @@ var
   i: Integer;
   MD: TEntityClassMetadata;
   Member: TEntityMemberMetadata;
-  PropMap: TPropertyMap;
+  LPropMap: TPropertyMap;
 begin
   if FEntityMap <> nil then
     Exit;
@@ -461,6 +461,15 @@ begin
     if FDataProvider.GetInterface(IEntityDataProvider, DP) then
     begin
       MD := DP.GetEntityMetadata(FEntityClassName);
+      
+      // CRITICAL: Only synchronize metadata from source files if not already present
+      // to avoid overwriting manual design-time changes in the component.
+      if (MD = nil) or (MD.Members.Count = 0) then
+      begin
+        DP.SyncMetadata(FEntityClassName);
+        MD := DP.GetEntityMetadata(FEntityClassName);
+      end;
+
       if MD <> nil then
       begin
         FEntityMap := TEntityMap.Create(nil);
@@ -472,15 +481,29 @@ begin
         for i := 0 to MD.Members.Count - 1 do
         begin
           Member := MD.Members[i];
-          PropMap := TPropertyMap.Create(Member.Name);
-          PropMap.ColumnName := Member.Name;
-          PropMap.DataType := StringToFieldType(Member.MemberType);
-          PropMap.IsPK := Member.IsPrimaryKey;
-          PropMap.IsRequired := Member.IsRequired;
-          PropMap.IsAutoInc := Member.IsAutoInc;
-          PropMap.Visible := Member.Visible;
+          LPropMap := FEntityMap.GetOrAddProperty(Member.Name);
+          LPropMap.ColumnName := Member.Name;
+          LPropMap.DataType := StringToFieldType(Member.MemberType);
+          LPropMap.IsPK := Member.IsPrimaryKey;
+          LPropMap.IsRequired := Member.IsRequired;
+          LPropMap.IsAutoInc := Member.IsAutoInc;
+          LPropMap.Visible := Member.Visible;
+          LPropMap.IsReadOnly := Member.IsReadOnly;
+          LPropMap.DisplayLabel := Member.DisplayLabel;
+          LPropMap.DisplayFormat := Member.DisplayFormat;
+          LPropMap.DisplayWidth := Member.DisplayWidth;
+          LPropMap.Alignment := Member.Alignment;
+          LPropMap.EditMask := Member.EditMask;
 
-          FEntityMap.Properties.Add(PropMap.PropertyName, PropMap);
+          // Resolve relationship type for navigation properties
+          if (Member.MemberType = 'Lazy') or (Member.MemberType.StartsWith('IList<')) then
+          begin
+            LPropMap.IsNavigation := True;
+            if SameText(Member.RelationType, 'OneToMany') or SameText(Member.RelationType, 'HasMany') then LPropMap.Relationship := rtOneToMany
+            else if SameText(Member.RelationType, 'ManyToOne') or SameText(Member.RelationType, 'BelongsTo') then LPropMap.Relationship := rtManyToOne
+            else if SameText(Member.RelationType, 'OneToOne') or SameText(Member.RelationType, 'HasOne') then LPropMap.Relationship := rtOneToOne
+            else if SameText(Member.RelationType, 'ManyToMany') then LPropMap.Relationship := rtManyToMany;
+          end;
         end;
       end;
     end;
@@ -523,6 +546,10 @@ var
   Dict: TDictionary<string, Variant>;
 begin
   Close; // Garante que InternalClose rode enquanto as estruturas estao vivas
+  
+  if Assigned(FDataProvider) then
+    FDataProvider.UnregisterDataSet(Self);
+    
   FreeAndNil(FPropertyCache);
   FreeAndNil(FCalcOffsets);
   FreeAndNil(FDetailDataSets);
@@ -1357,13 +1384,22 @@ begin
   if FDataProvider <> Value then
   begin
     if FDataProvider <> nil then
+    begin
       FDataProvider.RemoveFreeNotification(Self);
+      FDataProvider.UnregisterDataSet(Self);
+    end;
 
-    FDataProvider := (Value);
+    FDataProvider := Value;
 
     if FDataProvider <> nil then
+    begin
       FDataProvider.FreeNotification(Self);
-
+      FDataProvider.RegisterDataSet(Self);
+    end;
+    
+    if csDesigning in ComponentState then
+      ClearResolvedEntityMetadata;
+      
     ResolveEntityClassFromProvider;
   end;
 end;
@@ -1552,14 +1588,13 @@ end;
 procedure TEntityDataSet.InternalOpen;
 var
   CalcSize: Integer;
-  i, J: Integer;
+  Dict: IDictionary<string, Variant>;
+  i: Integer;
   ItemCount: Integer;
-  Offset: Integer;
   LDef: TFieldDef;
-  DP: IEntityDataProvider;
-  Sql: string;
-  Dict: TDictionary<string, Variant>;
-  Query: TFDQuery;
+  Offset: Integer;
+  Pair: TPair<string, Variant>;
+  PreviewList: IList<IDictionary<string, Variant>>;
   Row: TDictionary<string, Variant>;
 begin
   FIsCursorOpen := True;
@@ -1571,61 +1606,47 @@ begin
   if (FEntityClassName <> '') and (csDesigning in ComponentState) then
     EnsureEntityMapResolved;
 
+  if Assigned(FDataProvider) and (FDataProvider.DatabaseConnection <> nil) then
+  begin
+    // We allow FireDAC to handle AutoConnect if configured
+  end;
+
   // Design-time preview: load data for grid display
   if (csDesigning in ComponentState) and
      ((FItems = nil) or (FItems.Count = 0)) and
      Assigned(FDataProvider) then
   begin
-    if FDataProvider.GetInterface(IEntityDataProvider, DP) then
-    begin
       // Limpar se for ownership
       if FOwnsItems and (FItems <> nil) then
         FItems := nil;
 
       // Try RTTI path first (works when entity class is compiled in the IDE)
-      FItems := DP.CreatePreviewItems(FEntityClassName, 50);
+      FItems := FDataProvider.CreatePreviewItems(FEntityClassName, 50);
       FOwnsItems := True;
 
       // If RTTI path failed, fall back to direct SQL dictionary approach
       // This enables preview even without the entity class compiled
       if (FItems = nil) or (FItems.Count = 0) then
       begin
-        Sql := DP.BuildPreviewSql(FEntityClassName, 50);
-        if (Sql <> '') and (FDataProvider.DatabaseConnection <> nil) then
+        for Row in FPreviewData do
+           Row.Free;
+        SetLength(FPreviewData, 0);
+
+        PreviewList := FDataProvider.GetPreviewData(FEntityClassName, 50);
+        if (PreviewList <> nil) and (PreviewList.Count > 0) then
         begin
-          for Dict in FPreviewData do
-            Dict.Free;
-          SetLength(FPreviewData, 0);
-          Query := TFDQuery.Create(nil);
-          try
-            Query.Connection := FDataProvider.DatabaseConnection;
-            Query.SQL.Text := Sql;
-            try
-              Query.Open;
-              while not Query.Eof do
-              begin
-                Row := TDictionary<string, Variant>.Create(True, False, 0);
-                for J := 0 to Query.Fields.Count - 1 do
-                begin
-                  if Query.Fields[J].IsNull then
-                    Row.AddOrSetValue(Query.Fields[J].FieldName, Null)
-                  else
-                    Row.AddOrSetValue(Query.Fields[J].FieldName, Query.Fields[J].Value);
-                end;
-                FPreviewData := FPreviewData + [Row];
-                Query.Next;
-              end;
-              FIsDesignTimePreview := Length(FPreviewData) > 0;
-            except
-              // Silently ignore SQL errors in design-time preview
-              FIsDesignTimePreview := False;
-            end;
-          finally
-            Query.Free;
+          FIsDesignTimePreview := True;
+          SetLength(FPreviewData, PreviewList.Count);
+          for i := 0 to PreviewList.Count - 1 do
+          begin
+             Dict := PreviewList[i];
+             Row := TDictionary<string, Variant>.Create(True, False, 0);
+             for Pair in Dict do
+               Row.Add(Pair.Key, Pair.Value);
+             FPreviewData[i] := Row;
           end;
         end;
       end;
-    end;
   end;
 
   if (FEntityClass = nil) and (not (csDesigning in ComponentState)) then
@@ -1649,6 +1670,23 @@ begin
 
   if FieldCount = 0 then
     CreateFields;
+
+  // IMPORTANT: Delphi's CreateFields skips ftDataSet FieldDefs when ChildDefs.Count = 0
+  // (ObjectFieldTypes rule in Data.DB.pas). We must create TDataSetField explicitly
+  // for collection navigation properties ([HasMany], [ManyToMany]).
+  for i := 0 to FieldDefs.Count - 1 do
+  begin
+    if (FieldDefs[i].DataType = ftDataSet) and (FindField(FieldDefs[i].Name) = nil) then
+    begin
+      LDef := FieldDefs[i];
+      var NestedField := TDataSetField.Create(Self);
+      NestedField.FieldName := LDef.Name;
+      NestedField.DataSet := Self;
+    end;
+  end;
+
+  // Apply metadata (labels, formats, etc) to fields (persistent or dynamic)
+  ApplyMapMetadataToFields;
 
   // Design-time preview: populate virtual index from preview data
   // Calcular tamanho necessário para campos calculados
@@ -2017,38 +2055,18 @@ end;
 
 procedure TEntityDataSet.GenerateFields(AWipeAll: Boolean = False; ARemoveOrphans: Boolean = True; AUpdateExisting: Boolean = True);
 var
-  ClassMD: TEntityClassMetadata;
-  DP: IEntityDataProvider;
-  i, k: Integer;
-  CurrentField: TField;
+  i, j, k, Idx: Integer;
+  Field, ExistingField, CurrentField: TField;
   Existing: TComponent;
-  Field: TField;
-  Idx: Integer;
-  IsNewField: Boolean;
-  LT: string;
+  LPropMap: TPropertyMap;
   TargetName: string;
   EntityType: TFieldType;
-  MD: TObject;
-  Member: TEntityMemberMetadata;
   ProcessedFields: TStringList;
+  IsNewField: Boolean;
 begin
-  if not Assigned(FDataProvider) then
-    Exit;
-  if not FDataProvider.GetInterface(IEntityDataProvider, DP) then
-    Exit;
-  if FEntityClassName = '' then
-    Exit;
-
-  // DESIGN-TIME: Force the provider to scan the source code and refresh its cache
-  if (csDesigning in ComponentState) then
-  begin
-    DP.SyncMetadata(FEntityClassName);
-  end;
-
-  MD := DP.GetEntityMetadata(FEntityClassName);
-  if MD = nil then
-    Exit;
-  ClassMD := TEntityClassMetadata(MD);
+  ClearResolvedEntityMetadata;
+  EnsureEntityMapResolved;
+  if FEntityMap = nil then Exit;
 
   ProcessedFields := TStringList.Create;
   try
@@ -2071,23 +2089,46 @@ begin
         end;
       end;
 
-      for i := 0 to ClassMD.Members.Count - 1 do
+      for i := 0 to FEntityMap.OrderedProperties.Count - 1 do
       begin
-        Member := ClassMD.Members[i];
-        LT := Member.MemberType;
-        EntityType := StringToFieldType(LT);
-        if Member.IsCurrency then
-          EntityType := ftCurrency;
-
-        if EntityType = ftUnknown then
+        LPropMap := FEntityMap.OrderedProperties[i];
+        if LPropMap.IsIgnored then Continue;
+        
+        // Skip navigation properties that are not collections
+        if LPropMap.IsNavigation and (LPropMap.Relationship in [rtManyToOne, rtOneToOne]) then
           Continue;
 
-        ProcessedFields.Add(Member.Name);
-        Field := FindField(Member.Name);
+        EntityType := LPropMap.DataType;
+        if (EntityType = ftUnknown) and LPropMap.IsNavigation then
+          EntityType := ftDataSet;
 
-          // If a field exists but has the wrong type class, it cannot be reused!
+        if EntityType = ftUnknown then Continue;
+
+        ProcessedFields.Add(LPropMap.PropertyName);
+        
+        // 1. Try to find the field in the dataset's current field list
+        Field := FindField(LPropMap.PropertyName);
+
+        // 2. If not found in dataset, search owner's components for a field with same FieldName
+        if (Field = nil) and (Owner <> nil) then
+        begin
+          for j := 0 to Owner.ComponentCount - 1 do
+          begin
+            if (Owner.Components[j] is TField) and (TField(Owner.Components[j]).FieldName = LPropMap.PropertyName) then
+            begin
+              if (TField(Owner.Components[j]).DataSet = nil) or (TField(Owner.Components[j]).DataSet = Self) then
+              begin
+                Field := TField(Owner.Components[j]);
+                Field.DataSet := Self;
+                Break;
+              end;
+            end;
+          end;
+        end;
+
         if (Field <> nil) and (Field.ClassType <> DefaultFieldClasses[EntityType]) then
         begin
+          Field.DataSet := nil;
           Field.Free;
           Field := nil;
         end;
@@ -2097,65 +2138,80 @@ begin
         begin
           IsNewField := True;
           Field := DefaultFieldClasses[EntityType].Create(Owner);
-          Field.FieldName := Member.Name;
-          Field.DataSet := Self;
+          Field.FieldName := LPropMap.PropertyName;
+          
+          ExistingField := FindField(LPropMap.PropertyName);
+          if ExistingField <> nil then
+          begin
+             Field.Free;
+             Field := ExistingField;
+             IsNewField := False;
+          end
+          else
+            Field.DataSet := Self;
 
           if Self.Name <> '' then
           begin
-            TargetName := Self.Name + Member.Name;
+            TargetName := Self.Name + LPropMap.PropertyName;
             if Owner <> nil then
             begin
               Existing := Owner.FindComponent(TargetName);
               if (Existing <> nil) and (Existing <> Field) then
-                Existing.Name := ''; // Prevent component name collision
+              begin
+                if (Existing is TField) and (TField(Existing).DataSet = nil) then
+                   Existing.Free 
+                else
+                   Existing.Name := ''; 
+              end;
             end;
             try
               Field.Name := TargetName;
             except
-              on E: Exception do
-                Field.Name := '';
+              Field.Name := '';
             end;
           end;
         end;
 
-          // Apply metadata updates
+        // Apply metadata updates
         if IsNewField or AUpdateExisting then
         begin
           Field.Index := i;
 
-          if Member.DisplayLabel <> '' then
-            Field.DisplayLabel := Member.DisplayLabel
+          if LPropMap.DisplayLabel <> '' then
+            Field.DisplayLabel := LPropMap.DisplayLabel
           else if IsNewField then
-            Field.DisplayLabel := Member.Name;
+            Field.DisplayLabel := LPropMap.PropertyName;
 
-          if Member.DisplayWidth > 0 then
-            Field.DisplayWidth := Member.DisplayWidth;
+          if LPropMap.DisplayWidth > 0 then
+            Field.DisplayWidth := LPropMap.DisplayWidth;
 
-          Field.Visible := Member.Visible;
-          Field.ReadOnly := Member.IsReadOnly;
-          Field.Required := Member.IsRequired and (not Member.IsAutoInc);
+          Field.Visible := LPropMap.Visible;
+          Field.ReadOnly := LPropMap.IsReadOnly;
+          Field.Required := LPropMap.IsRequired and (not LPropMap.IsAutoInc);
 
           if (Field is TNumericField) then
           begin
-            if (Member.DisplayFormat <> '') then
-              TNumericField(Field).DisplayFormat := Member.DisplayFormat;
+            if (LPropMap.DisplayFormat <> '') then
+              TNumericField(Field).DisplayFormat := LPropMap.DisplayFormat;
 
-            if Member.Alignment = taLeftJustify then
+            if LPropMap.Alignment = taLeftJustify then
               Field.Alignment := taRightJustify
             else
-              Field.Alignment := Member.Alignment;
+              Field.Alignment := LPropMap.Alignment;
           end
-          else if (Field is TDateTimeField) and (Member.DisplayFormat <> '') then
-            TDateTimeField(Field).DisplayFormat := Member.DisplayFormat
+          else if (Field is TDateTimeField) and (LPropMap.DisplayFormat <> '') then
+            TDateTimeField(Field).DisplayFormat := LPropMap.DisplayFormat
           else
-            Field.Alignment := Member.Alignment;
+            Field.Alignment := LPropMap.Alignment;
 
-          if Member.EditMask <> '' then
-            Field.EditMask := Member.EditMask;
+          if LPropMap.EditMask <> '' then
+            Field.EditMask := LPropMap.EditMask;
+            
+          if LPropMap.DataType in [ftString, ftWideString] then
+            Field.Size := LPropMap.MaxLength;
         end;
       end;
 
-      // ORPHAN REMOVAL: Remove fields that are no longer in the entity
       if ARemoveOrphans then
       begin
         k := 0;
@@ -2250,13 +2306,14 @@ procedure TEntityDataSet.InternalInitFieldDefs;
 
 var
   FieldDef: TFieldDef;
-  NewField: TField;
   Prop: TRttiProperty;
-  PropMap: TPropertyMap;
+  LPropMap: TPropertyMap;
   ResolvedType: TFieldType;
   RttiField: TRttiField;
   RttiType: TRttiType;
+  i: Integer;
 begin
+  EnsureEntityMapResolved;
   if (FEntityMap = nil) then Exit;
 
   // Em runtime precisamos da classe, em design o EntityMap (do Parser) basta
@@ -2269,23 +2326,25 @@ begin
   if FEntityClass <> nil then
     RttiType := TReflection.Context.GetType(FEntityClass);
 
-    for PropMap in FEntityMap.Properties.Values do
+    for i := 0 to FEntityMap.OrderedProperties.Count - 1 do
     begin
-      Prop := nil;
-      RttiField := nil;
-      if PropMap.IsIgnored then Continue;
-      if PropMap.IsNavigation and (not (PropMap.Relationship in [rtOneToMany, rtManyToMany])) then Continue;
+      LPropMap := FEntityMap.OrderedProperties[i];
+      if LPropMap.IsIgnored then Continue;
+      
+      // Skip navigation properties that are not collections (BelongsTo/OneToOne) 
+      // as they are handled by references, not direct columns in the dataset
+      if LPropMap.IsNavigation and (LPropMap.Relationship in [rtManyToOne, rtOneToOne]) then Continue;
       
       // Shadow property check
-      if PropMap.IsShadow and (not FIncludeShadowProperties) then Continue;
+      if LPropMap.IsShadow and (not FIncludeShadowProperties) then Continue;
 
       // Calcular resolved type dinamicamente
-      ResolvedType := PropMap.DataType;
+      ResolvedType := LPropMap.DataType;
 
       // Always try to resolve RTTI Prop/Field for attribute discovery and type fallback
       if (RttiType <> nil) then
       begin
-        Prop := RttiType.GetProperty(PropMap.PropertyName);
+        Prop := RttiType.GetProperty(LPropMap.PropertyName);
         if (Prop <> nil) and (ResolvedType = ftUnknown) then
         begin
           if IsTBytesType(Prop.PropertyType.Handle) then
@@ -2297,14 +2356,14 @@ begin
         if (Prop = nil) or (ResolvedType = ftUnknown) then
         begin
            // Search for field directly, then with F prefix, then normalized, then normalized with F
-           RttiField := RttiType.GetField(PropMap.PropertyName);
-           if RttiField = nil then RttiField := RttiType.GetField('F' + PropMap.PropertyName);
-           if RttiField = nil then RttiField := RttiType.GetField(TReflection.NormalizeFieldName(PropMap.PropertyName));
-           if RttiField = nil then RttiField := RttiType.GetField('F' + TReflection.NormalizeFieldName(PropMap.PropertyName));
+           RttiField := RttiType.GetField(LPropMap.PropertyName);
+           if RttiField = nil then RttiField := RttiType.GetField('F' + LPropMap.PropertyName);
+           if RttiField = nil then RttiField := RttiType.GetField(TReflection.NormalizeFieldName(LPropMap.PropertyName));
+           if RttiField = nil then RttiField := RttiType.GetField('F' + TReflection.NormalizeFieldName(LPropMap.PropertyName));
 
            // NEW: Special case for Lazy fields that might not have the F prefix in the map but have it in the class
-           if (RttiField = nil) and (not PropMap.PropertyName.StartsWith('F', True)) then
-             RttiField := RttiType.GetField('F' + PropMap.PropertyName);
+           if (RttiField = nil) and (not LPropMap.PropertyName.StartsWith('F', True)) then
+             RttiField := RttiType.GetField('F' + LPropMap.PropertyName);
 
            if RttiField <> nil then
            begin
@@ -2317,116 +2376,44 @@ begin
               end;
 
               // Update FieldOffset if not yet set
-              if PropMap.FieldValueOffset <= 0 then
-                PropMap.FieldValueOffset := RttiField.Offset;
+              if LPropMap.FieldValueOffset <= 0 then
+                LPropMap.FieldValueOffset := RttiField.Offset;
            end;
         end;
       end;
 
       // Se ainda for desconhecido e houver PTypeInfo no map
-      if (ResolvedType = ftUnknown) and Assigned(PropMap.PropertyType) then
-        ResolvedType := MapTypeToFieldType(PropMap.PropertyType);
+      if (ResolvedType = ftUnknown) and Assigned(LPropMap.PropertyType) then
+        ResolvedType := MapTypeToFieldType(LPropMap.PropertyType);
 
       // CRITICAL: Persist resolved type back into PropMap
-      if (ResolvedType in [ftString, ftWideString]) and (PropMap.MaxLength > 255) then
+      if (ResolvedType in [ftString, ftWideString]) and (LPropMap.MaxLength > 255) then
         ResolvedType := ftMemo;
 
-      if (PropMap.DataType = ftUnknown) and (ResolvedType <> ftUnknown) then
-        PropMap.DataType := ResolvedType;
+      if (LPropMap.DataType = ftUnknown) and (ResolvedType <> ftUnknown) then
+        LPropMap.DataType := ResolvedType;
 
       // Habilita suporte a ftDataSet para coleções de navegação
-      if PropMap.IsNavigation and (PropMap.Relationship in [rtOneToMany, rtManyToMany]) then
+      if LPropMap.IsNavigation and (LPropMap.Relationship in [rtOneToMany, rtManyToMany]) then
+        ResolvedType := ftDataSet;
+
+      if (ResolvedType = ftUnknown) and LPropMap.IsNavigation then
         ResolvedType := ftDataSet;
 
       // Ensure shadow property has a type if unknown (default to string)
-      if (PropMap.IsShadow) and (ResolvedType = ftUnknown) then
+      if (LPropMap.IsShadow) and (ResolvedType = ftUnknown) then
         ResolvedType := ftWideString;
 
       if ResolvedType = ftUnknown then Continue;
 
       // 1. Popular FieldDefs para metadados
       FieldDef := FieldDefs.AddFieldDef;
-      FieldDef.Name := PropMap.PropertyName;
+      FieldDef.Name := LPropMap.PropertyName;
       FieldDef.DataType := ResolvedType;
-      if PropMap.MaxLength > 0 then
-        FieldDef.Size := PropMap.MaxLength
+      if LPropMap.MaxLength > 0 then
+        FieldDef.Size := LPropMap.MaxLength
       else if ResolvedType in [ftString, ftWideString] then
         FieldDef.Size := 255;
-
-      // 2. Instanciar os TFields dinamicamente
-      if Fields.FindField(PropMap.PropertyName) = nil then
-      begin
-        NewField := nil;
-        case ResolvedType of
-          ftWideString: NewField := TWideStringField.Create(Self);
-          ftString: NewField := TStringField.Create(Self);
-          ftInteger, ftSmallint: NewField := TIntegerField.Create(Self);
-          ftLargeint: NewField := TLargeintField.Create(Self);
-          ftFloat:
-          begin
-            NewField := TFloatField.Create(Self);
-            TFloatField(NewField).Precision := 2;
-          end;
-          ftCurrency:
-          begin
-            NewField := TCurrencyField.Create(Self);
-            TCurrencyField(NewField).Currency := True; // Habilita formatação automática do SO
-          end;
-          ftBoolean: NewField := TBooleanField.Create(Self);
-          ftDateTime: NewField := TDateTimeField.Create(Self);
-          ftDate: NewField := TDateField.Create(Self);
-          ftTime: NewField := TTimeField.Create(Self);
-          ftBlob: NewField := TBlobField.Create(Self);
-          ftMemo: NewField := TMemoField.Create(Self);
-          ftDataSet: NewField := TDataSetField.Create(Self);
-        end;
-
-        if NewField <> nil then
-        begin
-          NewField.FieldName := PropMap.PropertyName;
-          
-          if (NewField is TFloatField) and (not (NewField is TCurrencyField)) then
-          begin
-            TFloatField(NewField).Precision := PropMap.Precision;
-            TFloatField(NewField).DisplayFormat := '#,##0.00';
-          end;
-          
-          if NewField is TCurrencyField then
-          begin
-            TCurrencyField(NewField).Precision := 4;
-            TCurrencyField(NewField).currency := True; 
-            TCurrencyField(NewField).DisplayFormat := '#,##0.00';
-          end;
-
-          if NewField is TStringField then
-          begin
-            if PropMap.MaxLength > 0 then
-              TStringField(NewField).Size := PropMap.MaxLength
-            else
-              TStringField(NewField).Size := 255;
-          end
-          else if NewField is TWideStringField then
-          begin
-            if PropMap.MaxLength > 0 then
-              TWideStringField(NewField).Size := PropMap.MaxLength
-            else
-              TWideStringField(NewField).Size := 255;
-          end;
-
-          NewField.Required := PropMap.IsRequired and (not PropMap.IsAutoInc);
-          NewField.ReadOnly := PropMap.IsAutoInc;
-
-          // Apply UI Overrides (Attributes have precedence over defaults)
-          ApplyAttributesToField(NewField, Prop);
-          ApplyAttributesToField(NewField, RttiField);
-
-          // User-defined preparation (highest precedence)
-          if Assigned(FOnPrepareField) then
-            FOnPrepareField(Self, NewField);
-
-          NewField.DataSet := Self;
-        end;
-      end;
     end;
 end;
 
@@ -2562,50 +2549,83 @@ end;
 procedure TEntityDataSet.ApplyMapMetadataToFields;
 var
   Field: TField;
-  PropMap: TPropertyMap;
+  LPropMap: TPropertyMap;
+  RttiType: TRttiType;
+  Prop: TRttiProperty;
+  RttiField: TRttiField;
+  i: Integer;
 begin
   if FEntityMap = nil then Exit;
   if Fields.Count = 0 then Exit;
 
-  for PropMap in FEntityMap.Properties.Values do
-  begin
-    if PropMap.IsNavigation or PropMap.IsIgnored then Continue;
+  RttiType := nil;
+  if FEntityClass <> nil then
+    RttiType := TReflection.Context.GetType(FEntityClass);
 
-    Field := FindField(PropMap.PropertyName);
+  for i := 0 to FEntityMap.OrderedProperties.Count - 1 do
+  begin
+    LPropMap := FEntityMap.OrderedProperties[i];
+    if LPropMap.IsIgnored then Continue;
+    
+    Field := FindField(LPropMap.PropertyName);
     if Field = nil then Continue;
 
     // DisplayLabel / Caption
-    if PropMap.DisplayLabel <> '' then
-      Field.DisplayLabel := PropMap.DisplayLabel;
+    if LPropMap.DisplayLabel <> '' then
+      Field.DisplayLabel := LPropMap.DisplayLabel
+    else
+      Field.DisplayLabel := LPropMap.PropertyName;
+
+    // Index (Order)
+    Field.Index := i;
 
     // DisplayWidth
-    if PropMap.DisplayWidth > 0 then
-      Field.DisplayWidth := PropMap.DisplayWidth;
+    if LPropMap.DisplayWidth > 0 then
+      Field.DisplayWidth := LPropMap.DisplayWidth;
 
     // DisplayFormat (Numeric and DateTime)
-    if PropMap.DisplayFormat <> '' then
+    if LPropMap.DisplayFormat <> '' then
     begin
       if Field is TNumericField then
-        TNumericField(Field).DisplayFormat := PropMap.DisplayFormat
+        TNumericField(Field).DisplayFormat := LPropMap.DisplayFormat
       else if Field is TDateTimeField then
-        TDateTimeField(Field).DisplayFormat := PropMap.DisplayFormat;
+        TDateTimeField(Field).DisplayFormat := LPropMap.DisplayFormat;
+    end
+    else if Field is TNumericField then
+    begin
+      if Field is TCurrencyField then
+      begin
+        TCurrencyField(Field).Currency := True;
+        TCurrencyField(Field).Precision := 4;
+      end;
+      TNumericField(Field).DisplayFormat := '#,##0.00';
     end;
 
     // EditMask
-    if PropMap.EditMask <> '' then
-      Field.EditMask := PropMap.EditMask;
+    if LPropMap.EditMask <> '' then
+      Field.EditMask := LPropMap.EditMask;
 
     // Alignment
-    if PropMap.Alignment <> taLeftJustify then
-      Field.Alignment := PropMap.Alignment;
+    if LPropMap.Alignment <> taLeftJustify then
+      Field.Alignment := LPropMap.Alignment;
 
     // Visible
-    Field.Visible := PropMap.Visible;
+    Field.Visible := LPropMap.Visible;
 
     // Required / ReadOnly
-    Field.Required := PropMap.IsRequired and (not PropMap.IsAutoInc);
-    if PropMap.IsAutoInc then
-      Field.ReadOnly := True;
+    Field.Required := LPropMap.IsRequired and (not LPropMap.IsAutoInc);
+    Field.ReadOnly := LPropMap.IsReadOnly or LPropMap.IsAutoInc;
+
+    // Apply Attributes (if RTTI is available)
+    if RttiType <> nil then
+    begin
+      Prop := RttiType.GetProperty(LPropMap.PropertyName);
+      ApplyAttributesToField(Field, Prop);
+
+      RttiField := RttiType.GetField(LPropMap.PropertyName);
+      if RttiField = nil then RttiField := RttiType.GetField('F' + LPropMap.PropertyName);
+      ApplyAttributesToField(Field, RttiField);
+    end;
 
     // User-defined preparation (highest precedence)
     if Assigned(FOnPrepareField) then
@@ -2754,6 +2774,15 @@ var
   Header: PEntityRecordHeader;
   PhysicalIdx: Integer;
 begin
+  if (csDesigning in ComponentState) and Active and Assigned(FDataProvider) then
+  begin
+    if (FDataProvider.DatabaseConnection <> nil) and (not FDataProvider.DatabaseConnection.Connected) then
+    begin
+       Active := False;
+       Exit(grError);
+    end;
+  end;
+
   Header := PEntityRecordHeader(Pointer(Buffer));
 
   case GetMode of
@@ -2830,7 +2859,7 @@ var
   Header: PEntityRecordHeader;
   LP: PByte;
   Prop: TRttiProperty;
-  PropMap: TPropertyMap;
+  LPropMap: TPropertyMap;
   PValue: Pointer;
   Row: TDictionary<string, Variant>;
   RowIdx: Integer;
@@ -2886,11 +2915,11 @@ begin
 
   if (CurrentObj = nil) or (FEntityMap = nil) then Exit;
 
-  if not FEntityMap.Properties.TryGetValue(Field.FieldName, PropMap) then
+  if not FEntityMap.Properties.TryGetValue(Field.FieldName, LPropMap) then
     Exit;
 
   // 3. Shadow Property support
-  if PropMap.IsShadow and (FDbContext <> nil) then
+  if LPropMap.IsShadow and (FDbContext <> nil) then
   begin
     Entry := FDbContext.Entry(CurrentObj);
     Value := Entry.Member(Field.FieldName).GetCurrentValue.AsVariant;
@@ -2899,7 +2928,7 @@ begin
   end;
 
   // 4. RTTI Fallback if field offset is not defined or is Lazy
-  if (PropMap.FieldValueOffset <= 0) or PropMap.IsLazy then
+  if (LPropMap.FieldValueOffset <= 0) or LPropMap.IsLazy then
   begin
     Prop := GetProperty(Field.FieldName);
     if Prop <> nil then
@@ -2966,10 +2995,10 @@ begin
   end;
 
   // 5. Direct value extraction (Fast Path)
-  if (PropMap.FieldOffset > 0) then
+  if (LPropMap.FieldOffset > 0) then
   begin
     LP := PByte(CurrentObj);
-    Inc(LP, PropMap.FieldOffset);
+    Inc(LP, LPropMap.FieldOffset);
     if not PBoolean(LP)^ then
     begin
       Value := Null;
@@ -2980,16 +3009,16 @@ begin
 
   // Determine the pointer to the actual value
   // CRITICAL: Ensure we have a valid non-zero offset before direct memory access
-  if PropMap.FieldValueOffset > 0 then
+  if LPropMap.FieldValueOffset > 0 then
   begin
     LP := PByte(CurrentObj);
-    Inc(LP, PropMap.FieldValueOffset);
+    Inc(LP, LPropMap.FieldValueOffset);
     PValue := LP;
   end
-  else if PropMap.FieldOffset > 0 then
+  else if LPropMap.FieldOffset > 0 then
   begin
     LP := PByte(CurrentObj);
-    Inc(LP, PropMap.FieldOffset);
+    Inc(LP, LPropMap.FieldOffset);
     PValue := LP;
   end
   else
@@ -2997,7 +3026,7 @@ begin
 
   if PValue = nil then Exit;
 
-  case PropMap.DataType of
+  case LPropMap.DataType of
     ftString, ftWideString, ftMemo, ftWideMemo:
       Value := PString(PValue)^;
     ftInteger, ftSmallint, ftWord:
@@ -3015,15 +3044,15 @@ begin
       // because types like 'Currency' have a unique 8-byte binary layout (scaled Int64)
       // that differs from standard 'Double' (IEEE 754). Using TValue ensures safe 
       // extraction from the object memory and correct conversion to a Variant type.
-      if PropMap.PropertyType <> nil then
+      if LPropMap.PropertyType <> nil then
       begin
-        TValue.Make(PValue, PropMap.PropertyType, Val);
+        TValue.Make(PValue, LPropMap.PropertyType, Val);
         Value := Val.AsVariant;
       end
       else
       begin
         // Fallback to raw bit reading if TypeInfo is missing
-        if PropMap.DataType = ftCurrency then
+        if LPropMap.DataType = ftCurrency then
           Value := PCurrency(PValue)^
         else
           Value := PDouble(PValue)^;
@@ -3197,7 +3226,7 @@ var
   Header: PEntityRecordHeader;
   Offset: Integer;
   P: PByte;
-  PropMap: TPropertyMap;
+  LPropMap: TPropertyMap;
   RttiProp: TRttiProperty;
   RttiType: TRttiType;
   V: TValue;
@@ -3254,11 +3283,11 @@ begin
 
   if (CurrentObj = nil) or (FEntityMap = nil) then
     Exit;
-  if not FEntityMap.Properties.TryGetValue(Field.FieldName, PropMap) then
+  if not FEntityMap.Properties.TryGetValue(Field.FieldName, LPropMap) then
     Exit;
 
   // 1. Shadow Property support
-  if PropMap.IsShadow and (FDbContext <> nil) then
+  if LPropMap.IsShadow and (FDbContext <> nil) then
   begin
     if Buffer = nil then
       FDbContext.Entry(CurrentObj).Member(Field.FieldName).SetCurrentValue(TValue.Empty)
@@ -3284,10 +3313,10 @@ begin
   end;
 
   // 2. Direct RTTI/Offset writing
-  if PropMap.FieldValueOffset > 0 then
+  if LPropMap.FieldValueOffset > 0 then
   begin
     P := PByte(CurrentObj);
-    Inc(P, PropMap.FieldValueOffset);
+    Inc(P, LPropMap.FieldValueOffset);
     if Buffer <> nil then
     begin
       case Field.DataType of
@@ -3303,10 +3332,10 @@ begin
     end;
 
     // Set HasValue flag if available
-    if PropMap.FieldOffset > 0 then
+    if LPropMap.FieldOffset > 0 then
     begin
       P := PByte(CurrentObj);
-      Inc(P, PropMap.FieldOffset);
+      Inc(P, LPropMap.FieldOffset);
       PBoolean(P)^ := (Buffer <> nil);
     end;
     SetModified(True);

@@ -103,6 +103,7 @@ type
   ///   Alias for PrimaryKeyAttribute
   /// </summary>
   PKAttribute = PrimaryKeyAttribute;
+  PK = PKAttribute;
 
   AutoIncAttribute = class(TCustomAttribute)
   end;
@@ -300,6 +301,7 @@ type
   ///   Alias for ForeignKeyAttribute
   /// </summary>
   FKAttribute = ForeignKeyAttribute;
+  FK = FKAttribute;
 
   /// <summary>
   ///   Marks a collection property as a One-to-Many relationship.
@@ -431,6 +433,8 @@ type
   ///   Alias for CaptionAttribute
   /// </summary>
   DisplayLabelAttribute = CaptionAttribute;
+  Caption = CaptionAttribute;
+  DisplayLabel = CaptionAttribute;
 
   /// <summary>
   ///   Specifies the display format (e.g., #,##0.00) for a numeric or date property.
@@ -442,6 +446,7 @@ type
     constructor Create(const AValue: string);
     property Value: string read FValue;
   end;
+  DisplayFormat = DisplayFormatAttribute;
 
   /// <summary>
   ///   Specifies the horizontal alignment for the field's data in UI.
@@ -453,6 +458,7 @@ type
     constructor Create(AAlignment: TAlignment);
     property Alignment: TAlignment read FAlignment;
   end;
+  Alignment = AlignmentAttribute;
 
   /// <summary>
   ///   Specifies an edit mask for the property.
@@ -464,6 +470,7 @@ type
     constructor Create(const AValue: string);
     property Value: string read FValue;
   end;
+  EditMask = EditMaskAttribute;
 
   /// <summary>
   ///   Specifies the display width for the field in UI controls.
@@ -475,6 +482,7 @@ type
     constructor Create(AValue: Integer);
     property Value: Integer read FValue;
   end;
+  DisplayWidth = DisplayWidthAttribute;
 
   /// <summary>
   ///   Specifies if the field should be visible in UI controls.
@@ -486,6 +494,19 @@ type
     constructor Create(AVisible: Boolean = True);
     property Visible: Boolean read FVisible;
   end;
+  Visible = VisibleAttribute;
+
+  /// <summary>
+  ///   Specifies if the field should be read-only in UI controls.
+  /// </summary>
+  ReadOnlyAttribute = class(TCustomAttribute)
+  private
+    FReadOnly: Boolean;
+  public
+    constructor Create(AReadOnly: Boolean = True);
+    property ReadOnly: Boolean read FReadOnly;
+  end;
+  ReadOnly = ReadOnlyAttribute;
 
   /// <summary>
   ///   Specifies a default value for the property when the database returns NULL.
@@ -500,6 +521,7 @@ type
     constructor Create(AValue: Boolean); overload;
     property Value: Variant read FValue;
   end;
+  DefaultValue = DefaultValueAttribute;
 
   /// <summary>
   ///   Specifies a custom type converter for the property.
@@ -757,6 +779,13 @@ end;
 constructor VisibleAttribute.Create(AVisible: Boolean);
 begin
   FVisible := AVisible;
+end;
+
+{ ReadOnlyAttribute }
+
+constructor ReadOnlyAttribute.Create(AReadOnly: Boolean);
+begin
+  FReadOnly := AReadOnly;
 end;
 
 { DefaultValueAttribute }

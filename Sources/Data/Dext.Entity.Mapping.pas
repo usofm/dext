@@ -119,6 +119,7 @@ type
     function HasDisplayFormat(const AValue: string): IPropertyBuilder<T>;
     function HasEditMask(const AValue: string): IPropertyBuilder<T>;
     function HasAlignment(AValue: TAlignment): IPropertyBuilder<T>;
+    function IsReadOnly(AValue: Boolean = True): IPropertyBuilder<T>;
   end;
 
   /// <summary>
@@ -189,6 +190,7 @@ type
     IsEnum: Boolean; // New: Flag to identify enumeration types
     Prop: TRttiProperty; // Cached RTTI property
     Visible: Boolean;
+    IsReadOnly: Boolean;
     // UI Metadata
     DisplayLabel: string;
     DisplayFormat: string;
@@ -208,6 +210,7 @@ type
     FTableName: string;
     FSchema: string;
     FProperties: IDictionary<string, TPropertyMap>;
+    FOrderedProperties: IList<TPropertyMap>;
     FKeys: IList<string>;
     // Soft Delete Configuration
     FIsSoftDelete: Boolean;
@@ -230,6 +233,7 @@ type
     property TableName: string read FTableName write FTableName;
     property Schema: string read FSchema write FSchema;
     property Properties: IDictionary<string, TPropertyMap> read FProperties;
+    property OrderedProperties: IList<TPropertyMap> read FOrderedProperties;
     property Keys: IList<string> read FKeys;
     
     property IsSoftDelete: Boolean read FIsSoftDelete;
@@ -246,6 +250,7 @@ type
     procedure DiscoverAttributes;
     procedure ProcessAttribute(APropMap: TPropertyMap; AAttr: TCustomAttribute);
     function GetOrAddProperty(const APropName: string): TPropertyMap;
+    function GetOrderedProperties: TArray<TPropertyMap>;
   end;
 
   // ---------------------------------------------------------------------------
@@ -372,6 +377,7 @@ type
     function HasDisplayFormat(const AValue: string): IPropertyBuilder<T>;
     function HasEditMask(const AValue: string): IPropertyBuilder<T>;
     function HasAlignment(AValue: TAlignment): IPropertyBuilder<T>;
+    function IsReadOnly(AValue: Boolean = True): IPropertyBuilder<T>;
   end;
 
   /// <summary>
@@ -447,6 +453,7 @@ constructor TEntityMap.Create(AEntityType: PTypeInfo);
 begin
   FEntityType := AEntityType;
   FProperties := TCollections.CreateDictionaryIgnoreCase<string, TPropertyMap>(True);
+  FOrderedProperties := TCollections.CreateList<TPropertyMap>;
   FKeys := TCollections.CreateList<string>;
   FQueryFilters := TCollections.CreateList<IExpression>;
   FIsSoftDelete := False;
@@ -458,6 +465,15 @@ begin
   FIsProxy := False;
 
   DiscoverAttributes;
+end;
+
+destructor TEntityMap.Destroy;
+begin
+  FProperties := nil;
+  FOrderedProperties := nil;
+  FKeys := nil;
+  FQueryFilters := nil;
+  inherited;
 end;
 
 function TypeInfoToFieldType(ATypeInfo: PTypeInfo): TFieldType;
@@ -496,6 +512,7 @@ begin
       (AAttr is UpdatedAtAttribute) or (AAttr is JsonColumnAttribute) or (AAttr is DbTypeAttribute) or
       (AAttr is CaptionAttribute) or (AAttr is DisplayFormatAttribute) or (AAttr is DisplayWidthAttribute) or
       (AAttr is EditMaskAttribute) or (AAttr is AlignmentAttribute) or (AAttr is DefaultValueAttribute) or
+      (AAttr is VisibleAttribute) or (AAttr is ReadOnlyAttribute) or
       (AAttr is LazyAttribute) then
   begin
     if AAttr is LazyAttribute then APropMap.IsLazy := True;
@@ -579,6 +596,8 @@ begin
     if AAttr is EditMaskAttribute then APropMap.EditMask := EditMaskAttribute(AAttr).Value;
     if AAttr is AlignmentAttribute then APropMap.Alignment := AlignmentAttribute(AAttr).Alignment;
     if AAttr is DefaultValueAttribute then APropMap.DefaultValue := DefaultValueAttribute(AAttr).Value;
+    if AAttr is VisibleAttribute then APropMap.Visible := VisibleAttribute(AAttr).Visible;
+    if AAttr is ReadOnlyAttribute then APropMap.IsReadOnly := ReadOnlyAttribute(AAttr).ReadOnly;
   end;
 end;
 
@@ -810,21 +829,19 @@ begin
     end;
 end;
 
-destructor TEntityMap.Destroy;
-begin
-  FQueryFilters := nil;
-  FKeys := nil;
-  FProperties := nil;
-  inherited;
-end;
-
 function TEntityMap.GetOrAddProperty(const APropName: string): TPropertyMap;
 begin
   if not FProperties.TryGetValue(APropName, Result) then
   begin
     Result := TPropertyMap.Create(APropName);
     FProperties.Add(APropName, Result);
+    FOrderedProperties.Add(Result);
   end;
+end;
+
+function TEntityMap.GetOrderedProperties: TArray<TPropertyMap>;
+begin
+  Result := FOrderedProperties.ToArray;
 end;
 
 { TPropertyMap }
@@ -1456,6 +1473,12 @@ end;
 function TPropertyBuilder<T>.HasAlignment(AValue: TAlignment): IPropertyBuilder<T>;
 begin
   FPropMap.Alignment := AValue;
+  Result := Self;
+end;
+
+function TPropertyBuilder<T>.IsReadOnly(AValue: Boolean): IPropertyBuilder<T>;
+begin
+  FPropMap.IsReadOnly := AValue;
   Result := Self;
 end;
 

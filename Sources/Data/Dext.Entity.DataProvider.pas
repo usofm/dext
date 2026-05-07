@@ -43,7 +43,10 @@ type
     FLastRefreshSummary: string;
     FEntitiesMetadata: TEntityClassCollection;
     FOnRefreshUnit: TRefreshUnitEvent;
+    FDataSets: IList<TComponent>;
+    FOldAfterDisconnect: TNotifyEvent;
     procedure SetEntitiesMetadata(const Value: TEntityClassCollection);
+    procedure NotifyConnectionClosed(Sender: TObject);
     function BuildEntityMap(AClass: TClass): TEntityMap;
     function BuildColumnList(AClass: TClass; const AClassName: string): string;
     function GetEntityCount: Integer;
@@ -71,10 +74,13 @@ type
     function ResolveEntityClass(const AClassName: string): TClass;
     function BuildPreviewSql(const AClassName: string; AMaxRows: Integer = 50): string;
     function CreatePreviewItems(const AClassName: string; AMaxRows: Integer = 50): IObjectList;
+    function GetPreviewData(const AClassName: string; AMaxRows: Integer = 50): IList<IDictionary<string, Variant>>;
     /// <summary>
     ///   Forces a design-time synchronization of metadata from source code for a specific entity.
     /// </summary>
     procedure SyncMetadata(const AEntityClassName: string);
+    procedure RegisterDataSet(ADataSet: TComponent);
+    procedure UnregisterDataSet(ADataSet: TComponent);
   published
     property DatabaseConnection: TFDCustomConnection read FDatabaseConnection write SetDatabaseConnection;
     property ModelUnits: TStrings read FModelUnits write SetModelUnits;
@@ -100,22 +106,63 @@ begin
   TStringList(FModelUnits).OnChange := OnModelUnitsChange;
   FEntitiesMetadata := TEntityClassCollection.Create(Self);
   FMetadataCache := TCollections.CreateDictionary<string, TEntityClassMetadata>(False);
+  FDataSets := TCollections.CreateList<TComponent>;
   FPreviewMaxRows := 50;
   FDialect := ddUnknown;
 end;
 
 destructor TEntityDataProvider.Destroy;
 begin
+  FDataSets := nil;
   FMetadataCache := nil;
   FEntitiesMetadata.Free;
   FModelUnits.Free;
   inherited;
 end;
 
+procedure TEntityDataProvider.RegisterDataSet(ADataSet: TComponent);
+begin
+  if FDataSets.IndexOf(ADataSet) < 0 then
+    FDataSets.Add(ADataSet);
+end;
+
+procedure TEntityDataProvider.UnregisterDataSet(ADataSet: TComponent);
+begin
+  FDataSets.Remove(ADataSet);
+end;
+
+procedure TEntityDataProvider.NotifyConnectionClosed(Sender: TObject);
+var
+  i: Integer;
+  DS: TComponent;
+begin
+  if Assigned(FOldAfterDisconnect) then
+    FOldAfterDisconnect(Sender);
+
+  for i := FDataSets.Count - 1 downto 0 do
+  begin
+    DS := FDataSets[i];
+    if DS is TDataSet then
+      TDataSet(DS).Active := False;
+  end;
+end;
+type
+  TEntityMapEnricher = class
+  public
+    class procedure Enrich(AMap: TEntityMap; AMetadata: TEntityClassMetadata);
+  end;
+
 function TEntityDataProvider.BuildEntityMap(AClass: TClass): TEntityMap;
+var
+  Metadata: TEntityClassMetadata;
 begin
   Result := TEntityMap.Create(AClass.ClassInfo);
   Result.DiscoverAttributes;
+  
+  // Enrich with parser metadata if available (Design-Time or Runtime cached)
+  Metadata := GetEntityMetadata(AClass.ClassName);
+  if Metadata <> nil then
+    TEntityMapEnricher.Enrich(Result, Metadata);
 end;
 
 function TEntityDataProvider.BuildColumnList(AClass: TClass; const AClassName: string): string;
@@ -517,6 +564,9 @@ begin
     begin
       FDatabaseConnection.FreeNotification(Self);
       
+      FOldAfterDisconnect := FDatabaseConnection.AfterDisconnect;
+      FDatabaseConnection.AfterDisconnect := NotifyConnectionClosed;
+
       // Auto-infer dialect from connection if not manually set
       if (FDialect = ddUnknown) and (FDatabaseConnection.DriverName <> '') then
         FDialect := TDialectFactory.DetectDialect(FDatabaseConnection.DriverName);
@@ -527,6 +577,82 @@ end;
 procedure TEntityDataProvider.SetModelUnits(const Value: TStrings);
 begin
   FModelUnits.Assign(Value);
+end;
+
+function TEntityDataProvider.GetPreviewData(const AClassName: string; AMaxRows: Integer): IList<IDictionary<string, Variant>>;
+var
+  Sql: string;
+  Query: TFDQuery;
+  Row: IDictionary<string, Variant>;
+  i: Integer;
+begin
+  Result := TCollections.CreateList<IDictionary<string, Variant>>;
+  Sql := BuildPreviewSql(AClassName, AMaxRows);
+  if (Sql = '') or (FDatabaseConnection = nil) or (not FDatabaseConnection.Connected) then
+    Exit;
+
+  Query := TFDQuery.Create(nil);
+  try
+    Query.Connection := FDatabaseConnection;
+    Query.SQL.Text := Sql;
+    try
+      Query.Open;
+      while not Query.Eof do
+      begin
+        Row := TCollections.CreateDictionary<string, Variant>;
+        for i := 0 to Query.Fields.Count - 1 do
+          Row.Add(Query.Fields[i].FieldName, Query.Fields[i].Value);
+        Result.Add(Row);
+        Query.Next;
+      end;
+    except
+      // Silently ignore preview errors
+    end;
+  finally
+    Query.Free;
+  end;
+end;
+
+class procedure TEntityMapEnricher.Enrich(AMap: TEntityMap; AMetadata: TEntityClassMetadata);
+var
+  i: Integer;
+  MemberMD: TEntityMemberMetadata;
+  PropMap: TPropertyMap;
+begin
+  if (AMap = nil) or (AMetadata = nil) then Exit;
+  
+  if AMetadata.TableName <> '' then
+    AMap.TableName := AMetadata.TableName;
+
+  for i := 0 to AMetadata.Members.Count - 1 do
+  begin
+    MemberMD := AMetadata.Members[i];
+    PropMap := AMap.GetOrAddProperty(MemberMD.Name);
+    
+    if MemberMD.DisplayLabel <> '' then
+      PropMap.DisplayLabel := MemberMD.DisplayLabel;
+      
+    if MemberMD.DisplayWidth > 0 then
+      PropMap.DisplayWidth := MemberMD.DisplayWidth;
+      
+    if MemberMD.DisplayFormat <> '' then
+      PropMap.DisplayFormat := MemberMD.DisplayFormat;
+      
+    if MemberMD.EditMask <> '' then
+      PropMap.EditMask := MemberMD.EditMask;
+      
+    if MemberMD.Alignment <> taLeftJustify then
+      PropMap.Alignment := MemberMD.Alignment;
+      
+    PropMap.IsReadOnly := MemberMD.IsReadOnly;
+    PropMap.Visible := MemberMD.Visible;
+    PropMap.IsRequired := MemberMD.IsRequired;
+    PropMap.IsPK := MemberMD.IsPrimaryKey;
+    PropMap.IsAutoInc := MemberMD.IsAutoInc;
+    
+    if MemberMD.MaxLength > 0 then
+      PropMap.MaxLength := MemberMD.MaxLength;
+  end;
 end;
 
 end.
