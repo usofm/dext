@@ -1,10 +1,11 @@
-# Dext Tests Automated Runner
-# This script robustly discovers, builds, and verifies all unit tests.
+# Dext Tests Automated Runner V2
+# This script robustly discovers, builds, and executes unit tests individually.
+# Based on the dynamic feedback pattern of run_examples.ps1
 
 $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $DextRoot = Split-Path -Parent $PSScriptRoot
 
-# Forçar o console a usar UTF-8 (Code Page 65001) para exibir caracteres especiais e emojis corretamente
+# Force console to UTF-8 (Code Page 65001) for correct character and emoji display
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 if (Get-Command chcp.com -ErrorAction SilentlyContinue) { chcp.com 65001 | Out-Null }
@@ -13,58 +14,68 @@ if (Get-Command chcp.com -ErrorAction SilentlyContinue) { chcp.com 65001 | Out-N
 $env:DEXT_PROJECT_TYPE = "Tests"
 . "$PSScriptRoot\set_env.ps1" Win32 Debug
 
-
 $TestsOutput = Join-Path $DextRoot "Tests\Output"
 if (-not (Test-Path $TestsOutput)) {
     New-Item -ItemType Directory -Path $TestsOutput -Force | Out-Null
 }
 
-$SuccessCount = 0
-$FailCount = 0
-$FailedTests = @()
+# 2. Discover Projects
+Write-Host "`n[INIT] Discovering test projects..." -ForegroundColor Cyan
+$projects = Get-ChildItem -Path (Join-Path $DextRoot "Tests") -Filter "*.dproj" -Recurse | Where-Object { 
+    $_.Name -like "*test*" -and $_.FullName -notmatch "__history"
+}
 
-# --- STEP 1: BUILD ---
-Write-Host "`n==========================================" -ForegroundColor Cyan
-Write-Host "Step 1: Building All Tests (Discovery)" -ForegroundColor Cyan
-Write-Host "==========================================" -ForegroundColor Cyan
+$total = $projects.Count
+Write-Host "[INIT] Found $total test projects to process."
 
-$TestProjects = Get-ChildItem -Path (Join-Path $DextRoot "Tests") -Filter "*.dproj" -Recurse | Where-Object { $_.Name -like "*test*" }
+# 3. Process Projects
+$results = @()
+$current = 0
 
-foreach ($proj in $TestProjects) {
+foreach ($proj in $projects) {
+    $current++
     $projName = $proj.BaseName
-    Write-Host "[BUILD] Project: $projName" -ForegroundColor Yellow
+    $projPath = $proj.FullName
+    $projDir = $proj.DirectoryName
     
-    $MSBuildArgs = @(
-        $proj.FullName,
+    Write-Host "`n[$current/$total] Processing: $projName" -ForegroundColor White
+    
+    # 3a. Build
+    Write-Host "  [BUILD] Compiling..." -NoNewline
+    $msbuildArgs = @(
+        "`"$projPath`"",
         "/t:Build",
-        "/p:Config=Debug",
-        "/p:Platform=Win32",
+        "/p:Configuration=$($env:BUILD_CONFIG)",
+        "/p:Platform=$($env:PLATFORM)",
         "/p:DCC_ExeOutput=`"$TestsOutput`"",
         "/p:DCC_DcuOutput=`"$env:OUTPUT_PATH`"",
+        "/p:DCC_UnitSearchPath=`"$($env:SEARCH_PATH)`"",
+        "/p:DCC_BuildAllUnits=true",
         "/v:minimal",
         "/nologo"
     )
     
-    & msbuild @MSBuildArgs
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "  [ERROR] Build failed for $projName" -ForegroundColor Red
+    $process = Start-Process -FilePath "msbuild" -ArgumentList $msbuildArgs -Wait -NoNewWindow -PassThru
+    
+    if ($process.ExitCode -ne 0) {
+        Write-Host " FAILED" -ForegroundColor Red
+        $results += [PSCustomObject]@{ Project = $projName; Status = "Build Failed"; Dir = $projDir }
+        continue
     }
-}
-
-# --- STEP 2: RUN ---
-$Tests = Get-ChildItem -Path $TestsOutput -Filter "*.exe"
-Write-Host "`n==========================================" -ForegroundColor Cyan
-Write-Host "Step 2: Running $($Tests.Count) Tests" -ForegroundColor Cyan
-Write-Host "==========================================" -ForegroundColor Cyan
-
-foreach ($test in $Tests) {
-    $testName = $test.BaseName
-    Write-Host "`n------------------------------------------"
-    Write-Host "[RUN] Testing: $testName" -ForegroundColor Yellow
-    Write-Host "------------------------------------------"
+    Write-Host " OK" -ForegroundColor Green
+    
+    # 3b. Execute Test
+    $exePath = Join-Path $TestsOutput "$projName.exe"
+    if (!(Test-Path $exePath)) {
+        Write-Host "  [ERROR] EXE missing after successful build!" -ForegroundColor Red
+        $results += [PSCustomObject]@{ Project = $projName; Status = "EXE Not Found"; Dir = $projDir }
+        continue
+    }
+    
+    Write-Host "  [RUN] Executing tests..." -ForegroundColor Yellow
     
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $test.FullName
+    $psi.FileName = $exePath
     $psi.Arguments = "-no-wait"
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $false
@@ -73,28 +84,34 @@ foreach ($test in $Tests) {
     $job.WaitForExit()
     
     if ($job.ExitCode -eq 0) {
-        Write-Host "[PASSED] $testName" -ForegroundColor Green
-        $SuccessCount++
+        Write-Host "  [PASSED] $projName" -ForegroundColor Green
+        $results += [PSCustomObject]@{ Project = $projName; Status = "Passed"; Dir = $projDir }
     } else {
-        Write-Host "[FAILED] $testName - Exit code: $($job.ExitCode)" -ForegroundColor Red
-        $FailedTests += $testName
-        $FailCount++
+        Write-Host "  [FAILED] $projName (ExitCode: $($job.ExitCode))" -ForegroundColor Red
+        $results += [PSCustomObject]@{ Project = $projName; Status = "Test Failed"; Dir = $projDir }
     }
 }
 
-# --- SUMMARY ---
-Write-Host "`n==========================================" -ForegroundColor Cyan
-Write-Host "Test Summary" -ForegroundColor Cyan
-Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "  Tests Passed:   $SuccessCount" -ForegroundColor Green
-Write-Host "  Tests Failed:   $FailCount" -ForegroundColor $(if ($FailCount -gt 0) { "Red" } else { "Green" })
+# 4. Final Summary
+Write-Host "`n" + ("=" * 40)
+Write-Host " Dext Unit Tests Summary"
+Write-Host ("=" * 40)
+$passed = ($results | Where-Object { $_.Status -eq "Passed" }).Count
+$failed = $results.Count - $passed
 
-if ($FailedTests.Count -gt 0) {
-    Write-Host "`nFailed Tests:" -ForegroundColor Red
-    foreach ($p in $FailedTests) { Write-Host "  - $p" -ForegroundColor Red }
-    Write-Host "`nTESTS COMPLETED WITH FAILURES" -ForegroundColor Red
+$failColor = if ($failed -gt 0) { "Red" } else { "Gray" }
+Write-Host " Projects Passed: $passed" -ForegroundColor Green
+Write-Host " Projects Failed: $failed" -ForegroundColor $failColor
+
+if ($failed -gt 0) {
+    Write-Host "`n Failed Projects:" -ForegroundColor Red
+    $results | Where-Object { $_.Status -ne "Passed" } | ForEach-Object {
+        Write-Host "  - $($_.Project) [$($_.Status)]"
+    }
+    Write-Host "`n" + ("=" * 40)
     exit 1
 }
 
-Write-Host "`nALL TESTS PASSED!" -ForegroundColor Green
+Write-Host "`n ALL TESTS PASSED SUCCESSFULLY!" -ForegroundColor Green
+Write-Host ("=" * 40)
 exit 0
