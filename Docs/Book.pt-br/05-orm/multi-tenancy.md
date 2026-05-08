@@ -53,19 +53,26 @@ App.UseMultiTenancy(procedure(Options: TMultiTenancyOptions)
   end);
 ```
 
-## Isolamento por Schema
+## Isolamento por Schema (Dynamic Schema)
 
-Para maior segurança e performance, use schemas separados (ex: PostgreSQL `search_path`):
+Para maior segurança e performance, você pode usar esquemas separados (ex: PostgreSQL `search_path` ou SQL Server schemas). O Dext implementa isso através de **Dynamic Schema Resolution**:
 
-```pascal
-App.UseMultiTenancy(procedure(Options: TMultiTenancyOptions)
-  begin
-    Options.Strategy := TTenancyStrategy.Schema;
-    Options.ResolveFromHost; // Ex: customer1.meuapp.com
-  end);
-```
+1. **Configuração**:
+   ```pascal
+   App.UseMultiTenancy(procedure(Options: TMultiTenancyOptions)
+     begin
+       Options.Strategy := TTenancyStrategy.Schema;
+       Options.ResolveFromHeader('X-Tenant');
+     end);
+   ```
 
-Quando uma conexão é aberta, o Dext executa automaticamente o comando para trocar o schema padrão baseado no tenant resolvido.
+2. **Como Funciona**:
+   - Quando o `DbContext` inicia uma operação, ele executa automaticamente um comando de troca de contexto (ex: `SET search_path = tenant1, public`) na conexão.
+   - O SQL gerado permanece limpo e amigável (ex: `SELECT * FROM clientes`), permitindo que o próprio banco de dados resolva a tabela no esquema correto.
+   - Isso garante que o plano de execução do banco seja otimizado e que os logs de SQL sejam consistentes.
+
+3. **Design-Time**:
+   O isolamento por esquema também funciona no **Delphi IDE**. Ao configurar o parâmetro `MetaCurSchema` ou `Schema` em um `TFDConnection`, o `TEntityDataSet` e o `TEntityDataProvider` respeitarão o contexto de inquilino durante o "Preview Data".
 
 ## Vantagens do Multi-Tenancy no Dext
 

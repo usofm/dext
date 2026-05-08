@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -1147,38 +1147,37 @@ end;
 
 procedure TFireDACConnection.DoAfterConnect(Sender: TObject);
 var
-  LSchema: string;
-  LDialect: ISQLDialect;
-  LSQL: string;
+  DatabaseSchema: string;
+  SqlDialect: ISQLDialect;
+  Sql: string;
 begin
-  // Set Search Path for PostgreSQL if schema is provided
-  if GetDialect = ddPostgreSQL then
+  // Try to find the schema in connection parameters
+  DatabaseSchema := FConnection.Params.Values['Schema'];
+  if DatabaseSchema = '' then
+    DatabaseSchema := FConnection.Params.Values['MetaCurSchema']; // FireDAC standard for current schema
+  if DatabaseSchema = '' then
+    DatabaseSchema := FConnection.Params.Values['MetaDefSchema']; // Fallback
+    
+  if DatabaseSchema <> '' then
   begin
-    LSchema := FConnection.Params.Values['Schema'];
-    if LSchema = '' then
-      LSchema := FConnection.Params.Values['MetaCurSchema']; // Preferred for current schema
-    if LSchema = '' then
-      LSchema := FConnection.Params.Values['MetaDefSchema']; // Fallback
-    if LSchema = '' then
-      LSchema := FConnection.Params.Values['SearchPath']; // Another common parameter
-      
-    if LSchema <> '' then
+    // Create dialect instance to get the correct SQL command
+    SqlDialect := TDialectFactory.CreateDialect(GetDialect);
+    if SqlDialect <> nil then
     begin
-       LDialect := TDialectFactory.CreateDialect(ddPostgreSQL);
-       if LDialect <> nil then
-       begin
-         // Use the exact syntax that works in your console
-         LSQL := Format('SET search_path = %s, public;', [LSchema]);
-         if Assigned(FOnLog) then
-           FOnLog('Applying schema: ' + LSQL);
-         try
-           FConnection.ExecSQL(LSQL);
-         except
-           on E: Exception do
-             if Assigned(FOnLog) then
-               FOnLog('Error applying schema: ' + E.Message);
-         end;
-       end;
+      Sql := SqlDialect.GetSetSchemaSQL(DatabaseSchema);
+      if Sql <> '' then
+      begin
+        if Assigned(FOnLog) then
+          FOnLog('Applying session schema: ' + Sql);
+        try
+          // Execute the command to switch the session context (e.g., SET search_path, USE [db], etc.)
+          FConnection.ExecSQL(Sql);
+        except
+          on E: Exception do
+            if Assigned(FOnLog) then
+              FOnLog('Error applying schema: ' + E.Message);
+        end;
+      end;
     end;
   end;
 end;

@@ -108,7 +108,6 @@ var
   UseFluent: Boolean;
   TableFilter: string;
   TableList: TArray<string>;
-  
   FDConnection: TFDConnection;
   Connection: IDbConnection;
   Provider: ISchemaProvider;
@@ -212,9 +211,6 @@ begin
   if Args.HasOption('with-metadata') then GenerateMetadata := True;
   if Args.HasOption('smart') then PropertyStyle := psSmart;
 
-    
-    
-  
   if UseFluent then MappingStr := 'Fluent' else MappingStr := 'Attributes';
   if PropertyStyle = psSmart then PropertyStr := 'Smart Properties' else PropertyStr := 'POCO';
   if GenerateMetadata then MetadataStr := 'Enabled' else MetadataStr := 'Disabled';

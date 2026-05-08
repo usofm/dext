@@ -211,6 +211,7 @@ type
     function GetJsonValueSQL(const AColumn, APath: string): string; override;
     function GenerateProcedureCallSQL(const AProcName: string; const AParamNames: TArray<string>): string; override;
     function GetLockingSQL(ALockMode: TLockMode): string; override;
+    function UseSchemaPrefix: Boolean; override;
   end;
 
   /// <summary>
@@ -248,6 +249,7 @@ type
     function RequiresOrderByForPaging: Boolean; override;
     function UseSchemaPrefix: Boolean; override;
     function GetCreateSchemaSQL(const ASchemaName: string): string; override;
+    function GetSetSchemaSQL(const ASchemaName: string): string; override;
     function GetDialect: TDatabaseDialect; override;
     function GetJsonValueSQL(const AColumn, APath: string): string; override;
     function GenerateProcedureCallSQL(const AProcName: string; const AParamNames: TArray<string>): string; override;
@@ -269,6 +271,7 @@ type
     
     
     function GenerateAlterColumn(AOp: TAlterColumnOperation): string; override;
+    function GetSetSchemaSQL(const ASchemaName: string): string; override;
     function GetDialect: TDatabaseDialect; override;
     function GetJsonValueSQL(const AColumn, APath: string): string; override;
     function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean = False): string; override;
@@ -752,8 +755,11 @@ end;
 
 function TSQLiteDialect.QuoteIdentifier(const AName: string): string;
 begin
-  // SQLite supports double quotes for identifiers
-  Result := '"' + AName + '"';
+  if AName = '' then Exit('');
+  if AName.Contains('.') then
+    Result := '"' + AName.Replace('.', '"."') + '"'
+  else
+    Result := '"' + AName + '"';
 end;
 
 function TSQLiteDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string;
@@ -842,9 +848,11 @@ end;
 
 function TPostgreSQLDialect.QuoteIdentifier(const AName: string): string;
 begin
-  // Postgres uses double quotes, but forces lowercase unless quoted.
-  // We quote to preserve case sensitivity if needed.
-  Result := '"' + AName + '"';
+  if AName = '' then Exit('');
+  if AName.Contains('.') then
+    Result := '"' + AName.Replace('.', '"."') + '"'
+  else
+    Result := '"' + AName + '"';
 end;
 
 function TPostgreSQLDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string;
@@ -961,6 +969,13 @@ begin
     lmExclusiveNoWait: Result := 'FOR UPDATE NOWAIT';
     else Result := '';
   end;
+end;
+
+function TPostgreSQLDialect.UseSchemaPrefix: Boolean;
+begin
+  // PostgreSQL is better used with SET search_path, so we avoid prefixing
+  // tables with schema names to allow session-level multitenancy.
+  Result := False;
 end;
 
 { TInterBaseDialect }
@@ -1225,6 +1240,16 @@ begin
                    'EXEC(''CREATE SCHEMA %s'')', [QuotedStr(ASchemaName), QuoteIdentifier(ASchemaName)]);
 end;
 
+function TSQLServerDialect.GetSetSchemaSQL(const ASchemaName: string): string;
+begin
+  // In SQL Server, "Schema" usually refers to the database if used for tenancy, 
+  // or actual schemas within a database. 
+  // If it's a database change:
+  Result := Format('USE %s;', [QuoteIdentifier(ASchemaName)]);
+  // Note: For actual schema switching within a DB, SQL Server doesn't have a 
+  // session-level SET SCHEMA. Prefixing is required.
+end;
+
 function TSQLServerDialect.GetDialect: TDatabaseDialect;
 begin
   Result := ddSQLServer;
@@ -1282,7 +1307,11 @@ end;
 
 function TMySQLDialect.QuoteIdentifier(const AName: string): string;
 begin
-  Result := '`' + AName + '`';
+  if AName = '' then Exit('');
+  if AName.Contains('.') then
+    Result := '`' + AName.Replace('.', '`.`') + '`'
+  else
+    Result := '`' + AName + '`';
 end;
 
 function TMySQLDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string;
@@ -1351,6 +1380,14 @@ function TMySQLDialect.GenerateAlterColumn(AOp: TAlterColumnOperation): string;
 begin
   // MySQL uses MODIFY COLUMN
   Result := Format('ALTER TABLE %s MODIFY COLUMN %s', [QuoteIdentifier(AOp.TableName), GenerateColumnDefinition(AOp.Column)]);
+end;
+
+function TMySQLDialect.GetSetSchemaSQL(const ASchemaName: string): string;
+begin
+  if ASchemaName <> '' then
+    Result := Format('USE %s;', [QuoteIdentifier(ASchemaName)])
+  else
+    Result := '';
 end;
 
 function TMySQLDialect.GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string;

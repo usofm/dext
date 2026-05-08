@@ -53,19 +53,26 @@ App.UseMultiTenancy(procedure(Options: TMultiTenancyOptions)
   end);
 ```
 
-## Schema Isolation
+## Schema Isolation (Dynamic Schema)
 
-For higher security and performance, use separate schemas (e.g., PostgreSQL `search_path`):
+For higher security and performance, you can use separate schemas (e.g., PostgreSQL `search_path` or SQL Server schemas). Dext implements this through **Dynamic Schema Resolution**:
 
-```pascal
-App.UseMultiTenancy(procedure(Options: TMultiTenancyOptions)
-  begin
-    Options.Strategy := TTenancyStrategy.Schema;
-    Options.ResolveFromHost; // e.g., customer1.myapp.com
-  end);
-```
+1. **Configuration**:
+   ```pascal
+   App.UseMultiTenancy(procedure(Options: TMultiTenancyOptions)
+     begin
+       Options.Strategy := TTenancyStrategy.Schema;
+       Options.ResolveFromHeader('X-Tenant');
+     end);
+   ```
 
-When a connection is opened, Dext automatically executes the command to switch the default schema based on the resolved tenant.
+2. **How it Works**:
+   - When `DbContext` starts an operation, it automatically executes a context-switch command (e.g., `SET search_path = tenant1, public`) on the connection.
+   - The generated SQL remains clean and developer-friendly (e.g., `SELECT * FROM customers`), allowing the database engine to resolve the table in the correct schema.
+   - This ensures optimized query execution plans and consistent SQL logs across tenants.
+
+3. **Design-Time Support**:
+   Schema isolation also works within the **Delphi IDE**. By setting the `MetaCurSchema` or `Schema` parameter in a `TFDConnection`, the `TEntityDataSet` and `TEntityDataProvider` components will respect the tenant context during "Preview Data".
 
 ## Advantages of Multi-Tenancy in Dext
 

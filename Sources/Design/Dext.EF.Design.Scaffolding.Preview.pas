@@ -44,23 +44,27 @@ type
     procedure OnSaveToDiskChange(Sender: TObject);
   public
     constructor Create(AOwner: TComponent); override;
-    procedure ShowPreview(const AMeta: TArray<TMetaTable>; const ASuggestedPath: string);
+    procedure ShowPreview(const AMeta: TArray<TMetaTable>; const ASuggestedPath: string); overload;
+    function ShowPreviewModal(const AMeta: TArray<TMetaTable>; const ASuggestedPath: string): Boolean;
   end;
 
-procedure ShowScaffoldingPreview(const AMeta: TArray<TMetaTable>; const ASuggestedPath: string);
+function ShowScaffoldingPreview(const AMeta: TArray<TMetaTable>; const ASuggestedPath: string): Boolean;
 
 implementation
 
 uses
   Vcl.FileCtrl;
 
-procedure ShowScaffoldingPreview(const AMeta: TArray<TMetaTable>; const ASuggestedPath: string);
+function ShowScaffoldingPreview(const AMeta: TArray<TMetaTable>; const ASuggestedPath: string): Boolean;
 var
   Form: TScaffoldingPreviewForm;
 begin
+  Result := False;
   Form := TScaffoldingPreviewForm.Create(nil);
   try
     Form.ShowPreview(AMeta, ASuggestedPath);
+    if Form.ShowModal = mrOk then
+      Result := True;
   finally
     Form.Free;
   end;
@@ -370,7 +374,12 @@ begin
     FEditUnitName.Text := 'Entities';
     
   RebuildCode;
-  ShowModal;
+end;
+
+function TScaffoldingPreviewForm.ShowPreviewModal(const AMeta: TArray<TMetaTable>; const ASuggestedPath: string): Boolean;
+begin
+  ShowPreview(AMeta, ASuggestedPath);
+  Result := ShowModal = mrOk;
 end;
 
 procedure TScaffoldingPreviewForm.RebuildCode;

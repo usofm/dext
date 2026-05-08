@@ -687,8 +687,7 @@ begin
     begin
       if ACreateSchema then
       begin
-        // Sql := FDialect.GetCreateSchemaSQL(FTenantProvider.Tenant.Schema);
-        Sql := '';
+        Sql := FDialect.GetCreateSchemaSQL(FTenantProvider.Tenant.Schema);
         if Sql <> '' then
         begin
           Cmd := FConnection.CreateCommand(Sql);
@@ -696,8 +695,7 @@ begin
         end;
       end;
 
-      // Sql := FDialect.GetSetSchemaSQL(FTenantProvider.Tenant.Schema);
-      Sql := '';
+      Sql := FDialect.GetSetSchemaSQL(FTenantProvider.Tenant.Schema);
       if Sql <> '' then
       begin
         Cmd := FConnection.CreateCommand(Sql);

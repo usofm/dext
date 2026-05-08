@@ -1,4 +1,4 @@
-unit Dext.EF.Design.Preview;
+﻿unit Dext.EF.Design.Preview;
 
 interface
 
@@ -26,6 +26,7 @@ uses
   FireDAC.DApt,
   Dext.Entity.DataSet,
   Dext.Entity.DataProvider,
+  Dext.Entity.Dialects,
   Dext.Entity.Core;
 
 type
@@ -135,6 +136,7 @@ var
   Member: TEntityMemberMetadata;
   TypeStr: string;
   Col: TColumn;
+  SqlDialect: ISQLDialect;
 begin
   if not Assigned(ADataSet.DataProvider) then
     raise Exception.Create('Provider is missing.');
@@ -152,6 +154,22 @@ begin
   FQuery.Connection := ADataSet.DataProvider.DatabaseConnection;
   if FQuery.Connection = nil then
      raise Exception.Create('Connection is not assigned to Provider.');
+
+  // Dynamic Schema Support: Ensure session context (search_path, USE, etc.) is set
+  SqlDialect := TDialectFactory.CreateDialect(TDialectFactory.DetectDialect(FQuery.Connection.DriverName));
+  if SqlDialect <> nil then
+  begin
+    SQL := FQuery.Connection.Params.Values['Schema'];
+    if SQL = '' then SQL := FQuery.Connection.Params.Values['MetaCurSchema'];
+    if SQL = '' then SQL := FQuery.Connection.Params.Values['MetaDefSchema'];
+
+    if SQL <> '' then
+    begin
+      SQL := SqlDialect.GetSetSchemaSQL(SQL);
+      if SQL <> '' then
+        FQuery.Connection.ExecSQL(SQL);
+    end;
+  end;
 
   SQL := DP.BuildPreviewSql(ADataSet.EntityClassName, 50);
   if SQL = '' then

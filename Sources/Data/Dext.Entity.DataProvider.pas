@@ -45,8 +45,10 @@ type
     FOnRefreshUnit: TRefreshUnitEvent;
     FDataSets: IList<TComponent>;
     FOldAfterDisconnect: TNotifyEvent;
+    FOldAfterConnect: TNotifyEvent;
     procedure SetEntitiesMetadata(const Value: TEntityClassCollection);
     procedure NotifyConnectionClosed(Sender: TObject);
+    procedure ApplySessionSchema(Sender: TObject);
     function BuildEntityMap(AClass: TClass): TEntityMap;
     function BuildColumnList(AClass: TClass; const AClassName: string): string;
     function GetEntityCount: Integer;
@@ -144,6 +146,39 @@ begin
     DS := FDataSets[i];
     if DS is TDataSet then
       TDataSet(DS).Active := False;
+  end;
+end;
+
+procedure TEntityDataProvider.ApplySessionSchema(Sender: TObject);
+var
+  LSchema: string;
+  LDialect: ISQLDialect;
+  LSQL: string;
+begin
+  if Assigned(FOldAfterConnect) then
+    FOldAfterConnect(Sender);
+
+  if FDatabaseConnection = nil then Exit;
+
+  LSchema := FDatabaseConnection.Params.Values['Schema'];
+  if LSchema = '' then LSchema := FDatabaseConnection.Params.Values['MetaCurSchema'];
+  if LSchema = '' then LSchema := FDatabaseConnection.Params.Values['MetaDefSchema'];
+
+  if LSchema <> '' then
+  begin
+    LDialect := TDialectFactory.CreateDialect(GetResolvedDialect);
+    if LDialect <> nil then
+    begin
+      LSQL := LDialect.GetSetSchemaSQL(LSchema);
+      if LSQL <> '' then
+      begin
+        try
+          FDatabaseConnection.ExecSQL(LSQL);
+        except
+          // Silently ignore errors in design-time session switching
+        end;
+      end;
+    end;
   end;
 end;
 type
@@ -566,10 +601,17 @@ begin
       
       FOldAfterDisconnect := FDatabaseConnection.AfterDisconnect;
       FDatabaseConnection.AfterDisconnect := NotifyConnectionClosed;
+      
+      FOldAfterConnect := FDatabaseConnection.AfterConnect;
+      FDatabaseConnection.AfterConnect := ApplySessionSchema;
 
       // Auto-infer dialect from connection if not manually set
       if (FDialect = ddUnknown) and (FDatabaseConnection.DriverName <> '') then
         FDialect := TDialectFactory.DetectDialect(FDatabaseConnection.DriverName);
+
+      // If already connected, apply schema immediately
+      if FDatabaseConnection.Connected then
+        ApplySessionSchema(FDatabaseConnection);
     end;
   end;
 end;

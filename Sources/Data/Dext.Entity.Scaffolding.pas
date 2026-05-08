@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -211,7 +211,7 @@ begin
        LSchema := '';
     end;
       
-    FDConn.GetTableNames(LCatalog, LSchema, '', List, [osMy, osOther], [tkTable, tkView], True);
+    FDConn.GetTableNames(LCatalog, LSchema, '', List, [osMy, osOther], [tkTable, tkView], LSchema = '');
     
     for i := List.Count - 1 downto 0 do
     begin
@@ -288,8 +288,6 @@ begin
       begin
         LTableName := Qry.FieldByName('table_name').AsString;
         LFullTableName := LTableName;
-        if (LSchema <> '') and (LSchema <> 'public') then
-          LFullTableName := LSchema + '.' + LTableName;
 
         if not (FCache.TryGetValue(LFullTableName, LTable)) then
         begin
@@ -326,8 +324,6 @@ begin
       begin
         LTableName := Qry.FieldByName('table_name').AsString;
         LFullTableName := LTableName;
-        if (LSchema <> '') and (LSchema <> 'public') then
-          LFullTableName := LSchema + '.' + LTableName;
 
         LColName := Qry.FieldByName('column_name').AsString;
         LTable := Default(TMetaTable);
@@ -361,8 +357,6 @@ begin
       begin
         LTableName := Qry.FieldByName('table_name').AsString;
         LFullTableName := LTableName;
-        if (LSchema <> '') and (LSchema <> 'public') then
-          LFullTableName := LSchema + '.' + LTableName;
 
         LTable := Default(TMetaTable);
         if (FCache.TryGetValue(LFullTableName, LTable)) then

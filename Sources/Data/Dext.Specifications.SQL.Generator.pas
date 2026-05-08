@@ -879,39 +879,57 @@ function TSQLGenerator<T>.GetTableName: string;
 var
   Typ: TRttiType;
   Attr: TCustomAttribute;
+  LSortedSchema: string;
+  LDotPos: Integer;
+  LRawTable: string;
 begin
   if (FMap <> nil) and (FMap.TableName <> '') then
-    Result := FMap.TableName
+    LRawTable := FMap.TableName
   else
   begin
-    Result := '';
+    LRawTable := '';
     Typ := TReflection.Context.GetType(T);
     
     // Check TableAttribute
     for Attr in Typ.GetAttributes do
       if Attr is TableAttribute then
         if TableAttribute(Attr).Name <> '' then
-          Result := TableAttribute(Attr).Name;
+          LRawTable := TableAttribute(Attr).Name;
     
     // Fallback to NamingStrategy or class name
-    if Result = '' then
+    if LRawTable = '' then
     begin
       if FNamingStrategy <> nil then
-        Result := FNamingStrategy.GetTableName(T)
+        LRawTable := FNamingStrategy.GetTableName(T)
       else
       begin
         // Ultimate fallback: remove T prefix from class name
-        Result := Typ.Name;
-        if (Length(Result) > 1) and (Result[1] = 'T') and CharInSet(Result[2], ['A'..'Z']) then
-          Result := Copy(Result, 2, MaxInt);
+        LRawTable := Typ.Name;
+        if (Length(LRawTable) > 1) and (LRawTable[1] = 'T') and CharInSet(LRawTable[2], ['A'..'Z']) then
+          LRawTable := Copy(LRawTable, 2, MaxInt);
       end;
     end;
   end;
 
-  Result := FDialect.QuoteIdentifier(Result);
+  // Resolve active schema: Tenant (Dynamic) > Entity Map (Static)
+  LSortedSchema := FSchema;
+  if (FTenantProvider <> nil) and (FTenantProvider.Tenant <> nil) and (FTenantProvider.Tenant.Schema <> '') then
+    LSortedSchema := FTenantProvider.Tenant.Schema;
+
+  // Split schema if provided in table name (e.g. 'schema.table')
+  LDotPos := LRawTable.IndexOf('.');
+  if LDotPos >= 0 then
+  begin
+    if LSortedSchema = '' then
+      LSortedSchema := LRawTable.Substring(0, LDotPos);
+    LRawTable := LRawTable.Substring(LDotPos + 1);
+  end;
+
+  // Final Quote
+  Result := FDialect.QuoteIdentifier(LRawTable);
   
-  if (FSchema <> '') and FDialect.UseSchemaPrefix then
-    Result := FDialect.QuoteIdentifier(FSchema) + '.' + Result;
+  if (LSortedSchema <> '') and FDialect.UseSchemaPrefix then
+    Result := FDialect.QuoteIdentifier(LSortedSchema) + '.' + Result;
 end;
 
 function TSQLGenerator<T>.TryUnwrapSmartValue(var AValue: TValue): Boolean;

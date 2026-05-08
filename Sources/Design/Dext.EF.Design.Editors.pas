@@ -1006,6 +1006,8 @@ var
   MetaArray: TArray<TMetaTable>;
   Path: string;
   I: Integer;
+  TableName: string;
+  Provider: TEntityDataProvider;
 begin
   if (List.Count = 0) or not (List[0] is TFDConnection) then
     Exit;
@@ -1018,7 +1020,8 @@ begin
       Tables := TStringList.Create;
       SelectedTables := TStringList.Create;
       try
-        Conn.GetTableNames('', '', '', Tables);
+        for TableName in TScaffoldingHelper.GetTablesFromConnection(Conn) do
+          Tables.Add(TableName);
         if Tables.Count = 0 then
         begin
           MessageDlg('No tables found in this connection.', mtWarning, [mbOK], 0);
@@ -1040,7 +1043,25 @@ begin
         if Path = '' then
           Path := TPath.GetDocumentsPath;
 
-        ShowScaffoldingPreview(MetaArray, Path);
+        if ShowScaffoldingPreview(MetaArray, Path) then
+        begin
+          // Auto-refresh any DataProvider on the same form
+          if Assigned(Conn.Owner) then
+          begin
+            for I := 0 to Conn.Owner.ComponentCount - 1 do
+            begin
+              if Conn.Owner.Components[I] is TEntityDataProvider then
+              begin
+                Provider := TEntityDataProvider(Conn.Owner.Components[I]);
+                if PopulateProviderModelUnitsFromActiveProject(Provider, Designer) then
+                begin
+                  RefreshProviderMetadata(Provider);
+                  RefreshBoundDataSets(Provider, Designer);
+                end;
+              end;
+            end;
+          end;
+        end;
       finally
         Tables.Free;
         SelectedTables.Free;

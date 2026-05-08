@@ -27,7 +27,7 @@ Estratégia para performance "estado da arte" usando o motor do ASP.NET Core via
 
 - [ ] **NativeAOT Wrapper**: Biblioteca C# compilada como Native Library (`.dll`/`.so`) exportando interface C.
 - [ ] **Zero-Copy Bridge**: Passagem de ponteiros de memória (Pinned Memory) do .NET para o Delphi.
-- [ ] **TSpan<T>**: Implementação de `Memory<T>`/`Span<T>` no Delphi para ler os buffers do Kestrel sem alocação de strings.
+- [x] **TSpan<T>**: Implementação de `Memory<T>`/`Span<T>` no Delphi para ler os buffers do Kestrel sem alocação de strings.
 
 ### 3. V3: Native Drivers (Bare Metal) - 🔮 Futuro
 
