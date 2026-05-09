@@ -113,15 +113,15 @@ type
   // Short Aliases
   PK = Dext.Entity.Attributes.PK;
   FK = Dext.Entity.Attributes.FK;
-  Caption = Dext.Entity.Attributes.Caption;
-  DisplayLabel = Dext.Entity.Attributes.DisplayLabel;
-  DisplayFormat = Dext.Entity.Attributes.DisplayFormat;
   Alignment = Dext.Entity.Attributes.Alignment;
-  EditMask = Dext.Entity.Attributes.EditMask;
-  DisplayWidth = Dext.Entity.Attributes.DisplayWidth;
-  Visible = Dext.Entity.Attributes.Visible;
-  ReadOnly = Dext.Entity.Attributes.ReadOnly;
+  Caption = Dext.Entity.Attributes.Caption;
   DefaultValue = Dext.Entity.Attributes.DefaultValue;
+  DisplayFormat = Dext.Entity.Attributes.DisplayFormat;
+  DisplayLabel = Dext.Entity.Attributes.DisplayLabel;
+  DisplayWidth = Dext.Entity.Attributes.DisplayWidth;
+  EditMask = Dext.Entity.Attributes.EditMask;
+  ReadOnly = Dext.Entity.Attributes.ReadOnly;
+  Visible = Dext.Entity.Attributes.Visible;
 
   // Dext.Entity.Cache
   TSQLCache = Dext.Entity.Cache.TSQLCache;

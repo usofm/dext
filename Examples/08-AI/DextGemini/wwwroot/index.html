@@ -1,0 +1,114 @@
+﻿<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dext Framework - Gemini AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <div class="w-full max-w-2xl glass rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[80vh]">
+        <!-- Header -->
+        <div class="bg-indigo-600 p-6 text-white flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold">Dext AI</h1>
+                <p class="text-indigo-200 text-sm">Powered by Gemini 2.5 Flash</p>
+            </div>
+            <div class="bg-white/20 px-3 py-1 rounded-full text-xs font-mono">
+                @Status
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div id="chat" class="flex-1 p-6 overflow-y-auto space-y-4">
+            <div class="flex justify-start">
+                <div class="bg-indigo-100 text-indigo-900 p-4 rounded-2xl rounded-tl-none max-w-[80%] shadow-sm">
+                    Olá! Eu sou o assistente do Dext. Como posso te ajudar hoje?
+                </div>
+            </div>
+            <!-- Dinamicamente preenchido -->
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-6 bg-white/50 border-t border-gray-200">
+            <form id="askForm" class="flex gap-2">
+                <input type="text" id="pergunta" name="pergunta" 
+                       placeholder="Pergunte algo sobre o Dext..." 
+                       class="flex-1 bg-white border border-gray-300 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+                <button type="submit" 
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-2xl transition-all active:scale-95 flex items-center gap-2">
+                    Enviar
+                    <svg id="loadingIcon" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('askForm');
+        const chat = document.getElementById('chat');
+        const perguntaInput = document.getElementById('pergunta');
+        const loadingIcon = document.getElementById('loadingIcon');
+
+        function appendMessage(text, isUser = false) {
+            const div = document.createElement('div');
+            div.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+            div.innerHTML = `
+                <div class="${isUser ? 'bg-indigo-600 text-white' : 'bg-white text-gray-800'} p-4 rounded-2xl ${isUser ? 'rounded-tr-none' : 'rounded-tl-none'} max-w-[80%] shadow-sm border border-gray-100">
+                    ${text}
+                </div>
+            `;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const prompt = perguntaInput.value;
+            if (!prompt) return;
+
+            appendMessage(prompt, true);
+            perguntaInput.value = '';
+            loadingIcon.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/ia/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pergunta: prompt })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    appendMessage(data.resposta);
+                } else {
+                    appendMessage('Erro: ' + (data.detail || 'Falha na comunicação'), false);
+                }
+            } catch (err) {
+                appendMessage('Erro: ' + err.message, false);
+            } finally {
+                loadingIcon.classList.add('hidden');
+            }
+        };
+    </script>
+    <div class="fixed bottom-4 right-4 text-xs text-indigo-400 font-mono">
+        Running on Dext Framework
+    </div>
+</body>
+</html>
