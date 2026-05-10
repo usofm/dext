@@ -1172,10 +1172,10 @@ var
 begin
   FDataSet.Open;
   
-  // Verify Description (Lazy<string> -> ftWideString)
+  // Verify Description text field type (sfAuto without provider defaults to ftString)
   LField := FDataSet.FindField('Description');
   Should(LField).NotBeNull;
-  Should(LField.DataType).Be(ftWideString);
+  Should(LField.DataType).Be(ftString);
 
   // Verify Price (Prop<Double> -> ftFloat)
   LField := FDataSet.FindField('Price');
@@ -1227,9 +1227,10 @@ begin
   FDataSet.Open;
   Should(FDataSet.FieldByName('CurrencyVal').DataType).Be(ftCurrency);
   
-  // Verify DisplayFormat to avoid 1E2 scientific notation regression
-  Should(TFloatField(FDataSet.FieldByName('DoubleVal')).DisplayFormat).Be('#,##0.00');
-  Should(TCurrencyField(FDataSet.FieldByName('CurrencyVal')).DisplayFormat).Be('#,##0.00');
+  // FireDAC-like behavior: no forced default DisplayFormat.
+  // Formatting should come from locale/consumer unless explicitly configured.
+  Should(TFloatField(FDataSet.FieldByName('DoubleVal')).DisplayFormat).Be('');
+  Should(TCurrencyField(FDataSet.FieldByName('CurrencyVal')).DisplayFormat).Be('');
 end;
 
 { TOrderTest }

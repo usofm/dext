@@ -1,4 +1,4 @@
-
+﻿
 unit Dext.Entity.DataSet;
 
 interface
@@ -22,6 +22,7 @@ uses
   Dext.Core.Reflection,
   Dext.Core.Span,
   Dext.Entity.Context,
+  Dext.Entity.Dialects,
   Dext.Entity.DataProvider,
   Dext.Entity.Mapping,
   Dext.Json.Utf8;
@@ -50,6 +51,7 @@ type
   ///   Event triggered when a field is being prepared or configured in the dataset.
   /// </summary>
   TPrepareFieldEvent = procedure(Sender: TObject; AField: TField) of object;
+  TStringFieldKind = (sfAuto, sfAnsi, sfWide);
 
   TEntityMasterDataLink = class;
 
@@ -102,12 +104,14 @@ type
     FTableName: string;
     FVirtualIndex: TVector<Integer>;
     FOnPrepareField: TPrepareFieldEvent;
+    FStringFieldKind: TStringFieldKind;
 
     function CompareObjectsInternal(A, B: TObject; const APropNames: TArray<string>; RttiType: TRttiType): Integer;
     function CreateNewEntity: TObject;
     function GetMasterSource: TDataSource;
     function GetProperty(const APropName: string): TRttiProperty;
     function IsActiveStored: Boolean;
+    function ResolveTextFieldType: TFieldType;
     function ReadFieldValue(Field: TField; ABuffer: TRecBuf; out Value: Variant): Boolean; overload;
     function ReadFieldValue(Field: TField; out Value: Variant): Boolean; overload;
     function StringToFieldType(const ATypeName: string): TFieldType;
@@ -220,6 +224,7 @@ type
     property FilterOptions;
     property IncludeShadowProperties: Boolean read FIncludeShadowProperties write FIncludeShadowProperties default False;
     property IndexFieldNames: string read FIndexFieldNames write SetIndexFieldNames;
+    property StringFieldKind: TStringFieldKind read FStringFieldKind write FStringFieldKind default sfAuto;
     property MasterFields: string read FMasterFields write SetMasterFields;
     property MasterSource: TDataSource read GetMasterSource write SetMasterSource;
     property ReadOnly: Boolean read FReadOnly write FReadOnly default False;
@@ -408,6 +413,30 @@ begin
   Result := not (csDesigning in ComponentState);
 end;
 
+function TEntityDataSet.ResolveTextFieldType: TFieldType;
+var
+  LDialect: TDatabaseDialect;
+begin
+  case FStringFieldKind of
+    sfAnsi: Exit(ftString);
+    sfWide: Exit(ftWideString);
+  end;
+
+  // Auto: infer from provider/dialect. PostgreSQL defaults to Unicode text.
+  LDialect := ddUnknown;
+  if Assigned(FDataProvider) then
+  begin
+    LDialect := FDataProvider.Dialect;
+    if (LDialect = ddUnknown) and (FDataProvider.DatabaseConnection <> nil) then
+      LDialect := TDialectFactory.DetectDialect(FDataProvider.DatabaseConnection.DriverName);
+  end;
+
+  if LDialect = ddPostgreSQL then
+    Result := ftWideString
+  else
+    Result := ftString;
+end;
+
 procedure TEntityDataSet.Loaded;
 begin
   inherited Loaded;
@@ -417,7 +446,7 @@ end;
 
 function TEntityDataSet.StringToFieldType(const ATypeName: string): TFieldType;
 begin
-  if SameText(ATypeName, 'string') or SameText(ATypeName, 'StringType') then Result := ftWideString
+  if SameText(ATypeName, 'string') or SameText(ATypeName, 'StringType') then Result := ResolveTextFieldType
   else if SameText(ATypeName, 'Integer') or SameText(ATypeName, 'Int32') or SameText(ATypeName, 'IntType') then Result := ftInteger
   else if SameText(ATypeName, 'LargeInt') or SameText(ATypeName, 'Int64') or SameText(ATypeName, 'Int64Type') or SameText(ATypeName, 'LargeIntType') then Result := ftLargeint
   else if SameText(ATypeName, 'Double') or SameText(ATypeName, 'Float') or SameText(ATypeName, 'FloatType') then Result := ftFloat
@@ -489,21 +518,36 @@ begin
           LPropMap.IsAutoInc := Member.IsAutoInc;
           LPropMap.Visible := Member.Visible;
           LPropMap.IsReadOnly := Member.IsReadOnly;
+          LPropMap.MaxLength := Member.MaxLength;
           LPropMap.DisplayLabel := Member.DisplayLabel;
           LPropMap.DisplayFormat := Member.DisplayFormat;
           LPropMap.DisplayWidth := Member.DisplayWidth;
           LPropMap.Alignment := Member.Alignment;
           LPropMap.EditMask := Member.EditMask;
 
-          // Resolve relationship type for navigation properties
-          if (Member.MemberType = 'Lazy') or (Member.MemberType.StartsWith('IList<')) then
+          // Resolve navigation primarily from relationship metadata.
+          // Type-based detection is only a fallback when relation metadata is missing.
+          if SameText(Member.RelationType, 'OneToMany') or SameText(Member.RelationType, 'HasMany') then
           begin
             LPropMap.IsNavigation := True;
-            if SameText(Member.RelationType, 'OneToMany') or SameText(Member.RelationType, 'HasMany') then LPropMap.Relationship := rtOneToMany
-            else if SameText(Member.RelationType, 'ManyToOne') or SameText(Member.RelationType, 'BelongsTo') then LPropMap.Relationship := rtManyToOne
-            else if SameText(Member.RelationType, 'OneToOne') or SameText(Member.RelationType, 'HasOne') then LPropMap.Relationship := rtOneToOne
-            else if SameText(Member.RelationType, 'ManyToMany') then LPropMap.Relationship := rtManyToMany;
-          end;
+            LPropMap.Relationship := rtOneToMany;
+          end
+          else if SameText(Member.RelationType, 'ManyToOne') or SameText(Member.RelationType, 'BelongsTo') then
+          begin
+            LPropMap.IsNavigation := True;
+            LPropMap.Relationship := rtManyToOne;
+          end
+          else if SameText(Member.RelationType, 'OneToOne') or SameText(Member.RelationType, 'HasOne') then
+          begin
+            LPropMap.IsNavigation := True;
+            LPropMap.Relationship := rtOneToOne;
+          end
+          else if SameText(Member.RelationType, 'ManyToMany') then
+          begin
+            LPropMap.IsNavigation := True;
+            LPropMap.Relationship := rtManyToMany;
+          end
+          // No type-based fallback here: relation metadata is the source of truth.
         end;
       end;
     end;
@@ -539,6 +583,7 @@ begin
   FCalcOffsets := TDictionary<string, Integer>.Create;
   FPropertyCache := TDictionary<string, TRttiProperty>.Create;
   FDetailDataSets := TDictionary<string, TDataSet>.Create;
+  FStringFieldKind := sfAuto;
 end;
 
 destructor TEntityDataSet.Destroy;
@@ -1656,16 +1701,33 @@ begin
   if FieldDefs.Count = 0 then
     BuildFieldDefs;
 
-  // Synchronize FieldDefs with existing persistent Fields
+  // Synchronize only calculated/lookup persistent fields.
+  // Data fields must come from EntityMap metadata.
   for i := 0 to Fields.Count - 1 do
   begin
-    if FieldDefs.IndexOf(Fields[i].FieldName) < 0 then
+    if (FieldDefs.IndexOf(Fields[i].FieldName) < 0) and
+       (Fields[i].FieldKind in [fkCalculated, fkLookup, fkInternalCalc]) then
     begin
       LDef := FieldDefs.AddFieldDef;
       LDef.Name := Fields[i].FieldName;
       LDef.DataType := Fields[i].DataType;
       LDef.Size := Fields[i].Size;
     end;
+  end;
+
+  // Remove stale persistent data fields not present in current metadata
+  // (e.g. old navigation fields created in prior versions).
+  i := 0;
+  while i < Fields.Count do
+  begin
+    if (Fields[i].FieldKind = fkData) and (FieldDefs.IndexOf(Fields[i].FieldName) < 0) and
+       (Fields[i].Owner = Owner) then
+    begin
+      Fields[i].DataSet := nil;
+      Fields[i].Free;
+      Continue;
+    end;
+    Inc(i);
   end;
 
   if FieldCount = 0 then
@@ -2185,7 +2247,12 @@ begin
           if LPropMap.DisplayWidth > 0 then
             Field.DisplayWidth := LPropMap.DisplayWidth;
 
-          Field.Visible := LPropMap.Visible;
+          // Navigation members should not pollute the main tabular grid by default.
+          // Keep them in the dataset model, but hidden unless explicitly surfaced by custom code.
+          if LPropMap.IsNavigation then
+            Field.Visible := False
+          else
+            Field.Visible := LPropMap.Visible;
           Field.ReadOnly := LPropMap.IsReadOnly;
           Field.Required := LPropMap.IsRequired and (not LPropMap.IsAutoInc);
 
@@ -2207,7 +2274,7 @@ begin
           if LPropMap.EditMask <> '' then
             Field.EditMask := LPropMap.EditMask;
             
-          if LPropMap.DataType in [ftString, ftWideString] then
+          if (LPropMap.DataType in [ftString, ftWideString]) and (LPropMap.MaxLength > 0) then
             Field.Size := LPropMap.MaxLength;
         end;
       end;
@@ -2274,7 +2341,7 @@ procedure TEntityDataSet.InternalInitFieldDefs;
         end;
       end;
       tkString, tkLString, tkWString, tkUString, tkChar, tkWChar:
-        Exit(ftWideString);
+        Exit(ResolveTextFieldType);
       tkInt64:
         Exit(ftLargeint);
       tkVariant:
@@ -2411,9 +2478,7 @@ begin
       FieldDef.Name := LPropMap.PropertyName;
       FieldDef.DataType := ResolvedType;
       if LPropMap.MaxLength > 0 then
-        FieldDef.Size := LPropMap.MaxLength
-      else if ResolvedType in [ftString, ftWideString] then
-        FieldDef.Size := 255;
+        FieldDef.Size := LPropMap.MaxLength;
     end;
 end;
 
@@ -2583,6 +2648,10 @@ begin
     if LPropMap.DisplayWidth > 0 then
       Field.DisplayWidth := LPropMap.DisplayWidth;
 
+    // Keep string field length aligned with metadata (e.g. [MaxLength]).
+    if (Field.DataType in [ftString, ftWideString]) and (LPropMap.MaxLength > 0) then
+      Field.Size := LPropMap.MaxLength;
+
     // DisplayFormat (Numeric and DateTime)
     if LPropMap.DisplayFormat <> '' then
     begin
@@ -2590,16 +2659,10 @@ begin
         TNumericField(Field).DisplayFormat := LPropMap.DisplayFormat
       else if Field is TDateTimeField then
         TDateTimeField(Field).DisplayFormat := LPropMap.DisplayFormat;
-    end
-    else if Field is TNumericField then
-    begin
-      if Field is TCurrencyField then
-      begin
-        TCurrencyField(Field).Currency := True;
-        TCurrencyField(Field).Precision := 4;
-      end;
-      TNumericField(Field).DisplayFormat := '#,##0.00';
     end;
+    // Do not force default numeric/currency DisplayFormat here.
+    // FireDAC-like behavior relies on field type + locale (FormatSettings),
+    // unless an explicit DisplayFormat is configured in metadata/attributes.
 
     // EditMask
     if LPropMap.EditMask <> '' then
@@ -2610,7 +2673,11 @@ begin
       Field.Alignment := LPropMap.Alignment;
 
     // Visible
-    Field.Visible := LPropMap.Visible;
+    // Keep navigation properties hidden by default in the master grid.
+    if LPropMap.IsNavigation then
+      Field.Visible := False
+    else
+      Field.Visible := LPropMap.Visible;
 
     // Required / ReadOnly
     Field.Required := LPropMap.IsRequired and (not LPropMap.IsAutoInc);

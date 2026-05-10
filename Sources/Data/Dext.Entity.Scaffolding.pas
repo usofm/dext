@@ -1008,7 +1008,9 @@ begin
               if Col.IsPrimaryKey then Attrs.Add('PK');
               if Col.IsAutoInc then Attrs.Add('AutoInc');
               if not Col.IsNullable then Attrs.Add('Required');
-              if (Col.Length > 0) and (DelphiType = 'string') then Attrs.Add('MaxLength(' + Col.Length.ToString + ')');
+              if (Col.Length > 0) and
+                 (SameText(DelphiType, 'string') or SameText(DelphiType, 'StringType')) then
+                Attrs.Add('MaxLength(' + Col.Length.ToString + ')');
               if (Col.Precision > 0) and ((DelphiType = 'Double') or (DelphiType = 'Currency')) then Attrs.Add(Format('Precision(%d, %d)', [Col.Precision, Col.Scale]));
               if Col.Name <> PropName then Attrs.Add('Column(''' + Col.Name + ''')');
               if Attrs.Count > 0 then SB.AppendLine('    [' + string.Join(', ', Attrs.ToArray) + ']');

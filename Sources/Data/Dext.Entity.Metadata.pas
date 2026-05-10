@@ -75,6 +75,27 @@ begin
 end;
 
 function TEntityMetadataParser.HasAttribute(Nodes: TList<TSyntaxNode>; const AttrName: string; Node: TSyntaxNode): Boolean;
+  function NormalizeAttr(const S: string): string;
+  var
+    N: string;
+    P: Integer;
+  begin
+    N := Trim(S);
+    P := LastDelimiter('.', N);
+    if P > 0 then
+      N := Copy(N, P + 1, MaxInt);
+    if N.StartsWith('&') then
+      N := N.Substring(1);
+    if EndsText('Attribute', N) then
+      N := Copy(N, 1, Length(N) - Length('Attribute'));
+    Result := N;
+  end;
+
+  function AttrMatches(const FoundName, ExpectedName: string): Boolean;
+  begin
+    Result := SameText(NormalizeAttr(FoundName), NormalizeAttr(ExpectedName));
+  end;
+
   function Check(ANode: TSyntaxNode): Boolean;
   var
     Attr, AttrNameNode: TSyntaxNode;
@@ -88,8 +109,7 @@ function TEntityMetadataParser.HasAttribute(Nodes: TList<TSyntaxNode>; const Att
       if AttrNameNode <> nil then
       begin
         FoundName := GetNodeText(AttrNameNode);
-        if SameText(FoundName, AttrName) or 
-           SameText(FoundName, AttrName + 'Attribute') then
+        if AttrMatches(FoundName, AttrName) then
         begin
           Exit(True);
         end;
@@ -113,6 +133,22 @@ begin
 end;
 
 function TEntityMetadataParser.GetAttributeArguments(Nodes: TList<TSyntaxNode>; const AttrName: string; Node: TSyntaxNode): TArray<string>;
+  function NormalizeAttr(const S: string): string;
+  var
+    N: string;
+    P: Integer;
+  begin
+    N := Trim(S);
+    P := LastDelimiter('.', N);
+    if P > 0 then
+      N := Copy(N, P + 1, MaxInt);
+    if N.StartsWith('&') then
+      N := N.Substring(1);
+    if EndsText('Attribute', N) then
+      N := Copy(N, 1, Length(N) - Length('Attribute'));
+    Result := N;
+  end;
+
   function GetArgsFromAttr(AnAttr: TSyntaxNode): TArray<string>;
   var
     Args, Arg, ValNode: TSyntaxNode;
@@ -141,7 +177,7 @@ function TEntityMetadataParser.GetAttributeArguments(Nodes: TList<TSyntaxNode>; 
       if Attr.Typ = ntAttribute then
       begin
         NameNode := Attr.FindNode(ntName);
-        if (NameNode <> nil) and SameText(GetNodeText(NameNode), AttrName) then
+        if (NameNode <> nil) and SameText(NormalizeAttr(GetNodeText(NameNode)), NormalizeAttr(AttrName)) then
           Exit(GetArgsFromAttr(Attr));
       end;
   end;
@@ -160,6 +196,22 @@ begin
 end;
 
 function TEntityMetadataParser.GetAttributeValue(Nodes: TList<TSyntaxNode>; const AttrName: string; Node: TSyntaxNode): string;
+  function NormalizeAttr(const S: string): string;
+  var
+    N: string;
+    P: Integer;
+  begin
+    N := Trim(S);
+    P := LastDelimiter('.', N);
+    if P > 0 then
+      N := Copy(N, P + 1, MaxInt);
+    if N.StartsWith('&') then
+      N := N.Substring(1);
+    if EndsText('Attribute', N) then
+      N := Copy(N, 1, Length(N) - Length('Attribute'));
+    Result := N;
+  end;
+
   function GetValFromAttr(AnAttr: TSyntaxNode): string;
   var
     Args, Arg, ValNode: TSyntaxNode;
@@ -195,8 +247,7 @@ function TEntityMetadataParser.GetAttributeValue(Nodes: TList<TSyntaxNode>; cons
       if NameNode <> nil then
       begin
         FoundName := GetNodeText(NameNode);
-        if SameText(FoundName, AttrName) or 
-           SameText(FoundName, AttrName + 'Attribute') then
+        if SameText(NormalizeAttr(FoundName), NormalizeAttr(AttrName)) then
         begin
           Result := GetValFromAttr(Attr);
           if Result <> '' then Exit;
@@ -286,7 +337,12 @@ procedure TEntityMetadataParser.ExtractMembers(AMetadata: TEntityClassMetadata; 
         // Relation Type detection (Independence of Join/Include)
         if HasAttribute(FMemberAttributes, 'HasMany', CChild) then Member.RelationType := 'HasMany'
         else if HasAttribute(FMemberAttributes, 'HasOne', CChild) then Member.RelationType := 'HasOne'
-        else if HasAttribute(FMemberAttributes, 'BelongsTo', CChild) then Member.RelationType := 'BelongsTo';
+        else if HasAttribute(FMemberAttributes, 'BelongsTo', CChild) then Member.RelationType := 'BelongsTo'
+        // Scaffolding often emits [ForeignKey('...')] on navigation members.
+        // Treat it as BelongsTo so design-time metadata can classify navigation correctly.
+        else if HasAttribute(FMemberAttributes, 'ForeignKey', CChild) or
+                HasAttribute(FMemberAttributes, 'FK', CChild) then
+          Member.RelationType := 'BelongsTo';
         
         Member.DefaultValue := GetAttributeValue(FMemberAttributes, 'DefaultValue', CChild);
 
