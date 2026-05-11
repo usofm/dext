@@ -1,4 +1,4 @@
-program Orm.EntityDemo;
+﻿program Orm.EntityDemo;
 
 {$APPTYPE CONSOLE}
 
@@ -36,7 +36,8 @@ uses
   EntityDemo.Tests.Base in 'EntityDemo.Tests.Base.pas',
   EntityDemo.Tests.SQLCache in 'EntityDemo.Tests.SQLCache.pas',
   EntityDemo.Tests.CustomDialect in 'EntityDemo.Tests.CustomDialect.pas',
-  EntityDemo.CustomDialect in 'EntityDemo.CustomDialect.pas';
+  EntityDemo.CustomDialect in 'EntityDemo.CustomDialect.pas',
+  EntityDemo.Tests.Join in 'EntityDemo.Tests.Join.pas';
 
 procedure ConfigureDatabase(Provider: TDatabaseProvider);
 begin
@@ -142,6 +143,8 @@ begin
   RunTest(TCustomDialectTest);
   // 22. SQL Cache Tests
   RunTest(TSQLCacheTest);
+  // 23. Join Pattern Tests
+  RunTest(TJoinPatternsTest);
   // Print summary at the end
 
   TBaseTest.PrintSummary;

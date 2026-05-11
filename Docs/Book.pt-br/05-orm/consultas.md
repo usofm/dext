@@ -227,18 +227,58 @@ Queries são lazy (preguiçosas) — executadas apenas quando você chama um mé
 
 ## Consultas Avançadas (Joins & Agrupamento)
 
-Para cenários complexos, você pode usar a tipagem forte de Specification ou Joins diretos.
+Para cenários complexos, use a tipagem de Specification e joins explícitos.
 
-### Joins
+### SQL Join (`Join(table, alias, joinType, condition)`)
 
-Ligue tabelas relacionadas usando `.Join`.
+Use o overload orientado a SQL quando você quer que o join seja traduzido para SQL pelo provider.
 
 ```pascal
-var Resultados := Context.Orders
-  .Join('Customers', 'C', 'Orders.CustomerId = C.Id')
-  .Where(TOrder.Props.Total > 500)
+var u := TUser.Props;
+var Usuarios := Context.Users
+  .AsNoTracking
+  // Predicado qualificado no ON:
+  // users.address_id = a.id
+  .Join('addresses', 'a', jtInner, Prop('users.address_id') = Prop('a.id'))
+  .Where(u.Age >= 18)
+  .OrderBy(u.Id.Asc)
   .ToList;
 ```
+
+> [!IMPORTANT]
+> Você pode fornecer a condição do join como:
+> - `IExpression` (caminho estrito/tipado), ou
+> - string simples `"left = right"` (parser auxiliar).
+>
+> Em ambos os casos, use nomes de coluna/propriedade qualificados no predicado ON
+> (ex.: `users.address_id`, `a.id`).
+
+### Join Genérico (`Join<TInner, TKey, TResult>`)
+
+Use este overload para cenários de projeção/correlação onde composição em memória é aceitável:
+
+```pascal
+var Juncao := Context.Users
+  .AsNoTracking
+  .Join<TAddress, Integer, string>(
+    Context.Addresses.AsNoTracking,
+    'AddressId',
+    'Id',
+    function(U: TUser; A: TAddress): string
+    begin
+      Result := U.Name + ' @ ' + A.City;
+    end
+  )
+  .ToList;
+```
+
+> [!WARNING]
+> `Join<TInner, TKey, TResult>` materializa as sequências externa e interna e correlaciona em memória.  
+> **Não** é substituto direto de SQL join em cenários de escala.
+
+> [!TIP]
+> Veja exemplos executáveis em:
+> `Examples/03-Data/Orm.EntityDemo/EntityDemo.Tests.Join.pas`
 
 ### Group By & Having
 

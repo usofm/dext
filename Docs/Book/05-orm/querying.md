@@ -256,18 +256,58 @@ var Users := Query.ToList;
 
 ## Advanced Querying (Joins & Grouping)
 
-For complex scenarios, you can use the strict typing of Specification or direct Joins.
+For complex scenarios, use specification typing and explicit joins.
 
-### Joins
+### SQL Join (`Join(table, alias, joinType, condition)`)
 
-Link related tables using `.Join`.
+Use the SQL-oriented join overload when you want the join translated to SQL by the provider.
 
 ```pascal
-var Results := Context.Orders
-  .Join('Customers', 'C', 'Orders.CustomerId = C.Id')
-  .Where(TOrder.Props.Total > 500)
+var u := TUser.Props;
+var Users := Context.Users
+  .AsNoTracking
+  // Qualified predicate in ON clause:
+  // users.address_id = a.id
+  .Join('addresses', 'a', jtInner, Prop('users.address_id') = Prop('a.id'))
+  .Where(u.Age >= 18)
+  .OrderBy(u.Id.Asc)
   .ToList;
 ```
+
+> [!IMPORTANT]
+> You can provide the join condition as:
+> - `IExpression` (strict/typed path), or
+> - simple string `"left = right"` (helper parser).
+>
+> For both forms, use qualified column/property names in the ON predicate
+> (for example: `users.address_id`, `a.id`).
+
+### Generic Join (`Join<TInner, TKey, TResult>`)
+
+Use this overload for projection/correlation scenarios where in-memory composition is acceptable:
+
+```pascal
+var Joined := Context.Users
+  .AsNoTracking
+  .Join<TAddress, Integer, string>(
+    Context.Addresses.AsNoTracking,
+    'AddressId',
+    'Id',
+    function(U: TUser; A: TAddress): string
+    begin
+      Result := U.Name + ' @ ' + A.City;
+    end
+  )
+  .ToList;
+```
+
+> [!WARNING]
+> `Join<TInner, TKey, TResult>` materializes outer and inner sequences and correlates them in memory.  
+> It is **not** a drop-in replacement for SQL joins at scale.
+
+> [!TIP]
+> See runnable examples in:
+> `Examples/03-Data/Orm.EntityDemo/EntityDemo.Tests.Join.pas`
 
 ### Group By & Having
 

@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -69,6 +69,8 @@ type
     FParamCount: Integer;
     FDialect: ISQLDialect;
     FColumnMapper: ISQLColumnMapper;
+    FQualifyUnaliasedColumns: Boolean;
+    FBaseTableName: string;
 
     procedure ProcessBinary(const C: TBinaryExpression);
     procedure ProcessArithmetic(const C: TArithmeticExpression);
@@ -90,7 +92,8 @@ type
     function MapColumn(const AName: string): string;
     function QuoteColumnOrAlias(const AName: string): string;
   public
-    constructor Create(ADialect: ISQLDialect; AMapper: ISQLColumnMapper = nil);
+    constructor Create(ADialect: ISQLDialect; AMapper: ISQLColumnMapper = nil;
+      AQualifyUnaliasedColumns: Boolean = False; const ABaseTableName: string = '');
     destructor Destroy; override;
     
     function Generate(const AExpression: IExpression): string;
@@ -159,6 +162,7 @@ type
     function GenerateJoins(const AJoins: TArray<IJoin>): string;
     function GenerateGroupBy(const AGroupBy: TArray<string>): string;
     function QuoteColumnOrAlias(const AName: string): string;
+    function QualifyBaseColumn(const AColumnName, ABaseTableName: string; AHasJoins: Boolean): string;
     function TryUnwrapSmartValue(var AValue: TValue): Boolean;
     procedure Initialize(ADialect: ISQLDialect; AMap: TEntityMap; ATenantProvider: ITenantProvider);
   public
@@ -451,13 +455,16 @@ end;
 
 { TSQLWhereGenerator }
 
-constructor TSQLWhereGenerator.Create(ADialect: ISQLDialect; AMapper: ISQLColumnMapper = nil);
+constructor TSQLWhereGenerator.Create(ADialect: ISQLDialect; AMapper: ISQLColumnMapper;
+  AQualifyUnaliasedColumns: Boolean; const ABaseTableName: string);
 begin
   FSQL := TStringBuilder.Create;
   FParams := TCollections.CreateDictionary<string, TValue>;
   FParamCount := 0;
   FDialect := ADialect;
   FColumnMapper := AMapper;
+  FQualifyUnaliasedColumns := AQualifyUnaliasedColumns;
+  FBaseTableName := ABaseTableName;
 end;
 
 destructor TSQLWhereGenerator.Destroy;
@@ -491,7 +498,12 @@ begin
     end;
   end
   else
-    Result := FDialect.QuoteIdentifier(AName);
+  begin
+    if FQualifyUnaliasedColumns and (FBaseTableName <> '') then
+      Result := FBaseTableName + '.' + FDialect.QuoteIdentifier(AName)
+    else
+      Result := FDialect.QuoteIdentifier(AName);
+  end;
 end;
 
 function TSQLWhereGenerator.Generate(const AExpression: IExpression): string;
@@ -935,6 +947,18 @@ end;
 function TSQLGenerator<T>.TryUnwrapSmartValue(var AValue: TValue): Boolean;
 begin
   Result := TReflection.TryUnwrapProp(AValue, AValue);
+end;
+
+function TSQLGenerator<T>.QualifyBaseColumn(const AColumnName, ABaseTableName: string;
+  AHasJoins: Boolean): string;
+begin
+  if AColumnName.Contains('.') then
+    Exit(QuoteColumnOrAlias(AColumnName));
+
+  if AHasJoins then
+    Exit(ABaseTableName + '.' + FDialect.QuoteIdentifier(AColumnName));
+
+  Result := FDialect.QuoteIdentifier(AColumnName);
 end;
 
 function TSQLGenerator<T>.GetSoftDeleteFilter: string;
@@ -1686,7 +1710,7 @@ var
 begin
   FParams.Clear;
   FParamCount := 0;
-  
+
   Typ := TReflection.Context.GetType(T);
   
   SBWhere := TStringBuilder.Create;
@@ -1789,9 +1813,13 @@ var
   Collector: TSQLParamCollector;
   TenantId: string;
   LKind: TTypeKind;
+  HasJoins: Boolean;
+  BaseTableName: string;
 begin
   FParams.Clear;
   FParamCount := 0;
+  HasJoins := Length(ASpec.GetJoins) > 0;
+  BaseTableName := GetTableName;
   
   // 1. Check Cache
   if TSQLCache.Instance.Enabled then
@@ -1817,7 +1845,12 @@ begin
   end;
   end;
   
-  WhereGen := TSQLWhereGenerator.Create(FDialect, TSQLColumnMapper<T>.Create(FNamingStrategy));
+  WhereGen := TSQLWhereGenerator.Create(
+    FDialect,
+    TSQLColumnMapper<T>.Create(FNamingStrategy),
+    HasJoins,
+    BaseTableName
+  );
   try
     WhereSQL := WhereGen.Generate(ASpec.GetExpression);
     FParamCount := WhereGen.ParamCount;
@@ -1875,7 +1908,7 @@ begin
         if (Prop <> nil) and (ColName = Prop.Name) and (FNamingStrategy <> nil) then
            ColName := FNamingStrategy.GetColumnName(Prop);
         
-        SB.Append(FDialect.QuoteIdentifier(ColName));
+        SB.Append(QualifyBaseColumn(ColName, BaseTableName, HasJoins));
       end;
     end
     else
@@ -1933,7 +1966,7 @@ begin
         if not First then SB.Append(', ');
         First := False;
         
-        SB.Append(FDialect.QuoteIdentifier(ColName));
+        SB.Append(QualifyBaseColumn(ColName, BaseTableName, HasJoins));
       end;
     end;
     
@@ -1995,7 +2028,12 @@ begin
            end;
         end;
         
-        SB.Append(FDialect.QuoteIdentifier(SortCol));
+        if SortCol.Contains('.') then
+          SB.Append(QuoteColumnOrAlias(SortCol))
+        else if HasJoins then
+          SB.Append(BaseTableName).Append('.').Append(FDialect.QuoteIdentifier(SortCol))
+        else
+          SB.Append(FDialect.QuoteIdentifier(SortCol));
         
         if not OrderBy[i].GetAscending then
           SB.Append(' DESC');
@@ -2163,11 +2201,20 @@ var
   SB: TStringBuilder;
   SoftDeleteFilter, DiscriminatorFilter, GlobalFilters, QFilters: string;
   Pair: TPair<string, TValue>;
+  HasJoins: Boolean;
+  BaseTableName: string;
 begin
   FParams.Clear;
   FParamCount := 0;
+  HasJoins := Length(ASpec.GetJoins) > 0;
+  BaseTableName := GetTableName;
   
-  WhereGen := TSQLWhereGenerator.Create(FDialect, TSQLColumnMapper<T>.Create(FNamingStrategy));
+  WhereGen := TSQLWhereGenerator.Create(
+    FDialect,
+    TSQLColumnMapper<T>.Create(FNamingStrategy),
+    HasJoins,
+    BaseTableName
+  );
   try
     WhereSQL := WhereGen.Generate(ASpec.GetExpression);
     FParamCount := WhereGen.ParamCount;

@@ -16,6 +16,8 @@ Uma demonstração abrangente das capacidades do **Dext Entity ORM**. Este proje
 ### Queries Avançadas
 - **Expressões Fortemente Tipadas** - `Where(TUserType.Age > 18)`
 - **Fluent Query Builder** - Métodos encadeáveis: `.Where().OrderBy().Take()`
+- **Padrões de SQL Join** - Veja `EntityDemo.Tests.Join.pas` para `.AsNoTracking + .Join('table','alias', jtInner, condition) + .OrderBy + .ToList`
+- **Join Genérico (Em Memória)** - Veja `EntityDemo.Tests.Join.pas` (`Join<TInner,TKey,TResult>` materializa sequências externa/interna e correlaciona em memória)
 - **Padrão Specifications** - Critérios de query reutilizáveis
 - **Filtros Complexos** - Condições AND/OR, LIKE, StartsWith, IsNull
 

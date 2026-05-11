@@ -126,6 +126,7 @@ type
     class function CreatePropSelector<TResult>(const AProp: TRttiProperty): TFunc<T, TResult>; static;
     class function CreatePropsSelector(const AProperties: TArray<string>): TFunc<T, T>; static;
     class function CreateSelectFactory<TResult>(const AFactory: TFunc<TQueryIterator<T>>; const ASelector: TFunc<T, TResult>): TFunc<TQueryIterator<TResult>>; static;
+    class function JoinStringToEqualsExpression(const ACondition: string): IExpression; static;
   public
     property Connection: IDbConnection read GetConnection;
     property Specification: ISpecification read GetSpec;
@@ -234,6 +235,11 @@ type
     
     // SQL Based Joins
     function Join(const ATable, AAlias: string; const AType: TJoinType; const ACondition: IExpression): TFluentQuery<T>; overload;
+    /// <summary>
+    ///   Parses a simple join predicate in the form "left = right".
+    ///   Example: Join('addresses', 'a', 'users.address_id = a.id')
+    /// </summary>
+    function Join(const ATable, AAlias: string; const ACondition: string; const AType: TJoinType = TJoinType.jtInner): TFluentQuery<T>; overload;
     
     // Group By
     function GroupBy(const AColumn: string): TFluentQuery<T>; overload;
@@ -1024,6 +1030,37 @@ begin
   if FSpecification <> nil then
     FSpecification.Join(ATable, AAlias, AType, ACondition);
   Result := Self;
+end;
+
+function TFluentQuery<T>.Join(const ATable, AAlias: string; const ACondition: string;
+  const AType: TJoinType): TFluentQuery<T>;
+begin
+  Result := Join(ATable, AAlias, AType, JoinStringToEqualsExpression(ACondition));
+end;
+
+class function TFluentQuery<T>.JoinStringToEqualsExpression(const ACondition: string): IExpression;
+var
+  EqPos: Integer;
+  L, R, S: string;
+begin
+  S := Trim(ACondition);
+  if S = '' then
+    raise EArgumentException.Create('Join condition cannot be empty.');
+
+  EqPos := Pos('=', S);
+  if (EqPos <= 0) or (EqPos = Length(S)) then
+    raise EArgumentException.CreateFmt(
+      'Join condition must look like "left = right", got "%s".', [ACondition]);
+
+  L := Trim(Copy(S, 1, EqPos - 1));
+  R := Trim(Copy(S, EqPos + 1, MaxInt));
+  if (L = '') or (R = '') then
+    raise EArgumentException.CreateFmt('Invalid join condition "%s".', [ACondition]);
+
+  Result := TBinaryExpression.Create(
+    TPropertyExpression.Create(L),
+    TPropertyExpression.Create(R),
+    boEqual);
 end;
 
 function TFluentQuery<T>.GroupBy(const AColumn: string): TFluentQuery<T>;

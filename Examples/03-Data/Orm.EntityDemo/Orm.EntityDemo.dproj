@@ -189,6 +189,7 @@
         <DCCReference Include="EntityDemo.Tests.SQLCache.pas"/>
         <DCCReference Include="EntityDemo.Tests.CustomDialect.pas"/>
         <DCCReference Include="EntityDemo.CustomDialect.pas"/>
+        <DCCReference Include="EntityDemo.Tests.Join.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

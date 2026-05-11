@@ -353,6 +353,7 @@ var
   A1, A2: TAddress;
   Spec: ISpecification<TUser>;
   Builder: TSpecificationBuilder<TUser>;
+  Streets: string;
 begin
   Log('   Testing Include (Eager Loading)...');
 
@@ -393,23 +394,25 @@ begin
   // No try..finally
   AssertTrue(Users.Count = 2, 'Should have 2 users', Format('Found %d', [Users.Count]));
 
-  // Verify that Address navigation property is loaded
-  if Users.Count >= 1 then
+  // Verify that Address navigation property is loaded for both users.
+  // Do not assume deterministic row order from provider.
+  if Users.Count >= 2 then
   begin
     AssertTrue(Users[0].Address <> nil, 'User 1 Address should be loaded',
       'User 1 Address is nil');
-    if Users[0].Address <> nil then
-      AssertTrue(Users[0].Address.Street = 'Main Street',
-        'User 1 should live on Main Street', Format('Found: %s', [Users[0].Address.Street]));
-  end;
-
-  if Users.Count >= 2 then
-  begin
     AssertTrue(Users[1].Address <> nil, 'User 2 Address should be loaded',
       'User 2 Address is nil');
+
+    Streets := '';
+    if Users[0].Address <> nil then
+      Streets := Streets + '|' + Users[0].Address.Street + '|';
     if Users[1].Address <> nil then
-      AssertTrue(Users[1].Address.Street = 'Second Avenue',
-        'User 2 should live on Second Avenue', Format('Found: %s', [Users[1].Address.Street]));
+      Streets := Streets + '|' + Users[1].Address.Street + '|';
+
+    AssertTrue(
+      Streets.Contains('|Main Street|') and Streets.Contains('|Second Avenue|'),
+      'Both expected streets should be present',
+      Format('Found: %s', [Streets]));
   end;
 end;
 
