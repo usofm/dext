@@ -42,6 +42,7 @@ type
     function AddProvider(const AProvider: ILoggerProvider): ILoggingBuilder;
     function SetMinimumLevel(ALevel: TLogLevel): ILoggingBuilder;
     function AddConsole: ILoggingBuilder;
+    function AddFile(const AFileName: string): ILoggingBuilder;
     function AddTelemetry: ILoggingBuilder;
   end;
 
@@ -60,6 +61,7 @@ uses
   System.Math,
   Dext.Collections,
   Dext.Logging.Console,
+  Dext.Logging.Sinks,
   Dext.Logging.Telemetry;
 
 type
@@ -87,6 +89,7 @@ type
     function AddProvider(const AProvider: ILoggerProvider): ILoggingBuilder;
     function SetMinimumLevel(ALevel: TLogLevel): ILoggingBuilder;
     function AddConsole: ILoggingBuilder;
+    function AddFile(const AFileName: string): ILoggingBuilder;
     function AddTelemetry: ILoggingBuilder;
     
     function ExtractProviders: IList<ILoggerProvider>;
@@ -150,6 +153,11 @@ end;
 function TLoggingBuilder.AddConsole: ILoggingBuilder;
 begin
   Result := AddProvider(TConsoleLoggerProvider.Create);
+end;
+
+function TLoggingBuilder.AddFile(const AFileName: string): ILoggingBuilder;
+begin
+  Result := AddProvider(TFileLoggerProvider.Create(AFileName));
 end;
 
 function TLoggingBuilder.AddTelemetry: ILoggingBuilder;

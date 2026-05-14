@@ -79,4 +79,4 @@ Se não houver assinantes para um evento específico, a geração do payload e o
 
 ---
 
-[← Próximo: Recursos Avançados](../10-advanced/README.md)
+[← Recursos Avançados](../10-advanced/README.md) | [Próximo: Logging →](logging.md)

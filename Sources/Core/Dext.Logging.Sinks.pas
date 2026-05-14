@@ -27,9 +27,6 @@ type
     procedure Flush;
   end;
 
-  /// <summary>
-  ///   Sink that writes to a file.
-  /// </summary>
   TFileSink = class(TInterfacedObject, ILogSink)
   private
     FFileName: string;
@@ -41,6 +38,35 @@ type
     destructor Destroy; override;
     procedure Emit(const Entry: TLogEntry);
     procedure Flush;
+  end;
+
+  /// <summary>
+  ///   Logger that writes to a file using TFileSink.
+  /// </summary>
+  TFileLogger = class(TAbstractLogger)
+  private
+    FCategoryName: string;
+    FSink: ILogSink;
+  protected
+    procedure Log(ALevel: TLogLevel; const AMessage: string; const AArgs: array of const); override;
+    procedure Log(ALevel: TLogLevel; const AException: Exception; const AMessage: string; const AArgs: array of const); override;
+    function IsEnabled(ALevel: TLogLevel): Boolean; override;
+    function BeginScope(const AMessage: string; const AArgs: array of const): IDisposable; override;
+    function BeginScope(const AState: TObject): IDisposable; override;
+  public
+    constructor Create(const ACategoryName: string; const ASink: ILogSink);
+  end;
+
+  /// <summary>
+  ///   Provider for file logging.
+  /// </summary>
+  TFileLoggerProvider = class(TInterfacedObject, ILoggerProvider)
+  private
+    FSink: ILogSink;
+  public
+    constructor Create(const AFileName: string);
+    function CreateLogger(const ACategoryName: string): ILogger;
+    procedure Dispose;
   end;
 
 implementation
@@ -151,6 +177,73 @@ begin
   except
     // ignore file errors
   end;
+end;
+
+{ TFileLogger }
+
+constructor TFileLogger.Create(const ACategoryName: string; const ASink: ILogSink);
+begin
+  inherited Create;
+  FCategoryName := ACategoryName;
+  FSink := ASink;
+end;
+
+function TFileLogger.IsEnabled(ALevel: TLogLevel): Boolean;
+begin
+  Result := ALevel <> TLogLevel.None;
+end;
+
+procedure TFileLogger.Log(ALevel: TLogLevel; const AMessage: string; const AArgs: array of const);
+var
+  LEntry: TLogEntry;
+begin
+  if not IsEnabled(ALevel) then Exit;
+
+  LEntry := Default(TLogEntry);
+  LEntry.TimeStamp := Now;
+  LEntry.Level := ALevel;
+  LEntry.FormattedMessage := TLogFormatter.FormatMessage(AMessage, AArgs);
+  
+  FSink.Emit(LEntry);
+end;
+
+procedure TFileLogger.Log(ALevel: TLogLevel; const AException: Exception; const AMessage: string; const AArgs: array of const);
+begin
+  if not IsEnabled(ALevel) then Exit;
+  if AException <> nil then
+    Log(ALevel, AMessage + ' [Ex: ' + AException.Message + ']', AArgs)
+  else
+    Log(ALevel, AMessage, AArgs);
+end;
+
+function TFileLogger.BeginScope(const AMessage: string; const AArgs: array of const): IDisposable;
+begin
+  Result := TNullDisposable.Create;
+end;
+
+function TFileLogger.BeginScope(const AState: TObject): IDisposable;
+begin
+  Result := TNullDisposable.Create;
+end;
+
+{ TFileLoggerProvider }
+
+constructor TFileLoggerProvider.Create(const AFileName: string);
+begin
+  inherited Create;
+  FSink := TFileSink.Create(AFileName);
+end;
+
+function TFileLoggerProvider.CreateLogger(const ACategoryName: string): ILogger;
+begin
+  Result := TFileLogger.Create(ACategoryName, FSink);
+end;
+
+procedure TFileLoggerProvider.Dispose;
+begin
+  if FSink <> nil then
+    FSink.Flush;
+  FSink := nil;
 end;
 
 end.

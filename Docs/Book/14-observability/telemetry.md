@@ -78,5 +78,5 @@ TDiagnosticSource.Instance.Write('Business.OrderProcessed', Payload);
 If there are no subscribers for a specific event, the payload generation and dispatch are skipped, ensuring that telemetry has **near-zero cost** when not in use.
 
 ---
-
-[← Next: Advanced Features](../10-advanced/README.md)
+ 
+ [← Next: Advanced Features](../10-advanced/README.md) | [Next: Logging →](logging.md)
