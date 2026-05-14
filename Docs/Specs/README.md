@@ -20,6 +20,8 @@ ID | Title | Status | Goal
 **S13** | [Redis Client](S13-Redis-Client.md) | 📝 Draft | High-performance async Redis client with RESP3 and RedisJSON support.
 **S14** | [SOA via Interfaces](S14-SOA-Interfaces.md) | 📝 Draft | Code-First RPC exposing Delphi interfaces via gRPC natively.
 **S15** | [Dext Studio & Visual Scaffolding](S15-Dext-Studio-IDE-Expert.md) | 📝 Draft | Visual IDE Expert for schema mapping, GitOps (YAML), and continuous DB syncing.
+**S19** | [FluentQuery Join Evolution](S19-FluentQuery-Join-Evolution.md) | ✅ Finalized | Unified DSL for complex SQL Joins via Managed Records.
+**S20** | [Fluent REST Evolution](S20-Fluent-Rest-Evolution.md) | 📝 Draft | Enhanced TRestClient factories and native record/array payload support.
 ---
 
 ## 🔍 Project Status & Roadmap

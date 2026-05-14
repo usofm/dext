@@ -16,6 +16,20 @@ uses
   User.Entity in 'User.Entity.pas';
 
 type
+  // Record DTOs for S20 Testing (Modern DTO Support)
+  TUserRecord = record
+    id: Integer;
+    name: string;
+    email: string;
+  end;
+
+  TPostRecord = record
+    userId: Integer;
+    id: Integer;
+    title: string;
+    body: string;
+  end;
+
   TPost = class
   private
     FId: Integer;
@@ -90,6 +104,103 @@ begin
   finally
     // TRestClient is a record wrapper over interface; no manual Free required.
   end;
+end;
+
+procedure DemoS20FluentBuilder;
+var
+  LUser: TUserRecord;
+begin
+  Writeln('--- Demo S20: Fluent Builder (Client.Request.Verb) ---');
+  
+  // Test 1: Request.Get with record deserialization (S20 Requirement)
+  LUser := RestClient('https://jsonplaceholder.typicode.com')
+    .Request.Get('/users/1')
+    .Execute<TUserRecord>
+    .Await;
+    
+  Writeln('Builder GET Result (Record Name): ', LUser.name);
+
+  // Test 2: Request.Post with record body and fluent headers
+  Writeln('Testing Builder POST with Record Body...');
+  Countdown.AddCount;
+  RestClient('https://jsonplaceholder.typicode.com')
+    .Request.Post('/posts')
+    .Header('X-Framework', 'Dext')
+    .Body(LUser) // Testing Body<T> with record
+    .Execute
+    .OnCompleteAsync(
+      procedure(LResp: IRestResponse)
+      begin
+        Writeln('Builder POST Status: ', LResp.StatusCode);
+        Countdown.Signal;
+      end)
+    .Start;
+end;
+
+procedure DemoS20RecordArrays;
+var
+  LPosts: TArray<TPostRecord>;
+begin
+  Writeln('--- Demo S20: Record Arrays (BodyArray) ---');
+  
+  SetLength(LPosts, 2);
+  LPosts[0].title := 'Fluent API';
+  LPosts[0].body := 'Dext is evolving';
+  LPosts[0].userId := 1;
+  
+  LPosts[1].title := 'S20 Spec';
+  LPosts[1].body := 'Implementing records support';
+  LPosts[1].userId := 1;
+
+  Countdown.AddCount;
+  RestClient('https://jsonplaceholder.typicode.com')
+    .Request.Post('/posts')
+    .BodyArray<TPostRecord>(LPosts) // Testing specialized BodyArray for collections
+    .Execute
+    .OnCompleteAsync(
+      procedure(LResp: IRestResponse)
+      begin
+        Writeln('BodyArray POST Status: ', LResp.StatusCode);
+        Countdown.Signal;
+      end)
+    .Start;
+end;
+
+procedure DemoS20ShorthandRecords;
+var
+  LPost: TPostRecord;
+  LResp: IRestResponse<TPostRecord>;
+begin
+  Writeln('--- Demo S20: Shorthand with Records ---');
+  
+  LPost.title := 'Shorthand';
+  LPost.body := 'Directly sending record';
+  LPost.userId := 1;
+
+  // Testing shorthand Post<T> with record response
+  LResp := RestClient('https://jsonplaceholder.typicode.com')
+    .Post<TPostRecord>('/posts', LPost) 
+    .Await;
+    
+  Writeln('Shorthand Result ID: ', LResp.Data.id);
+  Writeln;
+end;
+
+procedure DemoS20DirectRequest;
+begin
+  Writeln('--- Demo S20: Direct Request Factory ---');
+  
+  RestClient('https://jsonplaceholder.typicode.com')
+    .Request(hmGET, '/posts/1') // Testing the new overloaded Request(Method, Endpoint)
+    .Execute
+    .OnCompleteAsync(
+      procedure(LResp: IRestResponse)
+      begin
+        Writeln('Direct Request Status: ', LResp.StatusCode);
+        Countdown.Signal;
+      end)
+    .Start;
+  Countdown.AddCount;
 end;
 
 procedure DemoWithCancellation;
@@ -223,6 +334,10 @@ begin
     try
       DemoFluentGet;
       DemoRequestRequest;
+      DemoS20FluentBuilder;
+      DemoS20RecordArrays;
+      DemoS20ShorthandRecords;
+      DemoS20DirectRequest;
       DemoWithCancellation;
       DemoSynchronous;
       DemoSynchronousList;

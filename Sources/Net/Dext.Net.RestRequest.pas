@@ -56,14 +56,28 @@ type
 
     // Configuração
     /// <summary>Adds a custom HTTP header to the request.</summary>
+    /// <param name="AName">The header name (e.g., 'Authorization').</param>
+    /// <param name="AValue">The header value.</param>
     function Header(const AName, AValue: string): TRestRequest;
     /// <summary>Adds a query parameter (Query String) to the URL.</summary>
+    /// <param name="AName">The parameter name.</param>
+    /// <param name="AValue">The parameter value.</param>
     function QueryParam(const AName, AValue: string): TRestRequest;
     /// <summary>Defines the request body from a Stream.</summary>
+    /// <param name="ABody">The stream containing the payload.</param>
+    /// <param name="AOwns">If true, the stream will be freed after the request completes.</param>
     function Body(ABody: TStream; AOwns: Boolean = False): TRestRequest; overload;
-    /// <summary>Defines the request body by serializing the object T to JSON.</summary>
-    function Body<T: class>(const ABody: T): TRestRequest; overload;
+    /// <summary>Defines the request body by serializing the value T (class or record) to JSON.</summary>
+    /// <param name="ABody">The object or record to serialize.</param>
+    function Body<T>(const ABody: T): TRestRequest; overload;
+    /// <summary>
+    ///   Serializes a TArray of records R to a JSON array and sets it as the request body.
+    ///   For a single record DTO, use: Body(MyRecord).
+    /// </summary>
+    /// <param name="ABody">The array of records to serialize.</param>
+    function BodyArray<R: record>(const ABody: TArray<R>): TRestRequest;
     /// <summary>Defines a raw JSON string as the request body.</summary>
+    /// <param name="AJson">The raw JSON content.</param>
     function JsonBody(const AJson: string): TRestRequest;
     /// <summary>Adds a form field to a multipart/form-data payload.</summary>
     function AddFormField(const AName, AValue: string): TRestRequest;
@@ -82,11 +96,50 @@ type
 
     // Execução
     /// <summary>Executes the request asynchronously and returns the raw response.</summary>
+    /// <returns>An async builder for IRestResponse.</returns>
     function Execute: TAsyncBuilder<IRestResponse>; overload;
-    /// <summary>Executes the request and deserializes the JSON result to type T.</summary>
-    function Execute<T: class>: TAsyncBuilder<T>; overload;
+    /// <summary>Executes the request and deserializes the JSON result to type T (class, record or TArray).</summary>
+    /// <returns>An async builder for the typed result.</returns>
+    function Execute<T>: TAsyncBuilder<T>; overload;
     /// <summary>Executes the request and returns the body content as a string.</summary>
+    /// <returns>An async builder for the content string.</returns>
     function ExecuteAsString: TAsyncBuilder<string>;
+  end;
+
+  /// <summary>
+  ///   Lightweight factory record returned by TRestClientRequestHelper.Request.
+  ///   Carries the originating TRestClient and provides verb-named fluent builder entry points.
+  ///   Keeps TRestClient root namespace clean: Get/Post fire-and-forget;
+  ///   Request.Get/Post/etc enter Builder Mode.
+  /// </summary>
+  TRestRequestFactory = record
+  private
+    FClient: TRestClient;
+  public
+    /// <summary>Creates a GET builder for the given endpoint.</summary>
+    function Get(const AEndpoint: string = ''): TRestRequest;
+    /// <summary>Creates a POST builder for the given endpoint.</summary>
+    function Post(const AEndpoint: string = ''): TRestRequest;
+    /// <summary>Creates a PUT builder for the given endpoint.</summary>
+    function Put(const AEndpoint: string = ''): TRestRequest;
+    /// <summary>Creates a DELETE builder for the given endpoint.</summary>
+    function Delete(const AEndpoint: string = ''): TRestRequest;
+    /// <summary>Creates a PATCH builder for the given endpoint.</summary>
+    function Patch(const AEndpoint: string = ''): TRestRequest;
+  end;
+
+  /// <summary>
+  ///   Record helper that extends TRestClient with the fluent Request factory.
+  ///   Lives in Dext.Net.RestRequest to avoid a circular unit dependency:
+  ///   RestRequest already imports RestClient; RestClient must not import RestRequest.
+  ///   Activate by adding Dext.Net.RestRequest to your uses clause.
+  ///   Usage: Client.Request.Post('/users').Body(Dto).Execute;
+  /// </summary>
+  TRestClientRequestHelper = record helper for TRestClient
+    /// <summary>Returns a TRestRequestFactory bound to this client instance.</summary>
+    function Request: TRestRequestFactory; overload;
+    /// <summary>Directly creates a TRestRequest builder for a specific method and endpoint.</summary>
+    function Request(AMethod: TDextHttpMethod; const AEndpoint: string): TRestRequest; overload;
   end;
 
   { Internal state interface }
@@ -459,8 +512,13 @@ function TRestRequest.Body<T>(const ABody: T): TRestRequest;
 var
   Json: string;
 begin
-  Json := TDextJson.Serialize(ABody);
+  Json := TDextJson.Serialize<T>(ABody);
   Result := JsonBody(Json);
+end;
+
+function TRestRequest.BodyArray<R>(const ABody: TArray<R>): TRestRequest;
+begin
+  Result := JsonBody(TDextJson.Serialize<TArray<R>>(ABody));
 end;
 
 function TRestRequest.JsonBody(const AJson: string): TRestRequest;
@@ -584,6 +642,46 @@ begin
       end
     )
   );
+end;
+
+{ TRestRequestFactory }
+
+function TRestRequestFactory.Get(const AEndpoint: string): TRestRequest;
+begin
+  Result := TRestRequest.Create(FClient, hmGET, AEndpoint);
+end;
+
+function TRestRequestFactory.Post(const AEndpoint: string): TRestRequest;
+begin
+  Result := TRestRequest.Create(FClient, hmPOST, AEndpoint);
+end;
+
+function TRestRequestFactory.Put(const AEndpoint: string): TRestRequest;
+begin
+  Result := TRestRequest.Create(FClient, hmPUT, AEndpoint);
+end;
+
+function TRestRequestFactory.Delete(const AEndpoint: string): TRestRequest;
+begin
+  Result := TRestRequest.Create(FClient, hmDELETE, AEndpoint);
+end;
+
+function TRestRequestFactory.Patch(const AEndpoint: string): TRestRequest;
+begin
+  Result := TRestRequest.Create(FClient, hmPATCH, AEndpoint);
+end;
+
+{ TRestClientRequestHelper }
+
+function TRestClientRequestHelper.Request: TRestRequestFactory;
+begin
+  Result.FClient := Self;
+end;
+
+function TRestClientRequestHelper.Request(AMethod: TDextHttpMethod;
+  const AEndpoint: string): TRestRequest;
+begin
+  Result := TRestRequest.Create(Self, AMethod, AEndpoint);
 end;
 
 end.

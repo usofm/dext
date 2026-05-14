@@ -51,6 +51,21 @@ Client.Delete('/resource');
 Client.Patch('/resource');
 ```
 
+#### Modo Builder (`Request`)
+
+Enquanto os métodos diretos `Get`, `Post`, etc., são ideais para disparar requisições rápidas, o Dext fornece o portal `.Request` para construções complexas. Isso separa a *intenção de execução* da *configuração da requisição*.
+
+```pascal
+Client.Request
+  .Post('/users')
+  .Header('X-Custom', 'Value')
+  .QueryParam('debug', 'true')
+  .Body(LMyDto)
+  .Execute<TResponse>
+  .OnComplete(...)
+  .Start;
+```
+
 ### Adicionando Headers e Query Parameters
 
 Você pode adicionar headers e parâmetros de consulta facilmente usando o padrão builder:
@@ -96,6 +111,32 @@ Client.Post('/data')
 Client.Post('/upload')
   .Body(LFileStream)
   .Start;
+```
+
+#### Suporte a Records e Coleções
+
+O Dext REST Client suporta nativamente **records** e **arrays de records** como DTOs, eliminando a necessidade de gerenciar memória manualmente para objetos simples.
+
+```pascal
+type
+  TUserRecord = record
+    Id: Integer;
+    Name: string;
+  end;
+
+var
+  LUser: TUserRecord;
+begin
+  // Enviar um record
+  Client.Post<TUserRecord>('/users', LUser).Start;
+  
+  // Enviar uma lista de records (TArray)
+  var LUsers: TArray<TUserRecord>;
+  Client.Request.Post('/users/batch')
+    .BodyArray<TUserRecord>(LUsers)
+    .Execute
+    .Start;
+end;
 ```
 
 ## Manipulando Respostas
