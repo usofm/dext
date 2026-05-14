@@ -37,7 +37,6 @@ type
     FLock: TObject;
     procedure FlushInternal;
     procedure CheckRolling;
-    function GetActualFileName: string;
   public
     constructor Create(const AFileName: string; AMaxFileSizeMB: Integer = 0; ARollDaily: Boolean = False);
     destructor Destroy; override;
@@ -139,11 +138,6 @@ begin
   inherited;
 end;
 
-function TFileSink.GetActualFileName: string;
-begin
-  Result := FFileName;
-end;
-
 procedure TFileSink.CheckRolling;
 var
   LBaseDir, LBaseName, LExt, LNewName: string;
@@ -177,7 +171,6 @@ begin
   // 2. Size Rolling
   if (FMaxFileSize > 0) then
   begin
-    LSize := 0;
     try
       // Simple way to get size
       var LFileStream := TFileStream.Create(FFileName, fmOpenRead or fmShareDenyNone);
