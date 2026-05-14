@@ -1,0 +1,384 @@
+{***************************************************************************}
+{                                                                           }
+{           Dext Framework                                                  }
+{                                                                           }
+{           Copyright (C) 2026 Cesar Romero & Dext Contributors             }
+{                                                                           }
+{           Licensed under the Apache License, Version 2.0 (the "License"); }
+{           you may not use this file except in compliance with the License.}
+{           You may obtain a copy of the License at                         }
+{                                                                           }
+{               http://www.apache.org/licenses/LICENSE-2.0                  }
+{                                                                           }
+{           Unless required by applicable law or agreed to in writing,      }
+{           software distributed under the LICENSE is distributed on an     }
+{           "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,    }
+{           either express or implied. See the License for the specific     }
+{           language governing permissions and limitations under the        }
+{           License.                                                        }
+{                                                                           }
+{***************************************************************************}
+{                                                                           }
+{  Description:                                                             }
+{    MCP Tool registry, fluent builder, and RTTI-based provider support.   }
+{                                                                           }
+{  Fluent builder (quick, anonymous):                                       }
+{    Server.Tool('my-tool')                                                 }
+{      .Description('Does something useful')                                }
+{      .Param('query', 'Search term', ptString)                             }
+{      .OnCall(function(Args: TJSONObject): string                          }
+{        begin Result := '{"ok":true}'; end);                               }
+{                                                                           }
+{  Rich result builder (preferred for new tools):                           }
+{    Server.Tool('my-tool')                                                 }
+{      .Description('Returns an image')                                     }
+{      .Param('id', 'Item ID', ptString)                                    }
+{      .OnCallResult(function(Args: TJSONObject): TMCPToolResult            }
+{        begin                                                               }
+{          Result := TMCPToolResult.Image(GetBase64(Args), 'image/png');    }
+{        end);                                                               }
+{                                                                           }
+{  RTTI provider (recommended for class-based organisation):                }
+{    type                                                                    }
+{      TMyTools = class(TMCPToolProvider)                                    }
+{        [MCPTool('search', 'Full-text search')]                             }
+{        [MCPParam('query', 'Search term', ptString)]                        }
+{        function Search(const Args: TJSONObject): TMCPToolResult; virtual;  }
+{      end;                                                                  }
+{    Server.RegisterProvider(TMyTools.Create);                               }
+{                                                                           }
+{***************************************************************************}
+unit Dext.MCP.Tools;
+
+interface
+
+uses
+  System.SysUtils,
+  System.JSON,
+  System.RTTI,
+  System.Generics.Collections,
+  Dext.MCP.Protocol,
+  Dext.MCP.Types,
+  Dext.MCP.Attributes;
+
+type
+  TMCPToolRegistry = class;
+
+  // ---------------------------------------------------------------------------
+  // TMCPToolProvider — base class for RTTI-based tool registration
+  // ---------------------------------------------------------------------------
+
+  /// <summary>
+  /// Base class for class-based MCP tool providers.
+  /// Subclass, annotate public virtual methods with [MCPTool] + [MCPParam],
+  /// then call Server.RegisterProvider(TMyProvider.Create).
+  ///
+  /// The registry takes ownership of the provider instance.
+  /// </summary>
+  TMCPToolProvider = class
+  public
+    /// <summary>Called before each tool invocation. Override for logging/auth.</summary>
+    procedure BeforeCall(const AToolName: string; const Args: TJSONObject); virtual;
+    /// <summary>Called after each successful tool invocation.</summary>
+    procedure AfterCall(const AToolName: string); virtual;
+  end;
+
+  // ---------------------------------------------------------------------------
+  // IMCPToolBuilder — fluent configuration interface
+  // ---------------------------------------------------------------------------
+
+  /// <summary>
+  /// Fluent builder for configuring an MCP tool before registering it.
+  /// Chain: .Description / .Param / .OnCall (or .OnCallResult).
+  /// The tool is committed to the registry when OnCall / OnCallResult is invoked.
+  /// </summary>
+  IMCPToolBuilder = interface
+    ['{D1E2F3A4-B5C6-7890-ABCD-EF0123456789}']
+    function Description(const AText: string): IMCPToolBuilder;
+    function Param(const AName, ADesc: string;
+      AType: TMCPParamType = ptString;
+      ARequired: Boolean = True): IMCPToolBuilder;
+
+    /// <summary>Registers a legacy string callback. Use OnCallResult for new tools.</summary>
+    function OnCall(ACallback: TMCPToolCallback): IMCPToolBuilder;
+
+    /// <summary>Registers a rich-result callback. Preferred over OnCall.</summary>
+    function OnCallResult(ACallback: TMCPToolResultCallback): IMCPToolBuilder;
+  end;
+
+  TMCPToolBuilder = class(TInterfacedObject, IMCPToolBuilder)
+  private
+    FDef: TMCPToolDef;
+    FRegistry: TMCPToolRegistry; // weak ref
+  public
+    constructor Create(const AName: string; ARegistry: TMCPToolRegistry);
+
+    function Description(const AText: string): IMCPToolBuilder;
+    function Param(const AName, ADesc: string;
+      AType: TMCPParamType = ptString;
+      ARequired: Boolean = True): IMCPToolBuilder;
+    function OnCall(ACallback: TMCPToolCallback): IMCPToolBuilder;
+    function OnCallResult(ACallback: TMCPToolResultCallback): IMCPToolBuilder;
+  end;
+
+  // ---------------------------------------------------------------------------
+  // TMCPToolRegistry — holds all registered tools + RTTI provider scan
+  // ---------------------------------------------------------------------------
+
+  /// <summary>
+  /// Central registry for all MCP tools.
+  /// Supports both fluent registration and RTTI-based provider classes.
+  /// </summary>
+  TMCPToolRegistry = class
+  private
+    FTools: TDictionary<string, TMCPToolDef>;
+    FProviders: TObjectList<TMCPToolProvider>;
+    FRttiCtx: TRttiContext; // kept alive so TRttiMethod refs remain valid
+
+    function BuildInputSchema(const Def: TMCPToolDef): TJSONObject;
+
+    function MakeProviderCallback(AProvider: TMCPToolProvider;
+      AMethod: TRttiMethod; const AName: string): TMCPToolResultCallback;
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    /// <summary>Returns a fluent builder for a new tool with the given name.</summary>
+    function Register(const AName: string): IMCPToolBuilder;
+
+    /// <summary>
+    /// Scans AProvider for [MCPTool]-annotated methods and registers each one.
+    /// The registry takes ownership of AProvider (frees it on Destroy).
+    /// </summary>
+    procedure RegisterProvider(AProvider: TMCPToolProvider);
+
+    /// <summary>Internal: called by TMCPToolBuilder to commit the tool def.</summary>
+    procedure Commit(const ADef: TMCPToolDef);
+
+    /// <summary>Tries to find a tool by name. Returns False if not found.</summary>
+    function TryGetTool(const AName: string; out ADef: TMCPToolDef): Boolean;
+
+    /// <summary>
+    /// Builds the JSON array for the tools/list response.
+    /// Caller owns the returned TJSONArray.
+    /// </summary>
+    function BuildToolsArray: TJSONArray;
+
+    function Count: Integer;
+  end;
+
+implementation
+
+{ TMCPToolProvider }
+
+procedure TMCPToolProvider.BeforeCall(const AToolName: string;
+  const Args: TJSONObject);
+begin
+  // Default: no-op. Override for logging, auth checks, etc.
+end;
+
+procedure TMCPToolProvider.AfterCall(const AToolName: string);
+begin
+  // Default: no-op. Override for logging, metrics, etc.
+end;
+
+{ TMCPToolBuilder }
+
+constructor TMCPToolBuilder.Create(const AName: string;
+  ARegistry: TMCPToolRegistry);
+begin
+  inherited Create;
+  FDef.Name := AName;
+  FRegistry := ARegistry;
+end;
+
+function TMCPToolBuilder.Description(const AText: string): IMCPToolBuilder;
+begin
+  FDef.Description := AText;
+  Result := Self;
+end;
+
+function TMCPToolBuilder.Param(const AName, ADesc: string;
+  AType: TMCPParamType; ARequired: Boolean): IMCPToolBuilder;
+var
+  P: TMCPToolParam;
+begin
+  P := TMCPToolParam.Create(AName, ADesc, AType, ARequired);
+  SetLength(FDef.Params, Length(FDef.Params) + 1);
+  FDef.Params[High(FDef.Params)] := P;
+  Result := Self;
+end;
+
+function TMCPToolBuilder.OnCall(ACallback: TMCPToolCallback): IMCPToolBuilder;
+begin
+  FDef.Callback := ACallback;
+  FRegistry.Commit(FDef);
+  Result := Self;
+end;
+
+function TMCPToolBuilder.OnCallResult(
+  ACallback: TMCPToolResultCallback): IMCPToolBuilder;
+begin
+  FDef.ResultCallback := ACallback;
+  FRegistry.Commit(FDef);
+  Result := Self;
+end;
+
+{ TMCPToolRegistry }
+
+constructor TMCPToolRegistry.Create;
+begin
+  inherited Create;
+  FTools     := TDictionary<string, TMCPToolDef>.Create;
+  FProviders := TObjectList<TMCPToolProvider>.Create(True); // owns items
+end;
+
+destructor TMCPToolRegistry.Destroy;
+begin
+  FTools.Free;
+  FProviders.Free;
+  inherited;
+end;
+
+function TMCPToolRegistry.Register(const AName: string): IMCPToolBuilder;
+begin
+  Result := TMCPToolBuilder.Create(AName, Self);
+end;
+
+function TMCPToolRegistry.MakeProviderCallback(AProvider: TMCPToolProvider;
+  AMethod: TRttiMethod; const AName: string): TMCPToolResultCallback;
+begin
+  // AMethod and AProvider are parameters — each call creates a distinct
+  // activation record, so the closure captures the right values per tool.
+  Result := function(const Args: TJSONObject): TMCPToolResult
+  var
+    InvokeResult: TValue;
+  begin
+    try
+      AProvider.BeforeCall(AName, Args);
+      InvokeResult := AMethod.Invoke(AProvider,
+        [TValue.From<TJSONObject>(Args)]);
+      AProvider.AfterCall(AName);
+      Result := InvokeResult.AsType<TMCPToolResult>;
+    except
+      on E: Exception do
+        Result := TMCPToolResult.Error(E.Message);
+    end;
+  end;
+end;
+
+procedure TMCPToolRegistry.RegisterProvider(AProvider: TMCPToolProvider);
+var
+  RttiType: TRttiType;
+  Method: TRttiMethod;
+  ToolAttr: MCPToolAttribute;
+  ParamAttr: MCPParamAttribute;
+  Attr: TCustomAttribute;
+  Def: TMCPToolDef;
+begin
+  FProviders.Add(AProvider); // registry owns it
+
+  RttiType := FRttiCtx.GetType(AProvider.ClassType);
+
+  for Method in RttiType.GetMethods do
+  begin
+    ToolAttr := nil;
+    for Attr in Method.GetAttributes do
+      if Attr is MCPToolAttribute then
+      begin
+        ToolAttr := MCPToolAttribute(Attr);
+        Break;
+      end;
+
+    if ToolAttr = nil then Continue;
+
+    Def := Default(TMCPToolDef);
+    Def.Name        := ToolAttr.Name;
+    Def.Description := ToolAttr.Description;
+
+    for Attr in Method.GetAttributes do
+      if Attr is MCPParamAttribute then
+      begin
+        ParamAttr := MCPParamAttribute(Attr);
+        SetLength(Def.Params, Length(Def.Params) + 1);
+        Def.Params[High(Def.Params)] := TMCPToolParam.Create(
+          ParamAttr.Name, ParamAttr.Description,
+          ParamAttr.ParamType, ParamAttr.Required);
+      end;
+
+    Def.ResultCallback := MakeProviderCallback(AProvider, Method, Def.Name);
+    FTools.AddOrSetValue(Def.Name, Def);
+  end;
+end;
+
+procedure TMCPToolRegistry.Commit(const ADef: TMCPToolDef);
+begin
+  FTools.AddOrSetValue(ADef.Name, ADef);
+end;
+
+function TMCPToolRegistry.TryGetTool(const AName: string;
+  out ADef: TMCPToolDef): Boolean;
+begin
+  Result := FTools.TryGetValue(AName, ADef);
+end;
+
+function TMCPToolRegistry.Count: Integer;
+begin
+  Result := FTools.Count;
+end;
+
+function TMCPToolRegistry.BuildInputSchema(const Def: TMCPToolDef): TJSONObject;
+var
+  Schema, Props, PropObj: TJSONObject;
+  Required: TJSONArray;
+  P: TMCPToolParam;
+begin
+  Schema := TJSONObject.Create;
+  Schema.AddPair('type', 'object');
+
+  Props    := TJSONObject.Create;
+  Required := TJSONArray.Create;
+
+  for P in Def.Params do
+  begin
+    PropObj := TJSONObject.Create;
+    PropObj.AddPair('type', P.TypeName);
+    if P.Description <> '' then
+      PropObj.AddPair('description', P.Description);
+    Props.AddPair(P.Name, PropObj);
+
+    if P.Required then
+      Required.Add(P.Name);
+  end;
+
+  Schema.AddPair('properties', Props);
+
+  if Required.Count > 0 then
+    Schema.AddPair('required', Required)
+  else
+    Required.Free;
+
+  Result := Schema;
+end;
+
+function TMCPToolRegistry.BuildToolsArray: TJSONArray;
+var
+  Arr: TJSONArray;
+  Def: TMCPToolDef;
+  ToolObj: TJSONObject;
+begin
+  Arr := TJSONArray.Create;
+
+  for Def in FTools.Values do
+  begin
+    ToolObj := TJSONObject.Create;
+    ToolObj.AddPair('name', Def.Name);
+    ToolObj.AddPair('description', Def.Description);
+    ToolObj.AddPair('inputSchema', BuildInputSchema(Def));
+    Arr.Add(ToolObj);
+  end;
+
+  Result := Arr;
+end;
+
+end.

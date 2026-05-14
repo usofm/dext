@@ -1,0 +1,442 @@
+### ============================================================
+### Dext MCP Full Demo — Test Suite
+### ============================================================
+### Rode: MCP.FullDemo.exe  (porta padrão 3031)
+###
+### Compatível com: VS Code REST Client, JetBrains HTTP Client, curl
+### Protocolo: MCP 2025-03-26 — HTTP Streamable (POST /mcp)
+###
+### Fluxo obrigatório:
+###   1. initialize  → recebe Mcp-Session-Id no header de resposta
+###   2. Usar o Mcp-Session-Id nas chamadas seguintes
+###   3. (opcional) DELETE /mcp para encerrar a sessão
+### ============================================================
+
+@base = http://localhost:3031
+@content_type = application/json
+
+# Após rodar o passo 1 (initialize), copie o Mcp-Session-Id aqui:
+@session_id = COLE_O_SESSION_ID_AQUI
+
+
+### ── 0. Health check ─────────────────────────────────────────────────────
+
+GET {{base}}/health
+Accept: application/json
+
+###
+# Esperado:
+# {
+#   "status":"ok",
+#   "server":"full-demo",
+#   "version":"1.0.0",
+#   "protocol":"2025-03-26",
+#   "tools":4,
+#   "resources":2,
+#   "prompts":2
+# }
+
+
+### ── 1. Initialize (PRIMEIRO — cria a sessão) ───────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-03-26",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "mcp-test-client",
+      "version": "1.0.0"
+    }
+  }
+}
+
+###
+# Esperado no HEADER da resposta:
+#   Mcp-Session-Id: <uuid>
+#
+# Esperado no BODY:
+# {
+#   "jsonrpc": "2.0",
+#   "id": 1,
+#   "result": {
+#     "protocolVersion": "2025-03-26",
+#     "capabilities": {
+#       "tools": { "listChanged": false },
+#       "resources": { "subscribe": false, "listChanged": false },
+#       "prompts": { "listChanged": false }
+#     },
+#     "serverInfo": { "name": "full-demo", "version": "1.0.0" }
+#   }
+# }
+#
+# >>> COPIE o Mcp-Session-Id e cole na variável @session_id acima
+
+
+### ── 2. Notifications/initialized (não retorna resposta) ────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/initialized"
+}
+
+###
+# Esperado: HTTP 202 (sem body) — é uma notificação, não precisa de resposta
+
+
+### ── 3. Ping ─────────────────────────────────────────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "ping"
+}
+
+###
+# Esperado: { "jsonrpc":"2.0", "id":2, "result":{} }
+
+
+### ── 4. tools/list ──────────────────────────────────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/list",
+  "params": {}
+}
+
+###
+# Esperado: lista com 4 tools
+# calcular-desconto, validar-cpf, calcular-imc, gerar-relatorio-texto
+
+
+### ── 5. tools/call — calcular-desconto ──────────────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "calcular-desconto",
+    "arguments": {
+      "valor": 750.00
+    }
+  }
+}
+
+###
+# Esperado (valor R$750 = 15% de desconto):
+# {
+#   "result": {
+#     "content": [
+#       {
+#         "type": "text",
+#         "text": "Valor bruto: R$ 750.00\nDesconto:    15% (R$ 112.50)\nValor final: R$ 637.50"
+#       }
+#     ]
+#   }
+# }
+
+
+### ── 6. tools/call — validar-cpf (válido) ───────────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tools/call",
+  "params": {
+    "name": "validar-cpf",
+    "arguments": {
+      "cpf": "529.982.247-25"
+    }
+  }
+}
+
+###
+# CPF matematicamente válido — esperado: "CPF válido: 529.982.247-25"
+
+
+### ── 7. tools/call — validar-cpf (inválido) ─────────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "tools/call",
+  "params": {
+    "name": "validar-cpf",
+    "arguments": {
+      "cpf": "111.111.111-11"
+    }
+  }
+}
+
+###
+# Esperado: TMCPToolResult.Error — isError: true no JSON de resultado
+# Porque todos os dígitos são iguais
+
+
+### ── 8. tools/call — calcular-imc ──────────────────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "calcular-imc",
+    "arguments": {
+      "peso": 80,
+      "altura": 1.75
+    }
+  }
+}
+
+###
+# IMC = 80 / (1.75²) = 26.1 → Sobrepeso
+
+
+### ── 9. tools/call — gerar-relatorio-texto (multi-content) ──────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "tools/call",
+  "params": {
+    "name": "gerar-relatorio-texto",
+    "arguments": {
+      "titulo": "Vendas Março 2026",
+      "linhas": 3
+    }
+  }
+}
+
+###
+# Esperado: content array com 5 itens (header + 3 linhas + footer)
+# Demonstra TMCPToolResult com múltiplos TMCPContent
+
+
+### ── 10. resources/list ─────────────────────────────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "method": "resources/list",
+  "params": {}
+}
+
+###
+# Esperado: lista com 2 resources
+# config://demo, docs://regras-desconto
+
+
+### ── 11. resources/read — config://demo ────────────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 10,
+  "method": "resources/read",
+  "params": {
+    "uri": "config://demo"
+  }
+}
+
+###
+# Esperado: JSON com configurações do servidor (stack: Indy, etc.)
+
+
+### ── 12. resources/read — docs://regras-desconto ───────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "method": "resources/read",
+  "params": {
+    "uri": "docs://regras-desconto"
+  }
+}
+
+###
+# Esperado: texto com tabela de descontos progressivos
+
+
+### ── 13. prompts/list ───────────────────────────────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "method": "prompts/list",
+  "params": {}
+}
+
+###
+# Esperado: lista com 2 prompts
+# analise-venda, revisao-codigo-delphi
+
+
+### ── 14. prompts/get — analise-venda ───────────────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 13,
+  "method": "prompts/get",
+  "params": {
+    "name": "analise-venda",
+    "arguments": {
+      "valor": "1200.00",
+      "produto": "Licença ERP Anual",
+      "cliente": "TechCorp Ltda"
+    }
+  }
+}
+
+###
+# Esperado: TMCPPromptResult com messages[0].role = "user"
+# contendo o prompt de análise formatado
+
+
+### ── 15. prompts/get — revisao-codigo-delphi ───────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 14,
+  "method": "prompts/get",
+  "params": {
+    "name": "revisao-codigo-delphi",
+    "arguments": {
+      "codigo": "function Soma(A, B: Integer): Integer;\nbegin\n  Result := A + B;\nend;",
+      "contexto": "Função utilitária para soma de inteiros"
+    }
+  }
+}
+
+###
+
+
+### ── 16. Erro — tool não encontrada ─────────────────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 15,
+  "method": "tools/call",
+  "params": {
+    "name": "tool-inexistente",
+    "arguments": {}
+  }
+}
+
+###
+# Esperado: error.code = -32000 (MCP_ERROR_TOOL_NOT_FOUND)
+# { "error": { "code": -32000, "message": "Tool not found: tool-inexistente" } }
+
+
+### ── 17. Erro — método não existe ───────────────────────────────────────
+
+POST {{base}}/mcp
+Content-Type: {{content_type}}
+Mcp-Session-Id: {{session_id}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 16,
+  "method": "metodo/inexistente"
+}
+
+###
+# Esperado: error.code = -32601 (JSONRPC_METHOD_NOT_FOUND)
+
+
+### ── 18. Fechar sessão (DELETE) ─────────────────────────────────────────
+
+DELETE {{base}}/mcp
+Mcp-Session-Id: {{session_id}}
+
+###
+# Esperado: HTTP 200 — sessão encerrada
+# Chamadas subsequentes com este session_id retornarão 404
+
+
+### ============================================================
+### ALTERNATIVA: curl commands para terminal
+### ============================================================
+#
+# 1. Initialize:
+#   curl -si -X POST http://localhost:3031/mcp \
+#     -H "Content-Type: application/json" \
+#     -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl","version":"1.0"}}}' \
+#     | grep -E "Mcp-Session-Id|^\{"
+#
+# 2. tools/list (substitua SESSION pelo header recebido):
+#   curl -s -X POST http://localhost:3031/mcp \
+#     -H "Content-Type: application/json" \
+#     -H "Mcp-Session-Id: SESSION" \
+#     -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -m json.tool
+#
+# 3. tools/call:
+#   curl -s -X POST http://localhost:3031/mcp \
+#     -H "Content-Type: application/json" \
+#     -H "Mcp-Session-Id: SESSION" \
+#     -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"calcular-desconto","arguments":{"valor":750}}}' | python3 -m json.tool
