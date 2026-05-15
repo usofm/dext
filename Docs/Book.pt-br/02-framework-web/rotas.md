@@ -65,9 +65,9 @@ end;
 // URL: /search?q=delphi&page=1&limit=20
 App.MapGet('/search', procedure(Ctx: IHttpContext)
   begin
-    var Query := Ctx.Request.QueryParam('q');
-    var Page := Ctx.Request.QueryParam('page');
-    var Limit := Ctx.Request.QueryParam('limit');
+    var Query := Ctx.Request.GetQueryParam('q');
+    var Page := Ctx.Request.GetQueryParam('page');
+    var Limit := Ctx.Request.GetQueryParam('limit');
   end);
 ```
 
