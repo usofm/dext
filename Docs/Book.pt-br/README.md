@@ -30,6 +30,7 @@
 - [Rotas](02-framework-web/rotas.md) - Padrões de URL & parâmetros
 - [Middleware](02-framework-web/middleware.md) - Pipeline de requisições
 - [Adapter WebBroker](02-framework-web/webbroker.md) ⭐ **NOVO** - Deploy como ISAPI/CGI no IIS/Apache
+- [HTMX & Streamable](02-framework-web/htmx-streamable.md) ⭐ **NOVO** - Integração nativa com HTMX e controle de estado
 
 #### [3. Autenticação](03-autenticacao/README.md)
 
@@ -104,6 +105,11 @@
 #### [12. Networking (Dext.Net)](12-networking/rest-client.md) ⭐ NOVO
 
 - [Cliente REST](12-networking/rest-client.md) - Cliente HTTP Fluente
+
+#### [13. Assistentes de IA & MCP](13-ai-assistants/README.md) ⭐ NOVO
+
+- [Skills de IA](13-ai-assistants/README.md) - Instruções nativas para integração de IA
+- [Servidor MCP](15-mcp-server/README.md) - Implementação nativa do Model Context Protocol
 
 ---
 

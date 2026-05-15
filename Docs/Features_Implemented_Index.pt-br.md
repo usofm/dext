@@ -613,4 +613,16 @@ O Dext é validado continuamente por uma infraestrutura de testes massiva para g
 
 ---
 
+## 🤖 18. Servidor MCP (Model Context Protocol) (`Sources\MCP`)
+
+O framework fornece uma implementação nativa e sem dependências da especificação **MCP 2025-03-26**, permitindo que aplicações Dext exponham ferramentas, recursos e prompts para agentes de IA (como Claude Desktop e Claude Code).
+
+- **Transportes Suportados** — `HTTP Streamable` (POST síncrono com sessões), `SSE` (Legado Server-Sent Events) e `Stdio`.
+- **API RTTI Declarativa** — `TMCPToolProvider` com atributos `[MCPTool]`, `[MCPParam]`, `[MCPResource]` e `[MCPPrompt]` para registro de endpoints sem fricção.
+- **API Builder Fluente** — Registro encadeado: `Server.Tool('nome').Description('...').OnCall(...)`.
+- **Tipos de Conteúdo Ricos** — Suporte integrado para `TMCPContent` (Texto, Imagem, Áudio, Recursos Embutidos) e `TMCPToolResult` retornando múltiplos blocos e estados de erro.
+- **Integração** — Roda nativamente sobre o `TWebHostBuilder` do Dext, permitindo que endpoints MCP e REST coexistam no mesmo processo sem bloqueio.
+
+---
+
 *Dext Framework — Exhaustive Technical Map & Features Index. (Revision: April 23, 2026).*

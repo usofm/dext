@@ -189,7 +189,8 @@ Dext is composed of flexible and minimalist modules. You retain full control ove
 * **Core Technologies:** Enterprise-grade Dependency Injection (Singleton, Transient, Scoped), optimized Reflection cache, advanced event support, and IOptions.
 * **Clean Native Collections:** Elimination of memory leaks using interfaces (`IList`, `IDictionary`). Dext solves the classic *Generic Bloat* with Binary Code Folding, significantly reducing huge binaries.
 * **Data Access (ORM):** Robust management via *Unit of Work*, automatic transaction control (DAO support), and multi-database support.
-* **Web Frameworks:** Embedded HTTP server, *Minimal APIs*, *Controllers*, *DataAPI* REST generator, modular middlewares, *WebSockets* (Hubs), native CORS, and extremely fast rendering.
+* **Web Frameworks:** Embedded HTTP server, *Minimal APIs*, *Controllers*, *DataAPI* REST generator, modular middlewares, *WebSockets* (Hubs), native CORS, *Native HTMX Support*, and extremely fast rendering.
+* **AI & Agentic Capabilities:** Built-in **MCP (Model Context Protocol)** Server for seamless integration with AI Assistants (like Claude), exposing your Delphi business logic as AI tools via HTTP Streamable Sessions.
 * **Testing & Quality:** Coupled TestContext framework, automated *Mock Objects* (`TAutoMocker`), test coverage, and reporting.
 
 **[See the full features list and Dext modules](Docs/Features_Implemented_Index.md)**

@@ -33,6 +33,7 @@
 - [Routing](02-web-framework/routing.md) - URL patterns & parameters
 - [Middleware](02-web-framework/middleware.md) - Request pipeline
 - [WebBroker Adapter](02-web-framework/webbroker.md) ⭐ **NEW** - Deploy as ISAPI/CGI on IIS/Apache
+- [HTMX & Streamable](02-web-framework/htmx-streamable.md) ⭐ **NEW** - Native HTMX and session state management
 
 #### [3. Generic Collections](01-getting-started/collections.md) ⭐ **NEW**
 
@@ -113,6 +114,11 @@
 #### [12. Networking (Dext.Net)](12-networking/rest-client.md) ⭐ NEW
 
 - [REST Client](12-networking/rest-client.md) - Fluent HTTP Client
+
+#### [13. AI Assistants & MCP](13-ai-assistants/README.md) ⭐ NEW
+
+- [AI Skills](13-ai-assistants/README.md) - Native AI integration skills
+- [MCP Server](15-mcp-server/README.md) - Model Context Protocol implementation
 
 ---
 

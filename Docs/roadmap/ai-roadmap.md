@@ -6,6 +6,16 @@ Este roadmap define a estratégia para integrar Inteligência Artificial Generat
 
 ---
 
+## 🌐 Model Context Protocol (MCP) Server
+
+Permite expor ferramentas e recursos do Dext para agentes de IA externos (como Claude Desktop/Code).
+- [x] **Core Server**: Implementação da especificação MCP 2025-03-26. (Concluído com contribuição da comunidade)
+- [x] **Transports**: Suporte a `HTTP Streamable`, `SSE` e `Stdio`. (Concluído com contribuição da comunidade)
+- [x] **RTTI Attributes**: `[MCPTool]`, `[MCPResource]`, `[MCPPrompt]` para registro declarativo. (Concluído com contribuição da comunidade)
+- [x] **Integração Web**: Suporte a endpoints concorrentes `/mcp` e `HTTP Streamable Sessions` integrado ao Dext.WebHost. (Concluído com contribuição da comunidade)
+
+---
+
 ## 🤖 Dext.SemanticKernel (Orchestration)
 
 Inspirado no Microsoft Semantic Kernel, este módulo será o "cérebro" para integrar LLMs com código nativo.

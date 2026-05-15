@@ -41,12 +41,13 @@ Existing Delphi Redis clients often rely on blocking Indy components or lack mod
 ### Phase 2: Advanced Data Structures
 - Hashes, Lists, and Sets.
 - Pipelining support.
-- Pub/Sub integration with Channels.
+- Pub/Sub integration with Channels (crucial for distributed HTMX/SSE telemetry as defined in S23).
 
 ### Phase 3: Dext Ecosystem Integration
 - `RedisJSON` module support using `Dext.Json`.
 - Cache provider for `Dext.Entity` (Second-level cache).
 - Distributed Locking (Redlock implementation).
+- Distributed Session Manager (`TRedisStreamableSessionManager`) for HTMX and Streamable Sessions, as defined in S23.
 
 ### Phase 4: Modern Redis Features
 - Redis Streams.
