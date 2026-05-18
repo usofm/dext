@@ -59,6 +59,7 @@ uses
   System.IOUtils,
   Dext.Utils,
   {$IFDEF DEXT_TESTINSIGHT}
+  TestInsight.Client,
   Dext.Testing.TestInsight,
   {$ENDIF}
   Dext.Core.Writers;
