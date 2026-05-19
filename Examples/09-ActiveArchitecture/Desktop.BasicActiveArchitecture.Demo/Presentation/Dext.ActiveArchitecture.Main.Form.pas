@@ -16,54 +16,35 @@ uses
 
 type
   TMainForm = class(TForm)
-    Sqlite_demoConnection: TFDConnection;
-    EntityDataProvider1: TEntityDataProvider;
-    EntityDataSet1: TEntityDataSet;
-    EntityDataSet2: TEntityDataSet;
-    DBGrid1: TDBGrid;
-    DBGrid2: TDBGrid;
-    DataSource1: TDataSource;
-    DataSource2: TDataSource;
-    EntityDataSet2OrderId: TIntegerField;
-    EntityDataSet2ProductId: TIntegerField;
-    EntityDataSet2UnitPrice: TCurrencyField;
-    EntityDataSet2Quantity: TIntegerField;
-    EntityDataSet2Discount: TFloatField;
-    EntityDataSet1OrderId: TIntegerField;
-    EntityDataSet1CustomerId: TStringField;
-    EntityDataSet1EmployeeId: TIntegerField;
-    EntityDataSet1OrderDate: TDateTimeField;
-    EntityDataSet1RequiredDate: TDateTimeField;
-    EntityDataSet1ShippedDate: TDateTimeField;
-    EntityDataSet1ShipVia: TIntegerField;
-    EntityDataSet1Freight: TCurrencyField;
-    EntityDataSet1ShipName: TStringField;
-    EntityDataSet1ShipAddress: TStringField;
-    EntityDataSet1ShipCity: TStringField;
-    EntityDataSet1ShipRegion: TStringField;
-    EntityDataSet1ShipPostalCode: TStringField;
-    EntityDataSet1ShipCountry: TStringField;
+    EntityDataProvider: TEntityDataProvider;
+    LogsMemo: TMemo;
+    OrderDataSource: TDataSource;
+    OrderDetailsDataSource: TDataSource;
+    OrderDetailsEntityDataSet: TEntityDataSet;
+    OrderDetailsGrid: TDBGrid;
+    OrderEntityDataSet: TEntityDataSet;
+    OrderGrid: TDBGrid;
     ProductsTable: TFDQuery;
+    ProductsTableCategoryID: TIntegerField;
+    ProductsTableDiscontinued: TBooleanField;
     ProductsTableProductID: TFDAutoIncField;
     ProductsTableProductName: TStringField;
-    ProductsTableSupplierID: TIntegerField;
-    ProductsTableCategoryID: TIntegerField;
     ProductsTableQuantityPerUnit: TStringField;
+    ProductsTableReorderLevel: TSmallintField;
+    ProductsTableSupplierID: TIntegerField;
     ProductsTableUnitPrice: TCurrencyField;
     ProductsTableUnitsInStock: TSmallintField;
     ProductsTableUnitsOnOrder: TSmallintField;
-    ProductsTableReorderLevel: TSmallintField;
-    ProductsTableDiscontinued: TBooleanField;
-    memoLogs: TMemo;
+    SqliteDemoConnection: TFDConnection;
   private
-    FViewModel: TOrderViewModel;
     FDbConnection: IDbConnection;
     FDbContext: TDbContext;
-    FOrders: IList<TOrders>;
     FOrderDetails: IList<TOrderDetails>;
+    FOrders: IList<TOrders>;
+    FViewModel: TOrderViewModel;
 
     procedure DoFormDestroy(Sender: TObject);
-    procedure DoDataSource1DataChange(Sender: TObject; Field: TField);
+    procedure DoOrderDataSourceDataChange(Sender: TObject; Field: TField);
     procedure DoFilterComboChange(Sender: TObject);
   public
     procedure InjectDependencies(AViewModel: TOrderViewModel);
@@ -100,7 +81,7 @@ begin
 
   // Vincula os eventos em runtime de forma segura para não corromper o arquivo DFM da IDE
   OnDestroy := DoFormDestroy;
-  DataSource1.OnDataChange := DoDataSource1DataChange;
+  OrderDataSource.OnDataChange := DoOrderDataSourceDataChange;
 
   // Inicialização que antes ficava no FormCreate
   Self.Caption := 'Dext Framework - Delphi Connect Portugal - Clean Architecture VCL';
@@ -137,15 +118,15 @@ begin
   FilterCombo.ItemIndex := 0;
   FilterCombo.OnChange := DoFilterComboChange;
 
-  Sqlite_demoConnection.ConnectionDefName := 'SQLite_Demo';
-  Sqlite_demoConnection.Connected := True;
+  SqliteDemoConnection.ConnectionDefName := 'SQLite_Demo';
+  SqliteDemoConnection.Connected := True;
 
   // 1. Inicializa o Dext Logger com o Memo Sink
-  Log.AddSink(TMemoLogSink.Create(memoLogs, 500));
+  Log.AddSink(TMemoLogSink.Create(LogsMemo, 500));
   Log.Info('Dext Logging inicializado com TMemoLogSink!');
 
   // 2. Criação do DbContext e conexão Dext
-  FDbConnection := TFireDACConnection.Create(Sqlite_demoConnection, False); // False = Não é dono da conexão, que é gerida pelo DFM/Form
+  FDbConnection := TFireDACConnection.Create(SqliteDemoConnection, False); // False = Não é dono da conexão, que é gerida pelo DFM/Form
   FDbContext := TDbContext.Create(FDbConnection, TSQLiteDialect.Create);
 
   // 2.1 Ativa o log da geração de SQL no DbContext
@@ -164,23 +145,23 @@ begin
   FOrderDetails := FDbContext.Entities<TOrderDetails>.ToList;
 
   // 4. Configurar e popular o dataset mestre (TOrders)
-  EntityDataSet1.Load<TOrders>(FOrders);
-  EntityDataSet1.Open;
-  DataSource1.DataSet := EntityDataSet1;
+  OrderEntityDataSet.Load<TOrders>(FOrders);
+  OrderEntityDataSet.Open;
+  OrderDataSource.DataSet := OrderEntityDataSet;
 
   // 5. Configurar e popular o dataset detalhe (TOrderDetails) mestre/detalhe
-  EntityDataSet2.Load<TOrderDetails>(FOrderDetails);
-  EntityDataSet2.MasterSource := DataSource1;
-  EntityDataSet2.MasterFields := 'OrderId';
-  EntityDataSet2.IndexFieldNames := 'OrderId';
-  EntityDataSet2.Open;
-  DataSource2.DataSet := EntityDataSet2;
+  OrderDetailsEntityDataSet.Load<TOrderDetails>(FOrderDetails);
+  OrderDetailsEntityDataSet.MasterSource := OrderDataSource;
+  OrderDetailsEntityDataSet.MasterFields := 'OrderId';
+  OrderDetailsEntityDataSet.IndexFieldNames := 'OrderId';
+  OrderDetailsEntityDataSet.Open;
+  OrderDetailsDataSource.DataSet := OrderDetailsEntityDataSet;
 end;
 
 procedure TMainForm.DoFormDestroy(Sender: TObject);
 begin
-  EntityDataSet2.Close;
-  EntityDataSet1.Close;
+  OrderDetailsEntityDataSet.Close;
+  OrderEntityDataSet.Close;
 
   FOrders := nil;
   FOrderDetails := nil;
@@ -197,7 +178,7 @@ begin
     FViewModel.Free;
 end;
 
-procedure TMainForm.DoDataSource1DataChange(Sender: TObject; Field: TField);
+procedure TMainForm.DoOrderDataSourceDataChange(Sender: TObject; Field: TField);
 var
   Order: TOrders;
 begin
@@ -205,7 +186,7 @@ begin
   if not Assigned(FViewModel) or FViewModel.IsCalculating then
     Exit;
 
-  Order := TOrders(EntityDataSet1.GetCurrentObject);
+  Order := TOrders(OrderEntityDataSet.GetCurrentObject);
   if Assigned(Order) then
   begin
     // Se o frete já foi calculado (ou seja, não é zero), pulamos para economizar chamadas HTTP
@@ -223,7 +204,7 @@ begin
         // Callback executado na Main Thread de forma automática e segura pelo Dext!
         Self.Caption := 'Dext Framework - Delphi Connect Portugal - Clean Architecture VCL';
         // Recarrega a Grid para exibir o frete recém calculado e atualizado no domínio rico
-        EntityDataSet1.RefreshRecord;
+        OrderEntityDataSet.RefreshRecord;
       end);
   end;
 end;
@@ -237,31 +218,31 @@ begin
     Combo := TComboBox(Sender);
     case Combo.ItemIndex of
       0: // Sem Filtro
-        EntityDataSet1.FilterExpression := nil;
+        OrderEntityDataSet.FilterExpression := nil;
 
       1: // Pedidos do Brasil
         begin
           Spec := TBrazilOrdersSpec.Create;
-          EntityDataSet1.FilterExpression := Spec.GetExpression;
+          OrderEntityDataSet.FilterExpression := Spec.GetExpression;
         end;
 
       2: // Pedidos com Frete Alto (> R$ 50)
         begin
           Spec := TExpensiveFreightSpec.Create(50.00);
-          EntityDataSet1.FilterExpression := Spec.GetExpression;
+          OrderEntityDataSet.FilterExpression := Spec.GetExpression;
         end;
 
       3: // Brasil + Frete Alto (> R$ 30)
         begin
           Spec := TBrazilHeavyFreightSpec.Create(30.00);
-          EntityDataSet1.FilterExpression := Spec.GetExpression;
+          OrderEntityDataSet.FilterExpression := Spec.GetExpression;
         end;
     end;
 
-    Log.Info('Especificação aplicada! Filtro Ativo: "' + EntityDataSet1.Filter + '"');
+    Log.Info('Especificação aplicada! Filtro Ativo: "' + OrderEntityDataSet.Filter + '"');
   except on E: Exception do
     begin
-      EntityDataSet1.FilterExpression := nil;
+      OrderEntityDataSet.FilterExpression := nil;
       Log.Error(E.ClassName + ' - ' + E.Message);
     end;
   end;

@@ -1,4 +1,4 @@
-unit Dext.ActiveArchitecture.ViewModels;
+﻿unit Dext.ActiveArchitecture.ViewModels;
 
 interface
 
@@ -19,13 +19,13 @@ type
   /// </summary>
   TOrderViewModel = class
   private
+    FCalculatedFreight: Double;
+    FDirty: Boolean;
+    FErrors: TStrings;
+    FIsCalculating: Boolean;
     FOrder: TOrders;
     FShippingService: IShippingService;
-    FIsCalculating: Boolean;
-    FCalculatedFreight: Double;
-    FErrors: TStrings;
-    FDirty: Boolean;
-    
+
     function GetTotalWeight: Double;
   public
     constructor Create(AShippingService: IShippingService);
@@ -87,8 +87,8 @@ end;
 
 procedure TOrderViewModel.CalcularFreteExterno(OnCompleteProc: TProc);
 var
-  OrderId: Integer;
   Country: string;
+  OrderId: Integer;
   Weight: Double;
 begin
   if not Assigned(FOrder) then

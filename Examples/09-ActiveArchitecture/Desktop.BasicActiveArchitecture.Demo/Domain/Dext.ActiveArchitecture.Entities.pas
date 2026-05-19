@@ -139,6 +139,7 @@ type
     property ProductId: IntType read FProductId write FProductId;
     property UnitPrice: CurrencyType read FUnitPrice write FUnitPrice;
     property Quantity: IntType read FQuantity write FQuantity;
+    [DisplayFormat('#0.00')]
     property Discount: FloatType read FDiscount write FDiscount;
 
     // Regra de Domínio Rico (Desconto Progressivo)

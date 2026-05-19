@@ -1,4 +1,4 @@
-unit Dext.ActiveArchitecture.Services;
+﻿unit Dext.ActiveArchitecture.Services;
 
 interface
 
@@ -31,7 +31,8 @@ constructor TShippingService.Create;
 begin
   inherited;
   // Inicialização e configuração do timeout do cliente REST gerido por escopo
-  FClient := TRestClient.Create('https://api.exchangerate-api.com/v4/latest/USD')
+  FClient := TRestClient
+    .Create('https://api.exchangerate-api.com/v4/latest/USD')
     .Timeout(3000);
 end;
 
@@ -42,7 +43,7 @@ end;
 
 function TShippingService.CalcularCotacaoFrete(const Country: string; TotalWeight: Double): Double;
 var
-  ResponseStr: string;
+  ResponseText: string;
   BaseRate: Double;
 begin
   // Peso base multiplicado pela taxa de envio internacional estimada por país
@@ -57,10 +58,10 @@ begin
 
   try
     // Demonstração real de requisição síncrona/fluente e resiliente no Dext.Net
-    ResponseStr := FClient.Get('').Await.ContentString;
+    ResponseText := FClient.Get('').Await.ContentString;
 
     // Se obtivermos resposta da API externa de câmbio, aplicamos um fator dinâmico na cotação
-    if not ResponseStr.IsEmpty then
+    if not ResponseText.IsEmpty then
       Result := (TotalWeight * BaseRate) * 1.05
     else
       Result := TotalWeight * BaseRate;

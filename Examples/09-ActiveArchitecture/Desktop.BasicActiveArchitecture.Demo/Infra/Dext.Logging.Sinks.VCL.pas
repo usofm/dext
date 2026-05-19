@@ -39,26 +39,26 @@ end;
 
 procedure TMemoLogSink.Emit(const Entry: TLogEntry);
 var
-  LText: string;
-  LPrefix: string;
+  Text: string;
+  Prefix: string;
 begin
   if FMemo = nil then Exit;
 
   // Format the line for the Memo
   case Entry.Level of
-    TLogLevel.Trace:       LPrefix := '[TRC]';
-    TLogLevel.Debug:       LPrefix := '[DBG]';
-    TLogLevel.Information: LPrefix := '[INF]';
-    TLogLevel.Warning:     LPrefix := '[WRN]';
-    TLogLevel.Error:       LPrefix := '[ERR]';
-    TLogLevel.Critical:    LPrefix := '[CRT]';
+    TLogLevel.Trace:       Prefix := '[TRC]';
+    TLogLevel.Debug:       Prefix := '[DBG]';
+    TLogLevel.Information: Prefix := '[INF]';
+    TLogLevel.Warning:     Prefix := '[WRN]';
+    TLogLevel.Error:       Prefix := '[ERR]';
+    TLogLevel.Critical:    Prefix := '[CRT]';
   else
-    LPrefix := '[LOG]';
+    Prefix := '[LOG]';
   end;
 
-  LText := Format('%s %s - %s', [
+  Text := Format('%s %s - %s', [
     FormatDateTime('hh:nn:ss.zzz', Entry.TimeStamp),
-    LPrefix,
+    Prefix,
     Entry.FormattedMessage
   ]);
 
@@ -67,7 +67,7 @@ begin
   TThread.Queue(nil,
     procedure
     begin
-      AppendToMemo(LText);
+      AppendToMemo(Text);
     end);
 end;
 

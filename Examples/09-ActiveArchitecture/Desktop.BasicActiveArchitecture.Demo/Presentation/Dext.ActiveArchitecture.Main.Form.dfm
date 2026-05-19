@@ -11,14 +11,14 @@ object MainForm: TMainForm
   Font.Name = 'Segoe UI'
   Font.Style = []
   TextHeight = 15
-  object DBGrid1: TDBGrid
+  object OrderGrid: TDBGrid
     AlignWithMargins = True
     Left = 3
     Top = 3
     Width = 843
     Height = 303
     Align = alClient
-    DataSource = DataSource1
+    DataSource = OrderDataSource
     TabOrder = 0
     TitleFont.Charset = DEFAULT_CHARSET
     TitleFont.Color = clWindowText
@@ -26,14 +26,14 @@ object MainForm: TMainForm
     TitleFont.Name = 'Segoe UI'
     TitleFont.Style = []
   end
-  object DBGrid2: TDBGrid
+  object OrderDetailsGrid: TDBGrid
     AlignWithMargins = True
     Left = 3
     Top = 312
     Width = 843
     Height = 126
     Align = alBottom
-    DataSource = DataSource2
+    DataSource = OrderDetailsDataSource
     TabOrder = 1
     TitleFont.Charset = DEFAULT_CHARSET
     TitleFont.Color = clWindowText
@@ -41,7 +41,7 @@ object MainForm: TMainForm
     TitleFont.Name = 'Segoe UI'
     TitleFont.Style = []
   end
-  object memoLogs: TMemo
+  object LogsMemo: TMemo
     AlignWithMargins = True
     Left = 3
     Top = 444
@@ -57,22 +57,28 @@ object MainForm: TMainForm
     ScrollBars = ssVertical
     TabOrder = 2
   end
-  object Sqlite_demoConnection: TFDConnection
+  object SqliteDemoConnection: TFDConnection
     Params.Strings = (
       'ConnectionDef=SQLite_Demo')
+    Connected = True
     LoginPrompt = False
     Left = 73
     Top = 70
   end
-  object EntityDataProvider1: TEntityDataProvider
-    DatabaseConnection = Sqlite_demoConnection
+  object EntityDataProvider: TEntityDataProvider
+    DatabaseConnection = SqliteDemoConnection
     ModelUnits.Strings = (
       
-        'C:\dev\Dext\DextRepository\Examples\09-ActiveArchitecture\Desktop.BasicActiveArchitecture.Demo\Presentation\Dext.ActiveArchitecture.Main.Form.pas'
+        'C:\dev\Dext\DextRepository\Examples\09-ActiveArchitecture\Deskto' +
+        'p.BasicActiveArchitecture.Demo\Presentation\Dext.ActiveArchitect' +
+        'ure.Main.Form.pas'
       
-        'C:\dev\Dext\DextRepository\Examples\09-ActiveArchitecture\Desktop.BasicActiveArchitecture.Demo\Domain\Dext.ActiveArchitecture.Entities.pas'
+        'C:\dev\Dext\DextRepository\Examples\09-ActiveArchitecture\Deskto' +
+        'p.BasicActiveArchitecture.Demo\Domain\Dext.ActiveArchitecture.En' +
+        'tities.pas'
       
-        'C:\dev\Dext\DextRepository\Examples\09-ActiveArchitecture\Desktop.BasicActiveArchitecture.Demo\Domain\ProductsTable.Entity.pas')
+        'C:\dev\Dext\DextRepository\Examples\09-ActiveArchitecture\Deskto' +
+        'p.BasicActiveArchitecture.Demo\Domain\ProductsTable.Entity.pas')
     Dialect = ddSQLite
     EntitiesMetadata = <
       item
@@ -2043,192 +2049,42 @@ object MainForm: TMainForm
     Left = 72
     Top = 144
   end
-  object EntityDataSet1: TEntityDataSet
-    DataProvider = EntityDataProvider1
+  object OrderEntityDataSet: TEntityDataSet
+    DataProvider = EntityDataProvider
     EntityClassName = 'TOrders'
-    FieldDefs = <
-      item
-        Name = 'OrderId'
-        DataType = ftInteger
-      end
-      item
-        Name = 'CustomerId'
-        DataType = ftString
-        Size = 5
-      end
-      item
-        Name = 'EmployeeId'
-        DataType = ftInteger
-      end
-      item
-        Name = 'OrderDate'
-        DataType = ftDateTime
-      end
-      item
-        Name = 'RequiredDate'
-        DataType = ftDateTime
-      end
-      item
-        Name = 'ShippedDate'
-        DataType = ftDateTime
-      end
-      item
-        Name = 'ShipVia'
-        DataType = ftInteger
-      end
-      item
-        Name = 'Freight'
-        DataType = ftCurrency
-      end
-      item
-        Name = 'ShipName'
-        DataType = ftString
-        Size = 40
-      end
-      item
-        Name = 'ShipAddress'
-        DataType = ftString
-        Size = 60
-      end
-      item
-        Name = 'ShipCity'
-        DataType = ftString
-        Size = 15
-      end
-      item
-        Name = 'ShipRegion'
-        DataType = ftString
-        Size = 15
-      end
-      item
-        Name = 'ShipPostalCode'
-        DataType = ftString
-        Size = 10
-      end
-      item
-        Name = 'ShipCountry'
-        DataType = ftString
-        Size = 15
-      end>
+    FieldDefs = <>
     TableName = 'Orders'
-    Left = 296
-    Top = 128
-    object EntityDataSet1OrderId: TIntegerField
-      DisplayLabel = 'Pedido'
-      FieldName = 'OrderId'
-    end
-    object EntityDataSet1CustomerId: TStringField
-      DisplayLabel = 'Cliente'
-      FieldName = 'CustomerId'
-      Size = 5
-    end
-    object EntityDataSet1EmployeeId: TIntegerField
-      DisplayLabel = 'Usu'#225'rio'
-      FieldName = 'EmployeeId'
-    end
-    object EntityDataSet1OrderDate: TDateTimeField
-      FieldName = 'OrderDate'
-    end
-    object EntityDataSet1RequiredDate: TDateTimeField
-      FieldName = 'RequiredDate'
-    end
-    object EntityDataSet1ShippedDate: TDateTimeField
-      FieldName = 'ShippedDate'
-    end
-    object EntityDataSet1ShipVia: TIntegerField
-      FieldName = 'ShipVia'
-    end
-    object EntityDataSet1Freight: TCurrencyField
-      FieldName = 'Freight'
-    end
-    object EntityDataSet1ShipName: TStringField
-      FieldName = 'ShipName'
-      Size = 40
-    end
-    object EntityDataSet1ShipAddress: TStringField
-      FieldName = 'ShipAddress'
-      Size = 60
-    end
-    object EntityDataSet1ShipCity: TStringField
-      FieldName = 'ShipCity'
-      Size = 15
-    end
-    object EntityDataSet1ShipRegion: TStringField
-      FieldName = 'ShipRegion'
-      Size = 15
-    end
-    object EntityDataSet1ShipPostalCode: TStringField
-      FieldName = 'ShipPostalCode'
-      Size = 10
-    end
-    object EntityDataSet1ShipCountry: TStringField
-      FieldName = 'ShipCountry'
-      Size = 15
-    end
+    Left = 528
+    Top = 152
   end
-  object EntityDataSet2: TEntityDataSet
-    DataProvider = EntityDataProvider1
+  object OrderDetailsEntityDataSet: TEntityDataSet
+    DataProvider = EntityDataProvider
     EntityClassName = 'TOrderDetails'
-    FieldDefs = <
-      item
-        Name = 'OrderId'
-        DataType = ftInteger
-      end
-      item
-        Name = 'ProductId'
-        DataType = ftInteger
-      end
-      item
-        Name = 'UnitPrice'
-        DataType = ftCurrency
-      end
-      item
-        Name = 'Quantity'
-        DataType = ftInteger
-      end
-      item
-        Name = 'Discount'
-        DataType = ftFloat
-      end>
+    FieldDefs = <>
     Filtered = True
     IndexFieldNames = 'OrderId'
     MasterFields = 'OrderId'
-    MasterSource = DataSource1
+    MasterSource = OrderDataSource
     TableName = 'Order Details'
-    Left = 280
-    Top = 320
-    object EntityDataSet2OrderId: TIntegerField
-      FieldName = 'OrderId'
-    end
-    object EntityDataSet2ProductId: TIntegerField
-      FieldName = 'ProductId'
-    end
-    object EntityDataSet2UnitPrice: TCurrencyField
-      FieldName = 'UnitPrice'
-    end
-    object EntityDataSet2Quantity: TIntegerField
-      FieldName = 'Quantity'
-    end
-    object EntityDataSet2Discount: TFloatField
-      FieldName = 'Discount'
-    end
+    Left = 512
+    Top = 336
   end
-  object DataSource1: TDataSource
-    DataSet = EntityDataSet1
-    Left = 424
-    Top = 128
+  object OrderDataSource: TDataSource
+    DataSet = OrderEntityDataSet
+    Left = 680
+    Top = 152
   end
-  object DataSource2: TDataSource
-    DataSet = EntityDataSet2
-    Left = 416
-    Top = 320
+  object OrderDetailsDataSource: TDataSource
+    DataSet = OrderDetailsEntityDataSet
+    Left = 680
+    Top = 336
   end
   object ProductsTable: TFDQuery
-    Connection = Sqlite_demoConnection
+    Connection = SqliteDemoConnection
     SQL.Strings = (
       'SELECT * FROM Products')
-    Left = 545
-    Top = 320
+    Left = 513
+    Top = 488
     object ProductsTableProductID: TFDAutoIncField
       FieldName = 'ProductID'
       Origin = 'ProductID'
