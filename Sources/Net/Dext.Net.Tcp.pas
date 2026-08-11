@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -253,6 +253,18 @@ begin
   Result := (AError = WSAEWOULDBLOCK) or (AError = WSAETIMEDOUT);
   {$ELSE}
   Result := (AError = EAGAIN) or (AError = EWOULDBLOCK) or (AError = ETIMEDOUT);
+  {$ENDIF}
+end;
+
+function IsRecvInterrupted(AError: Integer): Boolean;
+begin
+  // closesocket/shutdown from another thread while blocked in recv commonly yields
+  // WSAEINTR (Windows) / EINTR (POSIX). Treat like a soft timeout so intentional
+  // Disconnect does not raise a first-chance EDextSocketError on the recv thread.
+  {$IFDEF MSWINDOWS}
+  Result := AError = WSAEINTR;
+  {$ELSE}
+  Result := AError = EINTR;
   {$ENDIF}
 end;
 
@@ -718,7 +730,7 @@ begin
   if Result = DEXT_SOCKET_ERROR then
   begin
     error := SocketLastError;
-    if IsWouldBlock(error) then
+    if IsWouldBlock(error) or IsRecvInterrupted(error) then
       Exit(0);
     raise EDextSocketError.CreateFmt('TCP receive failed: %d', [error]);
   end;
