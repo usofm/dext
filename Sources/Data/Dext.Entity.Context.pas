@@ -36,6 +36,7 @@ uses
   Dext.Collections.Base,
   Dext.Collections.Dict,
   Dext.Collections,
+  Dext.Collections.Pool,
   Dext.Entity.Naming,
   Dext.Entity.Mapping,
   Dext.Entity.Core,
@@ -56,7 +57,8 @@ uses
   Dext.Core.Reflection,
   Dext.Threading.Sync,
   Dext.Threading.Async,
-  Dext.Logging.Tracing;
+  Dext.Logging.Tracing,
+  Dext.Entity.FastQuery;
 
 type
   TFluentExpression = Dext.Specifications.Types.TFluentExpression;
@@ -194,7 +196,7 @@ type
   ///   with Dependency Injection and avoid destruction conflicts. The lifecycle should be 
   ///   managed by the DI Container or manually via Free/Destroy.
   /// </remarks>
-  TDbContext = class(TObject, IDbContext)
+  TDbContext = class(TObject, IDbContext, IPoolable)
   private
     FConnection: IDbConnection;
     FDialect: ISQLDialect;
@@ -280,9 +282,19 @@ type
     function InTransaction: Boolean;
     
     /// <summary>
+    ///   Resets pending transactions and clears ChangeTracker state for object pooling (S58).
+    /// </summary>
+    procedure ResetState;
+    
+    /// <summary>
     ///   Gets the weakly typed interface of a DbSet for the provided entity type.
     /// </summary>
     function DataSet(AEntityType: PTypeInfo): IDbSet;
+
+    /// <summary>
+    ///   Creates a fast SQL query execution pipeline directly streaming UTF-8 JSON output.
+    /// </summary>
+    function UseSql(const ASql: string): IDextFastQuery;
 
     /// <summary>
     ///   Preloads the DbSet cache to optimize future resolutions.
@@ -773,6 +785,14 @@ begin
     FTransaction.Rollback;
     FTransaction := nil;
   end;
+end;
+
+procedure TDbContext.ResetState;
+begin
+  if InTransaction then
+    Rollback;
+  if FChangeTracker <> nil then
+    FChangeTracker.Clear;
 end;
 
 function TDbContext.InTransaction: Boolean;
@@ -1449,6 +1469,11 @@ begin
     Span.SetStatus('Error', Exception(ExceptObject).Message);
      raise;
    end;
+end;
+
+function TDbContext.UseSql(const ASql: string): IDextFastQuery;
+begin
+  Result := TDextFastQuery.Create(Connection, ASql);
 end;
 
 function TDbContext.SaveChangesAsync: TAsyncBuilder<Integer>;

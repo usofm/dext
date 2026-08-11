@@ -178,6 +178,10 @@
         <DCCReference Include="..\..\Sources\Web\Dext.Web.ResponseWriter.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.Utf8.pas"/>
         <DCCReference Include="..\..\Sources\Server\Dext.WebSocket.Compression.pas"/>
+        <DCCReference Include="..\..\Sources\Web\Dext.Web.PathBase.pas"/>
+        <DCCReference Include="..\..\Sources\Web\Dext.Web.SecurityHeaders.pas"/>
+        <DCCReference Include="..\..\Sources\Web\Dext.Web.ForwardedHeaders.pas"/>
+        <DCCReference Include="..\..\Sources\Web\Dext.Web.Antiforgery.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

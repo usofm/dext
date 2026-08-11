@@ -3,19 +3,7 @@ unit BM.Orm;
 interface
 
 uses
-  Spring.Benchmark;
-
-procedure BM_Orm_RawDataset_Loop(const state: TState);
-procedure BM_Orm_DextHydration_Loop(const state: TState);
-procedure BM_Orm_Micro_Allocations(const state: TState);
-procedure BM_Orm_Micro_ReaderGetValue(const state: TState);
-procedure BM_Orm_Micro_RttiSetValue(const state: TState);
-procedure BM_Orm_ProjectToJson(const state: TState);
-
-implementation
-
-uses
-  System.SysUtils,
+  Spring.Benchmark,
   System.Classes,
   System.Rtti,
   Data.DB,
@@ -48,36 +36,102 @@ var
   GCtx: TDbContext;
 
 procedure SetupDatabase;
+procedure CleanupDatabase;
+procedure BM_Orm_RawDataset_Loop(const state: TState);
+procedure BM_Orm_DextHydration_Loop(const state: TState);
+procedure BM_Orm_Micro_Allocations(const state: TState);
+procedure BM_Orm_Micro_ReaderGetValue(const state: TState);
+procedure BM_Orm_Micro_RttiSetValue(const state: TState);
+procedure BM_Orm_ProjectToJson(const state: TState);
+procedure BM_Orm_UseSql_DirectUtf8(const state: TState);
+
+implementation
+
+uses
+  System.SysUtils,
+  FireDAC.Phys.PG;
+
+procedure SetupDatabase;
 var
   i: Integer;
   Tx: IDbTransaction;
   Cmd: IDbCommand;
+  DbFile: string;
+  NeedSeed: Boolean;
+  WarmPool: array of TDbContext;
+  UsePostgres: Boolean;
 begin
-  GOptions := TDbContextOptions.Create;
-  GOptions.UseSQLite(':memory:');
-  GCtx := TDbContext.Create(GOptions, nil);
-  GCtx.ModelBuilder.Entity<TBenchmarkUser>();
-  GCtx.EnsureCreated;
+  UsePostgres := FindCmdLineSwitch('postgres') or FindCmdLineSwitch('pg');
 
-  // Insert 5,000 mock users inside a transaction for maximum speed
-  Tx := GCtx.Connection.BeginTransaction;
-  try
-    for i := 1 to 5000 do
-    begin
-      Cmd := GCtx.Connection.CreateCommand(
-        'INSERT INTO BenchmarkUsers (Id, Name, Email, Age) VALUES (:Id, :Name, :Email, :Age)'
-      );
-      Cmd.AddParam('Id', i);
-      Cmd.AddParam('Name', 'User Name ' + IntToStr(i));
-      Cmd.AddParam('Email', 'username' + IntToStr(i) + '@example.com');
-      Cmd.AddParam('Age', 20 + (i mod 50));
-      Cmd.Execute;
-    end;
-    Tx.Commit;
-  except
-    Tx.Rollback;
-    raise;
+  GOptions := TDbContextOptions.Create;
+  if UsePostgres then
+  begin
+    NeedSeed := False;
+    GOptions.DriverName := 'PG';
+    GOptions.Params.AddOrSetValue('Server', 'localhost');
+    GOptions.Params.AddOrSetValue('Port', '5432');
+    GOptions.Params.AddOrSetValue('Database', 'dext_test');
+    GOptions.Params.AddOrSetValue('User_Name', 'postgres');
+    GOptions.Params.AddOrSetValue('Password', 'root');
+    GOptions.Params.AddOrSetValue('VendorLib', 'C:\dev\playground\Performance FireDac\Win64\Release\libpq.dll');
+    GOptions.Pooling := True;
+    GOptions.PoolMax := 150;
+  end
+  else
+  begin
+    DbFile := ExtractFilePath(ParamStr(0)) + 'benchmark_test.db';
+    NeedSeed := not FileExists(DbFile);
+
+    GOptions.UseSQLite(DbFile);
+    GOptions.Pooling := True;
+    GOptions.PoolMax := 150;
+    GOptions.Params.AddOrSetValue('JournalMode', 'WAL');
+    GOptions.Params.AddOrSetValue('Synchronous', 'Normal');
+    GOptions.Params.AddOrSetValue('LockingMode', 'Normal');
   end;
+
+  try
+    GCtx := TDbContext.Create(GOptions, nil);
+    GCtx.ModelBuilder.Entity<TBenchmarkUser>();
+    GCtx.EnsureCreated;
+  except
+    on E: Exception do
+    begin
+      Writeln('[Error SetupDatabase] Connection/EnsureCreated Exception: ', E.ClassName, ': ', E.Message);
+      raise;
+    end;
+  end;
+
+  if NeedSeed or (Length(GCtx.Entities<TBenchmarkUser>.ToList.ToArray) = 0) then
+  begin
+    Tx := GCtx.Connection.BeginTransaction;
+    try
+      for i := 1 to 5000 do
+      begin
+        Cmd := GCtx.Connection.CreateCommand(
+          'INSERT INTO "BenchmarkUsers" ("Id", "Name", "Email", "Age") VALUES (:Id, :Name, :Email, :Age)'
+        );
+        Cmd.AddParam('Id', i);
+        Cmd.AddParam('Name', 'User Name ' + IntToStr(i));
+        Cmd.AddParam('Email', 'username' + IntToStr(i) + '@example.com');
+        Cmd.AddParam('Age', 20 + (i mod 50));
+        Cmd.Execute;
+      end;
+      Tx.Commit;
+    except
+      Tx.Rollback;
+    end;
+  end;
+
+  // Warmup do Pool: Abre conexões no pool antecipadamente para evitar I/O no primeiro pico
+  SetLength(WarmPool, 30);
+  for i := 0 to 29 do
+  begin
+    WarmPool[i] := TDbContext.Create(GOptions, nil);
+    WarmPool[i].Connection.Connect;
+  end;
+  for i := 0 to 29 do
+    WarmPool[i].Free;
 end;
 
 procedure CleanupDatabase;
@@ -222,6 +276,23 @@ begin
   end;
 end;
 
+procedure BM_Orm_UseSql_DirectUtf8(const state: TState);
+var
+  Stream: TMemoryStream;
+begin
+  Stream := TMemoryStream.Create;
+  try
+    while state.KeepRunning do
+    begin
+      Stream.Position := 0;
+      GCtx.UseSql('SELECT Id, Name, Email, Age FROM BenchmarkUsers')
+        .ExecuteToUtf8Stream(Stream);
+    end;
+  finally
+    Stream.Free;
+  end;
+end;
+
 initialization
   SetupDatabase;
   Benchmark(BM_Orm_RawDataset_Loop, 'BM_Orm_RawDataset_Loop');
@@ -230,6 +301,7 @@ initialization
   Benchmark(BM_Orm_Micro_ReaderGetValue, 'BM_Orm_Micro_ReaderGetValue');
   Benchmark(BM_Orm_Micro_RttiSetValue, 'BM_Orm_Micro_RttiSetValue');
   Benchmark(BM_Orm_ProjectToJson, 'BM_Orm_ProjectToJson');
+  Benchmark(BM_Orm_UseSql_DirectUtf8, 'BM_Orm_UseSql_DirectUtf8');
 
 finalization
   CleanupDatabase;

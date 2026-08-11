@@ -17,6 +17,7 @@ uses
   Dext.Configuration.Interfaces,
   Dext.Logging.Extensions,
   Dext.Collections.Dict,
+  Dext.Core.SmartTypes,
   // {BEGIN_DEXT_USES}
   // Generated Uses
   Dext.Entity.Attributes,
@@ -30,6 +31,7 @@ uses
   Dext.Entity.Drivers.FireDAC,
   Dext.Entity.Drivers.FireDAC.Phys,
   Dext.Entity.Drivers.Interfaces,
+  Dext.Entity.FastQuery,
   Dext.Entity.Grouping,
   Dext.Entity.Joining,
   Dext.Entity.LazyLoading,
@@ -139,6 +141,10 @@ type
   TCollectionEntry = Dext.Entity.Context.TCollectionEntry;
   TReferenceEntry = Dext.Entity.Context.TReferenceEntry;
   TEntityEntry = Dext.Entity.Context.TEntityEntry;
+
+  // Dext.Entity.FastQuery
+  IDextFastQuery = Dext.Entity.FastQuery.IDextFastQuery;
+  TDextFastQuery = Dext.Entity.FastQuery.TDextFastQuery;
 
   // Dext.Entity.Core
   EOptimisticConcurrencyException = Dext.Entity.Core.EOptimisticConcurrencyException;
@@ -339,6 +345,8 @@ type
   TTypeConverterRegistry = Dext.Entity.TypeConverters.TTypeConverterRegistry;
 
   // Dext.Entity.TypeSystem
+  BcdType = Dext.Core.SmartTypes.BcdType;
+  FmtBcdType = Dext.Core.SmartTypes.FmtBcdType;
   // TProp<T> = Dext.Entity.TypeSystem.TProp<T>;
   // IEntityBuilder<T> = Dext.Entity.TypeSystem.IEntityBuilder<T>;
   // TEntityBuilder<T> = Dext.Entity.TypeSystem.TEntityBuilder<T>;

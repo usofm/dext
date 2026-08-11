@@ -37,6 +37,8 @@
 {***************************************************************************}
 unit Dext.Web.Indy;
 
+{$I Dext.inc}
+
 interface
 
 uses
@@ -57,6 +59,10 @@ uses
   Dext.Server.Engine.Interfaces,
   Dext.Web.Indy.Types,
   Dext.Web.Interfaces,
+  {$IFDEF DEXT_ENABLE_ENTITY}
+  Dext.Entity.Core,
+  {$ENDIF}
+  Dext.Entity.FastQuery,
   Dext.Web.Results,
   Dext; // Para TDextServices
 
@@ -84,7 +90,8 @@ type
     constructor Create(AContext: TIdContext; AResponseInfo: TIdHTTPResponseInfo);
     function GetHtmx: IHtmxResponse;
     function GetHeaders: IStringDictionary;
-    function Status(AValue: Integer): IHttpResponse;
+    function Status(AValue: Integer): IHttpResponse; overload;
+    function Status(AValue: Integer; const AMessage: string): IHttpResponse; overload;
     function GetStatusCode: Integer;
     function GetContentType: string;
     procedure SetStatusCode(AValue: Integer);
@@ -93,8 +100,19 @@ type
     procedure Write(const AContent: string); overload;
     procedure Write(const ABuffer: TBytes); overload;
     procedure Write(const AStream: TStream); overload;
+    procedure SendJsonUtf8(const AUtf8Json: RawByteString); overload;
+    procedure SendJsonUtf8(const ABuffer: TBytes); overload;
+    function GetOutputStream: TStream;
     procedure Json(const AJson: string); overload;
     procedure Json(const AValue: TValue); overload;
+    procedure WriteJson(const AValue: TValue); overload;
+    procedure WriteJson(ACode: Integer; const AValue: TValue); overload;
+    procedure WriteJson(const AQuery: IDextFastQuery); overload;
+    procedure WriteJson(ACode: Integer; const AQuery: IDextFastQuery); overload;
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    procedure WriteJson(const AStream: IDbSetFastStream); overload;
+    procedure WriteJson(ACode: Integer; const AStream: IDbSetFastStream); overload;
+    {$ENDIF}
     procedure AddHeader(const AName, AValue: string);
     procedure AppendCookie(const AName, AValue: string; const AOptions: TCookieOptions); overload;
     procedure AppendCookie(const AName, AValue: string); overload;
@@ -121,6 +139,9 @@ type
     FHeaders: IStringDictionary;
     FCookies: IStringDictionary;
     FFiles: IFormFileCollection;
+    FPath: string;
+    FPathBase: string;
+    FHasCustomPath: Boolean;
     function ParseQueryString(const AQuery: string): IStringDictionary;
     function ParseHeaders(AHeaderList: TIdHeaderList): IStringDictionary;
     procedure ParseMultipart;
@@ -130,6 +151,10 @@ type
 
     function GetMethod: string;
     function GetPath: string;
+    procedure SetPath(const AValue: string);
+    function GetPathBase: string;
+    procedure SetPathBase(const AValue: string);
+    function ToAppUrl(const ARelativePath: string): string;
     function GetQuery: IStringDictionary;
     function GetBody: TStream;
     function GetRouteParams: TRouteValueDictionary;
@@ -141,6 +166,7 @@ type
     function GetFiles: IFormFileCollection;
     property Method: string read GetMethod;
     property Path: string read GetPath;
+    property PathBase: string read GetPathBase write SetPathBase;
     property Query: IStringDictionary read GetQuery;
     property Body: TStream read GetBody;
     property RouteParams: TRouteValueDictionary read GetRouteParams;
@@ -305,10 +331,40 @@ end;
 
 function TDextIndyHttpRequest.GetPath: string;
 begin
+  if FHasCustomPath then
+    Exit(FPath);
   Result := FRequestInfo.Document;
   // Ensure empty paths are '/'
   if Result = '' then
     Result := '/';
+end;
+
+procedure TDextIndyHttpRequest.SetPath(const AValue: string);
+begin
+  FPath := AValue;
+  FHasCustomPath := True;
+end;
+
+function TDextIndyHttpRequest.GetPathBase: string;
+begin
+  Result := FPathBase;
+end;
+
+procedure TDextIndyHttpRequest.SetPathBase(const AValue: string);
+begin
+  FPathBase := AValue;
+end;
+
+function TDextIndyHttpRequest.ToAppUrl(const ARelativePath: string): string;
+var
+  BasePath, RelPath: string;
+begin
+  BasePath := GetPathBase;
+  RelPath := ARelativePath;
+  if BasePath = '/' then BasePath := '';
+  if (RelPath <> '') and not RelPath.StartsWith('/') then RelPath := '/' + RelPath;
+  Result := BasePath + RelPath;
+  if Result = '' then Result := '/';
 end;
 
 function TDextIndyHttpRequest.GetQuery: IStringDictionary;
@@ -844,6 +900,97 @@ begin
   Result := Self;
 end;
 
+function TDextIndyHttpResponse.Status(AValue: Integer; const AMessage: string): IHttpResponse;
+begin
+  SetStatusCode(AValue);
+  if AMessage <> '' then
+    FResponseInfo.ResponseText := AMessage;
+  Result := Self;
+end;
+
+procedure TDextIndyHttpResponse.WriteJson(const AValue: TValue);
+var
+  {$IFDEF DEXT_ENABLE_ENTITY}
+  FastStream: IDbSetFastStream;
+  {$ENDIF}
+  FastQuery: IDextFastQuery;
+  Stream: TStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if AValue.IsEmpty then Exit;
+
+  if AValue.Kind = tkInterface then
+  begin
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    if Supports(AValue.AsInterface, IDbSetFastStream, FastStream) then
+    begin
+      Stream := GetOutputStream;
+      FastStream.ExecuteToUtf8Stream(Stream);
+      Exit;
+    end;
+    {$ENDIF}
+
+    if Supports(AValue.AsInterface, IDextFastQuery, FastQuery) then
+    begin
+      Stream := GetOutputStream;
+      FastQuery.ExecuteToUtf8Proc(
+        procedure(Data: Pointer; Len: Integer)
+        begin
+          Stream.WriteBuffer(Data^, Len);
+        end
+      );
+      Exit;
+    end;
+  end;
+
+  Json(AValue);
+end;
+
+procedure TDextIndyHttpResponse.WriteJson(ACode: Integer; const AValue: TValue);
+begin
+  SetStatusCode(ACode);
+  WriteJson(AValue);
+end;
+
+procedure TDextIndyHttpResponse.WriteJson(const AQuery: IDextFastQuery);
+var
+  Stream: TStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if AQuery = nil then Exit;
+  Stream := GetOutputStream;
+  AQuery.ExecuteToUtf8Proc(
+    procedure(Data: Pointer; Len: Integer)
+    begin
+      Stream.WriteBuffer(Data^, Len);
+    end
+  );
+end;
+
+procedure TDextIndyHttpResponse.WriteJson(ACode: Integer; const AQuery: IDextFastQuery);
+begin
+  SetStatusCode(ACode);
+  WriteJson(AQuery);
+end;
+
+{$IFDEF DEXT_ENABLE_ENTITY}
+procedure TDextIndyHttpResponse.WriteJson(const AStream: IDbSetFastStream);
+var
+  Stream: TStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if AStream = nil then Exit;
+  Stream := GetOutputStream;
+  AStream.ExecuteToUtf8Stream(Stream);
+end;
+
+procedure TDextIndyHttpResponse.WriteJson(ACode: Integer; const AStream: IDbSetFastStream);
+begin
+  SetStatusCode(ACode);
+  WriteJson(AStream);
+end;
+{$ENDIF}
+
 procedure TDextIndyHttpResponse.SetContentType(const AValue: string);
 var
   Len: Integer;
@@ -1036,6 +1183,50 @@ begin
     FResponseInfo.ContentStream := MemStream;
     FResponseInfo.FreeContentStream := True;
   end;
+end;
+
+procedure TDextIndyHttpResponse.SendJsonUtf8(const AUtf8Json: RawByteString);
+var
+  Stream: TMemoryStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if Length(AUtf8Json) > 0 then
+  begin
+    Stream := TMemoryStream.Create;
+    Stream.WriteBuffer(AUtf8Json[1], Length(AUtf8Json));
+    Stream.Position := 0;
+    FResponseInfo.ContentStream := Stream;
+    FResponseInfo.FreeContentStream := True;
+  end;
+end;
+
+procedure TDextIndyHttpResponse.SendJsonUtf8(const ABuffer: TBytes);
+var
+  Stream: TMemoryStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if Length(ABuffer) > 0 then
+  begin
+    Stream := TMemoryStream.Create;
+    Stream.WriteBuffer(ABuffer[0], Length(ABuffer));
+    Stream.Position := 0;
+    FResponseInfo.ContentStream := Stream;
+    FResponseInfo.FreeContentStream := True;
+  end;
+end;
+
+function TDextIndyHttpResponse.GetOutputStream: TStream;
+var
+  Stream: TMemoryStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if not Assigned(FResponseInfo.ContentStream) then
+  begin
+    Stream := TMemoryStream.Create;
+    FResponseInfo.ContentStream := Stream;
+    FResponseInfo.FreeContentStream := True;
+  end;
+  Result := FResponseInfo.ContentStream;
 end;
 
 procedure TDextIndyHttpResponse.Json(const AJson: string);

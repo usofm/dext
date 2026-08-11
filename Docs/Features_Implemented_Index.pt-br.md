@@ -112,6 +112,7 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **TValueConverterRegistry** — Registro global de conversores com lookup em 3 níveis: (1) Exact Match por `PTypeInfo` pair, (2) Kind Match por `TTypeKind` pair, (3) Fallback para `tkVariant` source.
 - **TValueConverter** — Motor de execução que orquestra conversões, com tratamento automático de Smart Types (`Prop<T>`) e `Nullable<T>` (detecta via `TReflection.GetMetadata`).
 - **20+ Conversores Built-in** — `Variant→Integer/String/Boolean/Float/DateTime/Date/Time/Enum/GUID/Class/TBytes/TUUID`, `Integer→Enum/String`, `String→GUID/TBytes/TUUID/Integer/Float/DateTime/Boolean`, `Float→String`, `Boolean→String`, `Class→Class`.
+- **Suporte Nativo a TBcd & ftFMTBcd** — Conversores bidirecionais de alta performance e zero-alloc: `TBcd` <-> `Currency`, `TBcd` <-> `Double`, `TBcd` <-> `string` (invariante), `TBcd` <-> `Integer/Int64`, `Variant` <-> `TBcd`, `String` <-> `TBcd`, `Float` <-> `TBcd`, `Currency` <-> `TBcd`. Garante preservação total de precisão ponta-a-ponta para colunas numéricas de alta precisão (`NUMERIC`/`DECIMAL`).
 - **ConvertAndSet / ConvertAndSetField** — Conversão + atribuição via RTTI em uma única chamada (usado pelo ORM e Model Binding).
 
 ### 1.8 Memory & Span (`Dext.Core.Span`, `Dext.Core.Memory`)
@@ -127,6 +128,12 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **Escalonador Work-Stealing** — Distribuição eficiente de tarefas entre os núcleos da CPU para máxima performance paralela.
 - **ICancellationToken** — Cancelamento cooperativo com `WaitForCancellation(timeout)` e `IsCancellationRequested`. Integrado com Event Bus Lifecycle e Background Services.
 
+### 1.10 Generic Object Pooling (`Dext.Collections.Pool`)
+- **TDextPool\<T\>** — Pool genérico de objetos thread-safe com `TSpinLock`, `ManualReset` event broadcast, rastreamento atômico de waiters e deadline monotônica de timeout (`AcquireTimeoutMs`).
+- **Reciclagem Automática (`IPoolable`)** — Execução automática do método `ResetState` durante o `Release` do objeto antes de seu retorno ao estoque.
+- **Protocolo Drain-Before-Free** — Shutdown atômico com broadcast (`FAvailableEvent.SetEvent`) e espera por *drain* de waiters (`FActiveWaiters = 0`) prevenindo *use-after-free*.
+- **MapFast HTTP Fallback 503** — Retorno automático de `HTTP 503 Service Unavailable` em endpoints `App.MapFast<TDbContext>` sob exaustão do pool de contextos.
+
 ### 1.10 Logging Pipeline (`Dext.Logging`, `Dext.Logging.Sinks.APM`)
 - **ILoggerFactory** — Factory de loggers com registro de múltiplos providers. `CreateLogger(categoryName)` retorna `ILogger` composto.
 - **ILogger** — Interface com métodos por nível: `Trace`, `Debug`, `Information`, `Warning`, `Error`, `Critical`. Suporte a structured templates com placeholders.
@@ -141,6 +148,11 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **Dext.Events (In-Process)** — Sistema de Publish/Subscribe inspirado no **MediatR**. Permite o desacoplamento total entre quem gera o evento e quem o processa.
 - **IEventPublisher / IEventHandler<T>** — Despacho assíncrono de eventos via DI. Suporte a múltiplos handlers para o mesmo evento ou handlers exclusivos.
 - **Scoping Suport** — Handlers respeitam o ciclo de vida do DI (Scoped handlers recebem o mesmo contexto da request original).
+
+### 1.12 Feature Flags, Zero-Trust Proxies & Antiforgery (`Dext.FeatureFlags`, `Dext.Web.ForwardedHeaders`, `Dext.Web.Antiforgery`)
+- **Dext.FeatureFlags (`IFeatureManager`)** — Gerenciamento dinâmico de chaves operacionais e rollouts graduais. Suporta flags booleanas, `TPercentageFilter` (rollout percentual determinístico por usuário/tenant), `TTimeWindowFilter` (janela temporal ISO-8601), filtros customizados (`IFeatureFilter`) e anotação `[FeatureGate('NomeFeature')]`.
+- **Dext.Web.ForwardedHeaders (`TForwardedHeadersMiddleware`)** — Middleware de segurança Zero-Trust para processamento de cabeçalhos `X-Forwarded-For`, `X-Forwarded-Proto` e `X-Forwarded-Host` oriundos de proxies reversos confiáveis (NGINX, Caddy, Cloudflare, Traefik).
+- **Dext.Web.Antiforgery (`IAntiforgery`)** — Proteção contra Cross-Site Request Forgery (CSRF) com tokens HMAC-SHA256, tempo constante de comparação contra ataques de timing, validação de Origin/Host e suporte a cookies e cabeçalhos `X-CSRF-TOKEN`.
 
 ### 1.12 Observability & Telemetry (`Dext.Core.Diagnostics`)
 - **TDiagnosticSource** — Infraestrutura de telemetria baseada em observadores. Permite interceptar o ciclo de vida de requisições HTTP e execuções SQL sem acoplar código de monitoramento à lógica de negócio.
@@ -234,11 +246,25 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 ### 3.1 Bootstrapping & Minimal API
 - **TWebApplication** — Fachada fluente para inicialização: carrega automaticamente `appsettings.json`, `appsettings.yaml`, Environment Variables, registra serviços e constrói o pipeline em uma única cadeia.
 - **Minimal API** — Registro direto de handlers via delegates sem controllers (`app.MapGet`, `app.MapPost`, `app.MapQuery`).
+- **FastPath** (`app.MapFast`) — Registro de rotas de altíssimo throughput com desvio (bypass) de DI Scope e ativação de RTTI, reduzindo o tempo por requisição ao mínimo possível.
+- **Data API Streaming Direct UTF-8** (`Db.UseSql`) — Execução de SQL nativo com serialização e gravação direta dos dados em UTF-8 no stream do socket (`Res.GetOutputStream`) sem alocação de objetos `TJsonObject` na Heap.
 - **Mapeamento HTTP QUERY** — Endpoints de consulta de dados seguros e idempotentes utilizando corpos de requisição estruturados.
 
 ### 3.2 Middleware Pipeline
 - **Chain of Responsibility** — Middlewares funcionais (delegates anônimos) e baseados em classe com injeção de dependência via construtor.
-- **Built-in Middlewares** — Logger, Compression (GZip/Brotli), Exception Handling (**ProblemDetails** RFC 9457), **DeveloperExceptionPage**, CORS, StartupLock.
+- **Built-in Middlewares**:
+  - **HTTP Logging (`THttpLoggingMiddleware`)** — Registro de requisições e respostas com mascaramento configurável case-insensitive (`RedactHeaders`) de cabeçalhos sensíveis (`Authorization`, `Cookie`, `Set-Cookie`, `X-API-Key`).
+  - **Exception Handling (`TExceptionHandlerMiddleware`)** — Tratamento global de exceções formatado conforme **RFC 9457** (Problem Details, substituindo RFC 7807), geração de `TraceId` via UUIDv7 para rastreabilidade e omissão automática de `E.Message` em produção em erros status `500`.
+  - **DeveloperExceptionPage (`TDeveloperExceptionPageMiddleware`)** — Exibição detalhada de erros e stack trace exclusiva para ambiente de desenvolvimento.
+  - **CORS (`TCorsMiddleware`)** — Suporte estrito a preflight CORS (`OPTIONS` com `Origin` e `Access-Control-Request-Method`), validação rigorosa de Origens, Métodos e Cabeçalhos solicitados com rejeição status `403 Forbidden`, fail-fast no startup contra `AllowAnyOrigin + AllowCredentials` e mesclagem limpa de `Vary: Origin`.
+  - **Rate Limiting (`TRateLimitMiddleware`)** — Controle de tráfego com cabeçalhos padronizados da **RFC 9333** (`RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, `Retry-After`) emitidos em requisições permitidas e rejeitadas (status `429`).
+  - **Response Caching (`TResponseCacheMiddleware`)** — Cache de respostas HTTP server-side com proteção estrita contra armazenamento de conteúdos autenticados (`Authorization`, cookies de sessão/auth), rejeição de respostas com `Set-Cookie` ou diretivas `private`/`no-store`/`no-cache` e reconstrução automática de `Cache-Control: public, max-age=N` em cache HITs.
+  - **Compression (`TCompressionMiddleware`)** — Compactação de respostas via GZip e Brotli.
+  - **Security Headers (`TSecurityHeadersMiddleware`)** — Injeção de HSTS, `X-Content-Type-Options`, `X-Frame-Options` e `X-XSS-Protection`.
+  - **Feature Flags (`Dext.FeatureFlags`)** — Gerenciamento dinâmico de chaves operacionais e rollouts graduais (`IFeatureManager`) com suporte a filtros estáticos booleans, percentuais de rollout (`TPercentageFilter`), janelas de tempo (`TTimeWindowFilter`), atributos declarativos (`[FeatureGate]`) e integração nativa com a infraestrutura de configuração do Dext (`IConfiguration`).
+  - **Forwarded Headers (`Dext.Web.ForwardedHeaders`)** — Validação segura de proxies reversos (`X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host`) lidos da direita para a esquerda com controle de `KnownProxies`, subredes CIDR e limite de encaminhamento contra IP Spoofing.
+  - **Antiforgery CSRF Protection (`Dext.Web.Antiforgery`)** — Proteção contra ataques Cross-Site Request Forgery via padrão Double Submit Cookie, validação de tokens em tempo constante contra timing attacks e suporte nativo a formulários SSR (`WebStencils`) e cabeçalhos HTMX (`X-XSRF-TOKEN`).
+  - **Base Path Hosting (`UsePathBase`)** — Suporte a hospedagem sob prefixo de caminho (`app.UsePathBase('/myapp')`), remoção automática do prefixo no pipeline (`TDextPathBaseMiddleware`), preenchimento de `Request.PathBase` e gerador de URL `Request.ToAppUrl('/route')`. Registro nativo de prefixos no kernel do HTTP.sys (`http://+:8080/myapp/`).
 
 ### 3.3 Routing Engine
 - **Parâmetros Dinâmicos** — Rotas com `{id}`, `{slug}`, restrições de tipo.
@@ -264,7 +290,12 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 
 ### 3.7 Real-time & Caching
 - **SSE (Server-Sent Events)** — Streaming unidirecional de eventos como fallback.
-- **WebSockets e Hubs SignalR** — Suporte completo ao transporte nativo WebSocket RFC 6455 com mascaramento cliente-servidor, tratamento de handshake e integração total com `Dext.Web.Hubs` para mensagens bidirecionais em tempo real, despacho para grupos e keepalives via ping/pong. Realiza o upgrade nativo de conexões HTTP via modo opaco (`HTTP_SEND_RESPONSE_FLAG_OPAQUE`) no HTTP.sys.
+- **WebSockets e Hubs SignalR** — Motor nativo autônomo de WebSockets (RFC 6455) e Dext Hubs:
+  - **Protocol Engine (`Dext.WebSocket.Protocol.pas`)**: Processamento de framing RFC 6455 (`wsText`, `wsBinary`, `wsPing`, `wsPong`, `wsClose`), mascaramento/desmascaramento vetorizado, payload 64-bit e integridade.
+  - **Handshake Engine (`Dext.WebSocket.Handshake.pas`)**: Validação de upgrade HTTP `101 Switching Protocols`, cálculo SHA-1/Base64 de `Sec-WebSocket-Accept`.
+  - **Permessage-Deflate (`Dext.WebSocket.Compression.pas`)**: Negociação e compressão **RFC 7692** via ZLib nativo (até 80% de redução no payload).
+  - **Hubs Transport (`Dext.Web.Hubs.Transport.WebSocket.pas`)**: Integração completa com `Dext.Web.Hubs` para mensageria bidirecional em tempo real, dispatching de grupos (`IHubClients`), reconexão automática e heartbeats ping/pong.
+  - **Cross-Platform I/O**: Executa sobre raw sockets com `epoll` no Linux e `WSAPoll` / `IOCP` no Windows.
 - **Cliente Hub Delphi (SignalR-compatible)** — Biblioteca cliente nativa em Delphi (`Dext.Web.Hubs.Client`) de alta performance, com suporte a transportes WebSocket e SSE, protocolos de negociação/handshake automáticos, heartbeat via ping e dispatches thread-safe com marshaling opcional para a thread principal (UI).
 - **Caching** — Motor de cache em memória e provedor de cache Redis nativo (`TRedisCacheStore`). Gera chaves de cache exclusivas para requisições HTTP QUERY calculando um hash `THashSHA1` do stream de corpo da requisição. Suporte para registro de cache de resposta no pipeline via `.UseRedisCache` no `TAppBuilder`. **Health Checks** detalhados (com plano de expansão no roadmap).
 
@@ -553,6 +584,14 @@ API fluente baseada no padrão `Should(Value)`.
 - **Native DUnit Integration** (`Dext.Testing.DUnit`) — Adaptador de runner desacoplado para DUnit que registra ouvintes customizados para trafegar resultados, metadados de tempo de execução e streams de execução para o Dext Test Explorer.
 - **Native DUnit2 Integration** (`Dext.Testing.DUnit2`) — Adaptador de runner desacoplado usando interfaces proxy para trafegar resultados em tempo real e hierarquia de suites do DUnit2 para o Dext Test Explorer.
 - **Test Context Injection** — `ITestContext` injetável via parâmetro para `WriteLine`, `AttachFile` (screenshots) e metadados de execução.
+- **Histórico e Análise de Regressão** (`Dext.Testing.History`) — Persistência e rastreamento histórico do tempo de execução e taxa de sucesso dos testes ao longo de execuções passadas para detecção de *flaky tests*.
+- **Telemetria de Testes OpenTelemetry** (`Dext.Testing.Listeners.Telemetry`) — Listener integrado de telemetria enviando métricas de execução de testes (`test_duration_ms`, `test_count_passed`, `test_count_failed`) para coletores OpenTelemetry.
+
+### 7.7 RAD Studio Expert & IDE Integration (`Dext.Testing.Design.*`)
+- **Dext Test Explorer Dockable Window** (`Dext.Testing.Design.DockableForm`) — Janela ancorável nativa no RAD Studio exibindo árvore interativa de suítes, filtros por status e busca.
+- **Gutter Margin Icons** (`Dext.Testing.Design.Gutter`) — Marcas visuais interativas na margem esquerda do editor de código do RAD Studio (verdes para sucesso, vermelhas para falhas).
+- **Servidor HTTP/SSE Local da IDE** (`Dext.Testing.Design.Server`) — Servidor de comunicação em tempo real embutido no Expert que recebe o fluxo de execução dos testes sem BPLs intermediárias.
+- **Visualizador de Cobertura de Código** (`Dext.Testing.Design.Coverage`) — Destaque direto no editor das linhas de código cobridas por testes via parsing AST (`Dext.Testing.Design.AST`).
 
 ---
 
@@ -651,21 +690,23 @@ API fluente baseada no padrão `Should(Value)`.
 
 ---
 
-## 🛠️ 13. Dext CLI & Scaffolding (`Tools\Dext.Tool.Scaffolding`)
+## 🛠️ 13. Dext CLI & Scaffolding (`Tools\Dext.Tool.Scaffolding` / `Apps\CLI`)
 
-- **Dext CLI (S01)** — Motor CLI unificado (`dext.exe`) para gerenciamento de projetos.
-- **Advanced Scaffolding** — Geração de projetos e arquivos via templates inteligentes: `dext new` (projetos), `dext add` (controllers, entidades, middlewares).
-- **Template Logic** — Integração direta com o motor **Dext.Templating** para lógica complexa dentro dos templates de scaffolding.
-- **Dext Doc** — Geração automatizada de documentação técnica do projeto.
-- **`dext test`** — Execução de testes e geração de relatórios de cobertura via CLI.
-- **`dext ui`** — Dashboard web para monitoramento de testes em tempo real.
-- **`dext index`** — Mapeamento e indexação de todos os símbolos públicos (classes, records, interfaces, métodos, etc.) com números de linha em Markdown, JSON e CSV para agentes de IA e NotebookLM.
+- **Dext CLI (S01)** — Motor CLI unificado (`dext.exe`) para gerenciamento de projetos e automação de desenvolvimento.
+- **Advanced Scaffolding** — Geração de projetos e arquivos via templates inteligentes: `dext new` (projetos), `dext scaffold` (controllers, entidades ORM, DTOs, middlewares).
+- **`dext dev-certs`** — Provisionador nativo CryptoAPI de certificados X.509 de desenvolvimento local com extensão SAN e registro automático no Root Certificate Store.
+- **`dext test --coverage`** — Executor de suítes de testes unitários com **análise completa de cobertura de código (*Code Coverage*)** via arquivos de mapa (`.map`) e exportação XML para **SonarQube** (`--sonar`).
+- **`dext migrate [up|down|list|generate]`** — Gerenciador CLI de migrações de esquema de banco de dados para o Dext ORM.
+- **`dext doc`** — Geração automatizada de documentação técnica estática HTML e mapas visuais de rotas.
+- **`dext ui`** — Dashboard web local em tempo real para acompanhamento visual de suítes de teste e métricas.
+- **`dext index`** — Mapeamento e indexação de todos os símbolos públicos (classes, records, interfaces, métodos) em Markdown, JSON e CSV otimizados para consumo por agentes de IA e NotebookLM.
 
 ---
 
-## 🔍 14. Observabilidade & Telemetria (`Sources\Core\Base`)
+## 🔍 14. Observabilidade & Telemetria (`Sources\Core\Base` / `Apps\Sidecar`)
 
 - **TDiagnosticSource (S03)** — Publicador de eventos centralizado baseado em payloads JSON, garantindo desacoplamento entre produtores (ORM, Web) e consumidores.
+- **Dext Sidecar (`DextSidecar.exe`)** — Aplicação nativa acoplada para monitoramento em tempo real (`Dext.Services.FileWatcher.pas`), streaming de logs (`Dext.Sidecar.LogStreamer.pas`), servidor web de telemetria (`TSidecarServer`) e interface System Tray VCL (`Dext.Vcl.TrayIcon.pas`).
 - **Telemetry Bridge** (`Dext.Logging.Telemetry`) — Integração automática com `ILogger`, permitindo visualizar telemetria HTTP e SQL no console ou arquivos de log.
 - **SQL Capture** — Extração e formatação de instruções SQL nativas do ORM para auditoria em tempo real.
 - **HTTP Life-cycle** — Tracing de latência, códigos de status e rotas do framework web.

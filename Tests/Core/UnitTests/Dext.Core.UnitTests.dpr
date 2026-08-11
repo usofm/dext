@@ -1,4 +1,4 @@
-﻿program Dext.Core.UnitTests;
+program Dext.Core.UnitTests;
 
 {$APPTYPE CONSOLE}
 
@@ -35,7 +35,11 @@ uses
   Dext.BackgroundJobs.Tests in 'Dext.BackgroundJobs.Tests.pas',
   Dext.Json.NextGen.Tests in 'Dext.Json.NextGen.Tests.pas',
   Dext.BackgroundJobs.Storage.Sqlite in '..\..\..\Sources\Data\Dext.BackgroundJobs.Storage.Sqlite.pas',
-  Dext.Core.SmartTypes.Combinatorial.Tests in 'Dext.Core.SmartTypes.Combinatorial.Tests.pas';
+  Dext.Core.SmartTypes.Combinatorial.Tests in 'Dext.Core.SmartTypes.Combinatorial.Tests.pas',
+  Dext.Collections.Pool in '..\..\..\Sources\Core\Dext.Collections.Pool.pas',
+  Dext.Collections.Pool.Tests in 'Dext.Collections.Pool.Tests.pas',
+  Dext.Bcd.Tests in 'Dext.Bcd.Tests.pas',
+  Dext.FeatureFlags.Tests in '..\Dext.FeatureFlags.Tests.pas';
 
 begin
   SetConsoleCharSet();
@@ -73,7 +77,10 @@ begin
         TCodecsCommandTests,
         TWebUtf8Tests,
         TResponseWriterTests,
-        TBoundedExecutorTests
+        TBoundedExecutorTests,
+        TDextPoolTests,
+        TBcdSupportTests,
+        TDextFeatureFlagsTests
       ]));
   except
     on E: Exception do

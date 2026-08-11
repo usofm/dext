@@ -27,6 +27,8 @@
 {***************************************************************************}
 unit Dext.Server.Native;
 
+{$I Dext.inc}
+
 interface
 
 uses
@@ -37,6 +39,10 @@ uses
   Dext.Collections,
   Dext.Collections.Dict,
   Dext.Web.Interfaces,
+  {$IFDEF DEXT_ENABLE_ENTITY}
+  Dext.Entity.Core,
+  {$ENDIF}
+  Dext.Entity.FastQuery,
   Dext.DI.Interfaces,
   Dext.Auth.Identity,
   Dext.Web.Results,
@@ -84,6 +90,9 @@ type
     FCookies: IStringDictionary;
     FFiles: IFormFileCollection;
     FRemoteIp: string;
+    FPath: string;
+    FPathBase: string;
+    FHasCustomPath: Boolean;
     function ParseQueryString(const AQuery: string): IStringDictionary;
     function ParseHeaders: IStringDictionary;
   public
@@ -96,6 +105,14 @@ type
     function GetMethod: string;
     /// <summary>Gets the request URL path.</summary>
     function GetPath: string;
+    /// <summary>Sets a custom request URL path.</summary>
+    procedure SetPath(const AValue: string);
+    /// <summary>Gets the base path prefix.</summary>
+    function GetPathBase: string;
+    /// <summary>Sets the base path prefix.</summary>
+    procedure SetPathBase(const AValue: string);
+    /// <summary>Builds an absolute application URL using PathBase.</summary>
+    function ToAppUrl(const ARelativePath: string): string;
     /// <summary>Gets the collection of parsed query parameters.</summary>
     function GetQuery: IStringDictionary;
     /// <summary>Gets the body data stream.</summary>
@@ -117,6 +134,7 @@ type
 
     property Method: string read GetMethod;
     property Path: string read GetPath;
+    property PathBase: string read GetPathBase write SetPathBase;
     property Query: IStringDictionary read GetQuery;
     property Body: TStream read GetBody;
     property RouteParams: TRouteValueDictionary read GetRouteParams;
@@ -148,7 +166,8 @@ type
     /// <summary>Gets the response Content-Type header value.</summary>
     function GetContentType: string;
     /// <summary>Sets the HTTP status code fluently.</summary>
-    function Status(AValue: Integer): IHttpResponse;
+    function Status(AValue: Integer): IHttpResponse; overload;
+    function Status(AValue: Integer; const AMessage: string): IHttpResponse; overload;
     /// <summary>Sets the HTTP status code.</summary>
     procedure SetStatusCode(AValue: Integer);
     /// <summary>Sets the response Content-Type header.</summary>
@@ -159,16 +178,25 @@ type
     procedure Flush;
     /// <summary>Writes a UTF-8 string to the response body.</summary>
     procedure Write(const AContent: string); overload;
-    /// <summary>Writes raw bytes to the response body.</summary>
     procedure Write(const ABuffer: TBytes); overload;
-    /// <summary>Writes a stream contents directly to the response body.</summary>
     procedure Write(const AStream: TStream); overload;
+    procedure SendJsonUtf8(const AUtf8Json: RawByteString); overload;
+    procedure SendJsonUtf8(const ABuffer: TBytes); overload;
+    function GetOutputStream: TStream;
     /// <summary>Writes UTF-8 bytes directly to a native response sink.</summary>
     procedure WriteUtf8(AData: Pointer; ALength: Integer);
     /// <summary>Sends a JSON string directly as response.</summary>
     procedure Json(const AJson: string); overload;
     /// <summary>Serializes a TValue to JSON and sends it.</summary>
     procedure Json(const AValue: TValue); overload;
+    procedure WriteJson(const AValue: TValue); overload;
+    procedure WriteJson(ACode: Integer; const AValue: TValue); overload;
+    procedure WriteJson(const AQuery: IDextFastQuery); overload;
+    procedure WriteJson(ACode: Integer; const AQuery: IDextFastQuery); overload;
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    procedure WriteJson(const AStream: IDbSetFastStream); overload;
+    procedure WriteJson(ACode: Integer; const AStream: IDbSetFastStream); overload;
+    {$ENDIF}
     /// <summary>Adds a header value to the response.</summary>
     procedure AddHeader(const AName, AValue: string);
     /// <summary>Appends a cookie with options to the response.</summary>
@@ -394,7 +422,37 @@ end;
 function TDextNativeHttpRequest.GetMethod: string; begin Result := FRawRequest.Method; end;
 function TDextNativeHttpRequest.GetPath: string;
 begin
+  if FHasCustomPath then
+    Exit(FPath);
   Result := FRawRequest.Path;
+  if Result = '' then Result := '/';
+end;
+
+procedure TDextNativeHttpRequest.SetPath(const AValue: string);
+begin
+  FPath := AValue;
+  FHasCustomPath := True;
+end;
+
+function TDextNativeHttpRequest.GetPathBase: string;
+begin
+  Result := FPathBase;
+end;
+
+procedure TDextNativeHttpRequest.SetPathBase(const AValue: string);
+begin
+  FPathBase := AValue;
+end;
+
+function TDextNativeHttpRequest.ToAppUrl(const ARelativePath: string): string;
+var
+  BasePath, RelPath: string;
+begin
+  BasePath := GetPathBase;
+  RelPath := ARelativePath;
+  if BasePath = '/' then BasePath := '';
+  if (RelPath <> '') and not RelPath.StartsWith('/') then RelPath := '/' + RelPath;
+  Result := BasePath + RelPath;
   if Result = '' then Result := '/';
 end;
 
@@ -685,6 +743,95 @@ begin
   Result := Self;
 end;
 
+function TDextNativeHttpResponse.Status(AValue: Integer; const AMessage: string): IHttpResponse;
+begin
+  SetStatusCode(AValue);
+  Result := Self;
+end;
+
+procedure TDextNativeHttpResponse.WriteJson(const AValue: TValue);
+var
+  {$IFDEF DEXT_ENABLE_ENTITY}
+  FastStream: IDbSetFastStream;
+  {$ENDIF}
+  FastQuery: IDextFastQuery;
+  Stream: TStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if AValue.IsEmpty then Exit;
+
+  if AValue.Kind = tkInterface then
+  begin
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    if Supports(AValue.AsInterface, IDbSetFastStream, FastStream) then
+    begin
+      Stream := GetOutputStream;
+      FastStream.ExecuteToUtf8Stream(Stream);
+      Exit;
+    end;
+    {$ENDIF}
+
+    if Supports(AValue.AsInterface, IDextFastQuery, FastQuery) then
+    begin
+      Stream := GetOutputStream;
+      FastQuery.ExecuteToUtf8Proc(
+        procedure(Data: Pointer; Len: Integer)
+        begin
+          Stream.WriteBuffer(Data^, Len);
+        end
+      );
+      Exit;
+    end;
+  end;
+
+  Json(AValue);
+end;
+
+procedure TDextNativeHttpResponse.WriteJson(ACode: Integer; const AValue: TValue);
+begin
+  SetStatusCode(ACode);
+  WriteJson(AValue);
+end;
+
+procedure TDextNativeHttpResponse.WriteJson(const AQuery: IDextFastQuery);
+var
+  Stream: TStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if AQuery = nil then Exit;
+  Stream := GetOutputStream;
+  AQuery.ExecuteToUtf8Proc(
+    procedure(Data: Pointer; Len: Integer)
+    begin
+      Stream.WriteBuffer(Data^, Len);
+    end
+  );
+end;
+
+procedure TDextNativeHttpResponse.WriteJson(ACode: Integer; const AQuery: IDextFastQuery);
+begin
+  SetStatusCode(ACode);
+  WriteJson(AQuery);
+end;
+
+{$IFDEF DEXT_ENABLE_ENTITY}
+procedure TDextNativeHttpResponse.WriteJson(const AStream: IDbSetFastStream);
+var
+  Stream: TStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if AStream = nil then Exit;
+  Stream := GetOutputStream;
+  AStream.ExecuteToUtf8Stream(Stream);
+end;
+
+procedure TDextNativeHttpResponse.WriteJson(ACode: Integer; const AStream: IDbSetFastStream);
+begin
+  SetStatusCode(ACode);
+  WriteJson(AStream);
+end;
+{$ENDIF}
+
 procedure TDextNativeHttpResponse.Unauthorized(const AMessage: string);
 begin
   SetStatusCode(401);
@@ -765,6 +912,27 @@ begin
     if ReadBytes <= 0 then Break;
     FRawResponse.Write(FStreamBuffer, 0, ReadBytes);
   end;
+end;
+
+procedure TDextNativeHttpResponse.SendJsonUtf8(const AUtf8Json: RawByteString);
+begin
+  SetContentType('application/json; charset=utf-8');
+  if Length(AUtf8Json) > 0 then
+    WriteUtf8(@AUtf8Json[1], Length(AUtf8Json));
+end;
+
+procedure TDextNativeHttpResponse.SendJsonUtf8(const ABuffer: TBytes);
+begin
+  SetContentType('application/json; charset=utf-8');
+  if Length(ABuffer) > 0 then
+    WriteUtf8(@ABuffer[0], Length(ABuffer));
+end;
+
+function TDextNativeHttpResponse.GetOutputStream: TStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  // Return dummy or memory wrapper stream connected to WriteUtf8 if called directly
+  Result := nil;
 end;
 
 function TDextNativeHttpResponse.GetContentType: string;

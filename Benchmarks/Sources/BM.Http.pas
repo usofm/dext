@@ -17,15 +17,18 @@ uses
   System.SysUtils,
   System.Classes,
   System.Rtti,
+  System.Diagnostics,
   System.Net.HttpClient,
   Dext.Collections,
   Dext.Collections.Dict,
   Dext.DI.Interfaces,
+  Dext.Entity.Context,
   Dext.Server.Engine.Interfaces,
   Dext.Server.Engine.Types,
   Dext.WebHost,
   Dext.Web.Interfaces,
-  Dext.Web;
+  Dext.Web,
+  BM.Orm;
 
 type
   { Mocking structures for in-memory HTTP pipeline execution }
@@ -35,11 +38,17 @@ type
     FHeaders: IStringDictionary;
     FQuery: IStringDictionary;
     FRouteParams: TRouteValueDictionary;
+    FPath: string;
+    FPathBase: string;
   public
     constructor Create;
     destructor Destroy; override;
     function GetMethod: string;
     function GetPath: string;
+    procedure SetPath(const AValue: string);
+    function GetPathBase: string;
+    procedure SetPathBase(const AValue: string);
+    function ToAppUrl(const ARelativePath: string): string;
     function GetQuery: IStringDictionary;
     function GetBody: TStream;
     function GetRouteParams: TRouteValueDictionary;
@@ -49,6 +58,7 @@ type
     function GetQueryParam(const AName: string): string;
     function GetCookies: IStringDictionary;
     function GetFiles: IFormFileCollection;
+    property PathBase: string read GetPathBase write SetPathBase;
   end;
 
   TMockHttpResponse = class(TInterfacedObject, IHttpResponse)
@@ -69,6 +79,9 @@ type
     procedure Write(const AContent: string); overload;
     procedure Write(const ABuffer: TBytes); overload;
     procedure Write(const AStream: TStream); overload;
+    procedure SendJsonUtf8(const AUtf8Json: RawByteString); overload;
+    procedure SendJsonUtf8(const ABuffer: TBytes); overload;
+    function GetOutputStream: TStream;
     procedure Json(const AJson: string); overload;
     procedure Json(const AValue: TValue); overload;
     procedure AddHeader(const AName, AValue: string);
@@ -145,7 +158,21 @@ function TMockHttpRequest.GetFiles: IFormFileCollection; begin Result := nil; en
 function TMockHttpRequest.GetHeader(const AName: string): string; begin Result := ''; end;
 function TMockHttpRequest.GetHeaders: IStringDictionary; begin Result := FHeaders; end;
 function TMockHttpRequest.GetMethod: string; begin Result := 'GET'; end;
-function TMockHttpRequest.GetPath: string; begin Result := '/ping'; end;
+function TMockHttpRequest.GetPath: string; begin if FPath <> '' then Result := FPath else Result := '/ping'; end;
+procedure TMockHttpRequest.SetPath(const AValue: string); begin FPath := AValue; end;
+function TMockHttpRequest.GetPathBase: string; begin Result := FPathBase; end;
+procedure TMockHttpRequest.SetPathBase(const AValue: string); begin FPathBase := AValue; end;
+function TMockHttpRequest.ToAppUrl(const ARelativePath: string): string;
+var
+  LBase, LRel: string;
+begin
+  LBase := GetPathBase;
+  LRel := ARelativePath;
+  if LBase = '/' then LBase := '';
+  if (LRel <> '') and not LRel.StartsWith('/') then LRel := '/' + LRel;
+  Result := LBase + LRel;
+  if Result = '' then Result := '/';
+end;
 function TMockHttpRequest.GetQuery: IStringDictionary; begin Result := FQuery; end;
 function TMockHttpRequest.GetQueryParam(const AName: string): string; begin Result := ''; end;
 function TMockHttpRequest.GetRemoteIpAddress: string; begin Result := '127.0.0.1'; end;
@@ -190,6 +217,9 @@ procedure TMockHttpResponse.Unauthorized(const AMessage: string); begin FStatusC
 procedure TMockHttpResponse.Write(const AContent: string); begin end;
 procedure TMockHttpResponse.Write(const ABuffer: TBytes); begin end;
 procedure TMockHttpResponse.Write(const AStream: TStream); begin end;
+procedure TMockHttpResponse.SendJsonUtf8(const AUtf8Json: RawByteString); begin FContentType := 'application/json'; end;
+procedure TMockHttpResponse.SendJsonUtf8(const ABuffer: TBytes); begin FContentType := 'application/json'; end;
+function TMockHttpResponse.GetOutputStream: TStream; begin Result := nil; end;
 
 { TMockHttpContext }
 
@@ -424,7 +454,19 @@ var
   Port: Integer;
   ExplicitPort: Boolean;
 begin
+  BM.Orm.SetupDatabase;
   Builder := TDextWebHost.CreateDefaultBuilder;
+  Builder.ConfigureServices(
+    procedure(Services: IServiceCollection)
+    begin
+      Services.AddScoped(
+        TServiceType.FromClass(TDbContext),
+        TDbContext,
+        function(Provider: IServiceProvider): TObject
+        begin
+          Result := TDbContext.Create(BM.Orm.GOptions, nil);
+        end);
+    end);
   Builder.Configure(
     procedure(App: IApplicationBuilder)
     begin
@@ -432,6 +474,143 @@ begin
         procedure(Context: IHttpContext)
         begin
           Context.Response.Write('pong');
+        end);
+      App.MapFast('GET', '/fastping',
+        procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+        begin
+          Res.SendJsonUtf8('{"message":"pong"}');
+        end);
+      App.MapGet('/dicities',
+        procedure(Context: IHttpContext)
+        var
+          Ctx: TDbContext;
+          SW: TStopwatch;
+          TStart, TResolve, TConnect, TFetch, TJson, TEnd: Int64;
+          Arr: TArray<BM.Orm.TBenchmarkUser>;
+        begin
+          SW := TStopwatch.StartNew;
+          TStart := SW.ElapsedMilliseconds;
+
+          Ctx := TDextServices.GetServiceObject<TDbContext>(Context.Services);
+          TResolve := SW.ElapsedMilliseconds;
+
+          Ctx.Connection.Connect;
+          TConnect := SW.ElapsedMilliseconds;
+
+          Arr := Ctx.Entities<BM.Orm.TBenchmarkUser>.ToList.ToArray;
+          TFetch := SW.ElapsedMilliseconds;
+
+          Context.Response.Json(TValue.From<TArray<BM.Orm.TBenchmarkUser>>(Arr));
+          TJson := SW.ElapsedMilliseconds;
+          TEnd := SW.ElapsedMilliseconds;
+
+          if TEnd > 100 then
+            Writeln(Format('[Trace /dicities] Total: %d ms | DI: %d ms | Connect: %d ms | Query: %d ms | JSON+RTTI: %d ms',
+              [TEnd - TStart, TResolve - TStart, TConnect - TResolve, TFetch - TConnect, TJson - TFetch]));
+        end);
+      App.MapGet('/cities',
+        procedure(Context: IHttpContext)
+        var
+          Ctx: TDbContext;
+          SW: TStopwatch;
+          TStart, TCreateCtx, TConnect, TFetch, TJson, TFreeCtx, TEnd: Int64;
+          Arr: TArray<BM.Orm.TBenchmarkUser>;
+        begin
+          SW := TStopwatch.StartNew;
+          TStart := SW.ElapsedMilliseconds;
+
+          Ctx := TDbContext.Create(BM.Orm.GOptions, nil);
+          TCreateCtx := SW.ElapsedMilliseconds;
+          try
+            Ctx.Connection.Connect;
+            TConnect := SW.ElapsedMilliseconds;
+
+            Arr := Ctx.Entities<BM.Orm.TBenchmarkUser>.ToList.ToArray;
+            TFetch := SW.ElapsedMilliseconds;
+
+            Context.Response.Json(TValue.From<TArray<BM.Orm.TBenchmarkUser>>(Arr));
+            TJson := SW.ElapsedMilliseconds;
+          finally
+            Ctx.Free;
+            TFreeCtx := SW.ElapsedMilliseconds;
+          end;
+          TEnd := SW.ElapsedMilliseconds;
+
+          if TEnd > 100 then
+            Writeln(Format('[Trace /cities] Total: %d ms | CreateCtx: %d ms | Connect: %d ms | Query: %d ms | JSON+RTTI: %d ms | FreeCtx: %d ms',
+              [TEnd - TStart, TCreateCtx - TStart, TConnect - TCreateCtx, TFetch - TConnect, TJson - TFetch, TFreeCtx - TJson]));
+        end);
+      App.MapFast('GET', '/fastdicities',
+        procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+        var
+          Sink: IUtf8ResponseSink;
+          Ctx: TDbContext;
+          SW: TStopwatch;
+          TStart, TResolve, TConnect, TQueryStream, TEnd: Int64;
+        begin
+          SW := TStopwatch.StartNew;
+          TStart := SW.ElapsedMilliseconds;
+
+          Res.SetContentType('application/json; charset=utf-8');
+          Ctx := TDbContext.Create(BM.Orm.GOptions, nil);
+          TResolve := SW.ElapsedMilliseconds;
+
+          Ctx.Connection.Connect;
+          TConnect := SW.ElapsedMilliseconds;
+
+          if Supports(Res, IUtf8ResponseSink, Sink) then
+          begin
+            Ctx.UseSql('SELECT "Id", "Name", "Email", "Age" FROM "BenchmarkUsers"')
+              .ExecuteToUtf8Proc(
+                procedure(Data: Pointer; Len: Integer)
+                begin
+                  Sink.WriteUtf8(Data, Len);
+                end);
+          end;
+          TQueryStream := SW.ElapsedMilliseconds;
+          TEnd := SW.ElapsedMilliseconds;
+
+          if TEnd > 50 then
+            Writeln(Format('[Trace /fastdicities] Total: %d ms | DI: %d ms | Connect: %d ms | Query+Stream: %d ms',
+              [TEnd - TStart, TResolve - TStart, TConnect - TResolve, TQueryStream - TConnect]));
+        end);
+      App.MapFast('GET', '/fastcities',
+        procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+        var
+          Sink: IUtf8ResponseSink;
+          Ctx: TDbContext;
+          SW: TStopwatch;
+          TStart, TCreateCtx, TConnect, TQueryStream, TFreeCtx, TEnd: Int64;
+        begin
+          SW := TStopwatch.StartNew;
+          TStart := SW.ElapsedMilliseconds;
+
+          Res.SetContentType('application/json; charset=utf-8');
+          Ctx := TDbContext.Create(BM.Orm.GOptions, nil);
+          TCreateCtx := SW.ElapsedMilliseconds;
+          try
+            Ctx.Connection.Connect;
+            TConnect := SW.ElapsedMilliseconds;
+
+            if Supports(Res, IUtf8ResponseSink, Sink) then
+            begin
+              Ctx.UseSql('SELECT "Id", "Name", "Email", "Age" FROM "BenchmarkUsers"')
+                .ExecuteToUtf8Proc(
+                  procedure(Data: Pointer; Len: Integer)
+                  begin
+                    Sink.WriteUtf8(Data, Len);
+                  end);
+            end;
+            TQueryStream := SW.ElapsedMilliseconds;
+          finally
+            Ctx.Free;
+            TFreeCtx := SW.ElapsedMilliseconds;
+          end;
+          TEnd := SW.ElapsedMilliseconds;
+
+          if TEnd > 50 then
+            Writeln(Format('[Trace /fastcities] Total: %d ms | CreateCtx: %d ms | Connect: %d ms | Query+Stream: %d ms | FreeCtx: %d ms',
+              [TEnd - TStart, TCreateCtx - TStart, TConnect - TCreateCtx, TQueryStream - TConnect, TFreeCtx - TQueryStream]));
         end);
     end);
 

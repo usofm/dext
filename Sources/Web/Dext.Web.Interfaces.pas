@@ -27,6 +27,8 @@ unit Dext.Web.Interfaces;
 
 interface
 
+{$I Dext.inc}
+
 uses
   System.Classes,
   System.Rtti,
@@ -38,6 +40,10 @@ uses
   Dext.Auth.Identity,
   Dext.Configuration.Interfaces,
   Dext.Threading.CancellationToken,
+  {$IFDEF DEXT_ENABLE_ENTITY}
+  Dext.Entity.Core,
+  {$ENDIF}
+  Dext.Entity.FastQuery,
   Dext.Server.Engine.Types,
   Dext.Server.Engine.Interfaces;
 
@@ -58,6 +64,8 @@ type
   IWebHostBuilder = interface;
 
   TRequestDelegate = reference to procedure(AContext: IHttpContext);
+  TDextFastRouteHandler = reference to procedure(const Req: IHttpRequest; const Res: IHttpResponse);
+  TDextFastContextRouteHandler<T: class> = reference to procedure(Ctx: T; const Req: IHttpRequest; const Res: IHttpResponse);
   TStaticHandler = reference to procedure(AContext: IHttpContext);
   TMiddlewareDelegate = reference to procedure(AContext: IHttpContext; ANext: TRequestDelegate);
   TServerFactory = reference to function(Port: Integer; Pipeline: TRequestDelegate; Services: IServiceProvider): IWebHost;
@@ -175,6 +183,14 @@ type
     ['{C3E8F1A2-4B7D-4A9C-9E2B-8F6D5A1C3E7F}']
     function GetMethod: string;
     function GetPath: string;
+    /// <summary>Updates the request path (used by path base stripping).</summary>
+    procedure SetPath(const AValue: string);
+    /// <summary>Returns the base path prefix under which the application is served.</summary>
+    function GetPathBase: string;
+    /// <summary>Sets the base path prefix under which the application is served.</summary>
+    procedure SetPathBase(const AValue: string);
+    /// <summary>Combines the application PathBase with a relative path into an app-relative URL.</summary>
+    function ToAppUrl(const ARelativePath: string): string;
     function GetQuery: IStringDictionary;
     function GetBody: TStream;
     function GetRouteParams: TRouteValueDictionary;
@@ -191,6 +207,8 @@ type
     property Method: string read GetMethod;
     /// <summary>Request path (e.g., /api/v1/users).</summary>
     property Path: string read GetPath;
+    /// <summary>Request base path prefix (e.g., /myapp).</summary>
+    property PathBase: string read GetPathBase write SetPathBase;
     /// <summary>Dictionary of query string parameters.</summary>
     property Query: IStringDictionary read GetQuery;
     /// <summary>Stream containing the request body.</summary>
@@ -205,6 +223,16 @@ type
     property Files: IFormFileCollection read GetFiles;
     /// <summary>Remote IP address of the client.</summary>
     property RemoteIpAddress: string read GetRemoteIpAddress;
+  end;
+
+  /// <summary>
+  ///   Feature interface to update request network properties from trusted reverse proxies.
+  /// </summary>
+  IForwardedHeadersFeature = interface
+    ['{F1E2D3C4-B5A6-7890-1234-56789ABCDEF0}']
+    procedure SetRemoteIpAddress(const AValue: string);
+    procedure SetIsHttps(AValue: Boolean);
+    procedure SetHost(const AValue: string);
   end;
 
   /// <summary>
@@ -244,7 +272,8 @@ type
     function GetContentType: string;
     
     /// <summary>Sets the status code fluently and returns the interface itself.</summary>
-    function Status(AValue: Integer): IHttpResponse;
+    function Status(AValue: Integer): IHttpResponse; overload;
+    function Status(AValue: Integer; const AMessage: string): IHttpResponse; overload;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
     procedure SetContentLength(const AValue: Int64);
@@ -258,10 +287,25 @@ type
     procedure Write(const ABuffer: TBytes); overload;
     /// <summary>Writes a stream content directly to the transport (Streaming).</summary>
     procedure Write(const AStream: TStream); overload;
+    /// <summary>Sends a raw UTF-8 string directly as response with application/json header.</summary>
+    procedure SendJsonUtf8(const AUtf8Json: RawByteString); overload;
+    procedure SendJsonUtf8(const ABuffer: TBytes); overload;
+    /// <summary>Returns the underlying response OutputStream for direct UTF-8 writing.</summary>
+    function GetOutputStream: TStream;
     /// <summary>Sends a formatted JSON string as response (sets Content-Type).</summary>
     procedure Json(const AJson: string); overload;
     /// <summary>Serializes a TValue (Object, Array, Primitive) to JSON and sends it.</summary>
     procedure Json(const AValue: TValue); overload;
+
+    /// <summary>Writes JSON directly using zero-alloc UTF-8 FastPath streaming.</summary>
+    procedure WriteJson(const AValue: TValue); overload;
+    procedure WriteJson(ACode: Integer; const AValue: TValue); overload;
+    procedure WriteJson(const AQuery: IDextFastQuery); overload;
+    procedure WriteJson(ACode: Integer; const AQuery: IDextFastQuery); overload;
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    procedure WriteJson(const AStream: IDbSetFastStream); overload;
+    procedure WriteJson(ACode: Integer; const AStream: IDbSetFastStream); overload;
+    {$ENDIF}
     
     /// <summary>Adds a custom HTTP header to the response.</summary>
     procedure AddHeader(const AName, AValue: string);
@@ -420,6 +464,8 @@ type
     function MapEndpoint(const AMethod, APath: string; ADelegate: TRequestDelegate): IApplicationBuilder;
     function MapPost(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
     function MapGet(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
+    function MapFast(const AMethod, APath: string; AHandler: TDextFastRouteHandler): IApplicationBuilder; overload;
+    function MapFast(const APath: string; AHandler: TDextFastRouteHandler): IApplicationBuilder; overload;
     function MapPut(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
     function MapDelete(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
     /// <summary>
@@ -491,6 +537,8 @@ type
     function GetServices: TDextServices;
     function GetBuilder: TAppBuilder;
     function UseMiddleware(Middleware: TClass): IWebApplication;
+    /// <summary>Configures the application to run under a base path prefix.</summary>
+    function UsePathBase(const APathBase: string): IWebApplication;
     function UseStartup(Startup: IStartup): IWebApplication; // ? Non-generic
     function MapControllers: IWebApplication;
     function GetApplicationBuilder: IApplicationBuilder;
