@@ -75,9 +75,12 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **Mapeamento de Records** — Copia campos e propriedades equivalentes entre classes e records.
 - **Otimização de Valores Padrão** — Parâmetro `AOnlyNonDefault` para mapear apenas valores não-padrão (evitando sobrescrever valores previamente inicializados no destino).
 
-### 1.5 Configuration System (`Dext.Configuration.Core`)
-- **TDextConfiguration (Fluent Builder)** — `.AddJsonFile(path)`, `.AddYamlFile(path)`, `.AddEnvironmentVariables(prefix)`, `.AddCommandLine`, `.AddInMemoryCollection`.
+### 1.5 Configuration System (`Dext.Configuration.*`)
+- **TDextConfiguration (Fluent Builder)** — `.AddJsonFile(path)`, `.AddYamlFile(path)`, `.AddEnvironmentVariables(prefix)`, `.AddCommandLine(args, mappings)`, `.AddUserSecrets(secretsId)`, `.AddInMemoryCollection`.
 - **TConfigurationRoot** — Agregador multi-provider com precedência LIFO (último provider registrado vence). Implementa `IConfiguration`.
+- **Pipeline Padrão de 5 Camadas de Precedência** — (1) Arquivos Base JSON/YAML $\rightarrow$ (2) Arquivos de Ambiente JSON/YAML $\rightarrow$ (3) User Secrets (Apenas em Development) $\rightarrow$ (4) Variáveis de Ambiente do S.O. $\rightarrow$ (5) Argumentos de Linha de Comando (CLI).
+- **CommandLine Configuration Provider** (`Dext.Configuration.CommandLine`) — Parsing de argumentos de alta performance suportando `--Key=Value`, `/Key=Value`, valores separados por espaço `--Key Value`, conversão de duplo sublinhado (`--Key__SubKey=Value` $\rightarrow$ `Key:SubKey`), flags booleanas e mapeamento customizado de switches/aliases (`-p` $\rightarrow$ `Server:Port`).
+- **User Secrets Configuration Provider** (`Dext.Configuration.UserSecrets`) — Armazenamento e isolamento de credenciais de desenvolvimento fora do repositório git (`%APPDATA%\Dext\UserSecrets\<Id>\secrets.json` no Windows, `~/.dext/usersecrets/<Id>/secrets.json` no Linux/macOS).
 - **Hierarchical Keys** — Acesso via `:` separator (ex: `Database:ConnectionString`). `GetSection(key)` retorna sub-árvore.
 - **Options Pattern** — `IOptions<T>`, `IOptionsSnapshot<T>`, `IOptionsMonitor<T>` para binding tipado de seções de configuração em records/classes.
 - **Section Validators** — `AddSectionValidator(section, validator)` para validação de configuração no startup.
@@ -259,7 +262,7 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
   - **CORS (`TCorsMiddleware`)** — Suporte estrito a preflight CORS (`OPTIONS` com `Origin` e `Access-Control-Request-Method`), validação rigorosa de Origens, Métodos e Cabeçalhos solicitados com rejeição status `403 Forbidden`, fail-fast no startup contra `AllowAnyOrigin + AllowCredentials` e mesclagem limpa de `Vary: Origin`.
   - **Rate Limiting (`TRateLimitMiddleware`)** — Controle de tráfego com cabeçalhos padronizados da **RFC 9333** (`RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, `Retry-After`) emitidos em requisições permitidas e rejeitadas (status `429`).
   - **Response Caching (`TResponseCacheMiddleware`)** — Cache de respostas HTTP server-side com proteção estrita contra armazenamento de conteúdos autenticados (`Authorization`, cookies de sessão/auth), rejeição de respostas com `Set-Cookie` ou diretivas `private`/`no-store`/`no-cache` e reconstrução automática de `Cache-Control: public, max-age=N` em cache HITs.
-  - **Compression (`TCompressionMiddleware`)** — Compactação de respostas via GZip e Brotli.
+  - **Compression (`TCompressionMiddleware`)** — Compactação de respostas via GZip.
   - **Security Headers (`TSecurityHeadersMiddleware`)** — Injeção de HSTS, `X-Content-Type-Options`, `X-Frame-Options` e `X-XSS-Protection`.
   - **Feature Flags (`Dext.FeatureFlags`)** — Gerenciamento dinâmico de chaves operacionais e rollouts graduais (`IFeatureManager`) com suporte a filtros estáticos booleans, percentuais de rollout (`TPercentageFilter`), janelas de tempo (`TTimeWindowFilter`), atributos declarativos (`[FeatureGate]`) e integração nativa com a infraestrutura de configuração do Dext (`IConfiguration`).
   - **Forwarded Headers (`Dext.Web.ForwardedHeaders`)** — Validação segura de proxies reversos (`X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host`) lidos da direita para a esquerda com controle de `KnownProxies`, subredes CIDR e limite de encaminhamento contra IP Spoofing.
@@ -369,7 +372,7 @@ Uma das features mais poderosas do Dext: **geração automática de APIs REST co
 - **Suporte a Shadow Properties (Propriedades de Sombra)** — Permite mapear colunas do banco (ex: `TenantId`, `CreatedAt`, `IsDeleted`) que são processadas e persistidas sem precisar declará-las como campos ou propriedades físicas na classe.
 
 ### 4.2 Query Engine (LINQ-like)
-- Query fluída com **Projeção (Select)**, **Paging** (`Skip`/`Take`), **Aggregates** (`Count`, `Sum`, `Max`, `Min`, `Average`).
+- Query fluída com **Projeção (Select)** (`Select(array of string)`, projeções tipadas por propriedade), preservação de especificação no servidor, **Paging** (`Skip`/`Take`), **Aggregates** (`Count`, `Sum`, `Max`, `Min`, `Average`).
 - **SQL Cache** — Reaproveitamento de comandos SQL gerados para queries repetidas.
 - **Joins Fluentes Fortemente Tipados** (`JoinInner`, `JoinLeft`, `JoinRight`, `JoinFull`, `JoinCross`) — Compilam diretamente em joins SQL otimizados no banco de dados (INNER, LEFT, RIGHT, FULL, CROSS) usando expressões de condição explícitas, auto-resolução implícita via metadados de relacionamento (`TModelBuilder`), ou produto cartesiano via Cross Join.
 - **Pessimistic Locking** — `FOR UPDATE` para controle de concorrência.

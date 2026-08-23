@@ -75,9 +75,12 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 - **Record Mapping** — Maps matching fields and properties between classes and records.
 - **Default Value Optimization** — Support for mapping only non-default values using the `AOnlyNonDefault` parameter to avoid overwriting initialized destination values.
 
-### 1.5 Configuration System (`Dext.Configuration.Core`)
-- **TDextConfiguration (Fluent Builder)** — `.AddJsonFile(path)`, `.AddYamlFile(path)`, `.AddEnvironmentVariables(prefix)`, `.AddCommandLine`, `.AddInMemoryCollection`.
+### 1.5 Configuration System (`Dext.Configuration.*`)
+- **TDextConfiguration (Fluent Builder)** — `.AddJsonFile(path)`, `.AddYamlFile(path)`, `.AddEnvironmentVariables(prefix)`, `.AddCommandLine(args, mappings)`, `.AddUserSecrets(secretsId)`, `.AddInMemoryCollection`.
 - **TConfigurationRoot** — Multi-provider aggregator with LIFO precedence (last registered wins). Implements `IConfiguration`.
+- **5-Layer Standard Precedence Pipeline** — (1) Base JSON/YAML $\rightarrow$ (2) Environment JSON/YAML $\rightarrow$ (3) User Secrets (Development only) $\rightarrow$ (4) OS Environment Variables $\rightarrow$ (5) Command-line Arguments (CLI).
+- **CommandLine Configuration Provider** (`Dext.Configuration.CommandLine`) — High-performance argument parsing supporting `--Key=Value`, `/Key=Value`, space-delimited `--Key Value`, double-underscore mapping (`--Key__SubKey=Value` $\rightarrow$ `Key:SubKey`), boolean flags, and custom switch aliases dictionary (`-p` $\rightarrow$ `Server:Port`).
+- **User Secrets Configuration Provider** (`Dext.Configuration.UserSecrets`) — Storage and isolation of development credentials outside git repository (`%APPDATA%\Dext\UserSecrets\<Id>\secrets.json` on Windows, `~/.dext/usersecrets/<Id>/secrets.json` on Linux/macOS).
 - **Hierarchical Keys** — Access via `:` separator (e.g., `Database:ConnectionString`). `GetSection(key)` returns sub-tree.
 - **Options Pattern** — `IOptions<T>`, `IOptionsSnapshot<T>`, `IOptionsMonitor<T>` for typed binding of configuration sections to records/classes.
 - **Section Validators** — `AddSectionValidator(section, validator)` for startup configuration validation.
@@ -259,7 +262,7 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
   - **CORS (`TCorsMiddleware`)** — Strict CORS preflight checking (`OPTIONS` with `Origin` and `Access-Control-Request-Method`), allowlist validation for Origin, Method, and Headers returning `403 Forbidden` on invalid preflights, startup fail-fast against `AllowAnyOrigin + AllowCredentials`, and clean `Vary: Origin` header merging.
   - **Rate Limiting (`TRateLimitMiddleware`)** — Traffic control emitting standard **RFC 9333** headers (`RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, `Retry-After`) on both allowed and HTTP 429 rejected requests.
   - **Response Caching (`TResponseCacheMiddleware`)** — Server-side HTTP response caching with strict protection against caching authenticated requests (`Authorization`, session/auth cookies), rejection of responses with `Set-Cookie` or `private`/`no-store`/`no-cache` directives, and automatic reconstruction of `Cache-Control: public, max-age=N` headers on cache HITs.
-  - **Compression (`TCompressionMiddleware`)** — Response compression via GZip and Brotli.
+  - **Compression (`TCompressionMiddleware`)** — Response compression via GZip.
   - **Security Headers (`TSecurityHeadersMiddleware`)** — Injection of HSTS, `X-Content-Type-Options`, `X-Frame-Options`, and `X-XSS-Protection`.
   - **Base Path Hosting (`UsePathBase`)** — Support for serving under path prefixes (`app.UsePathBase('/myapp')`), engine-agnostic path stripping (`TDextPathBaseMiddleware`), `Request.PathBase` population, and app-relative URL builder (`Request.ToAppUrl('/route')`). Native HTTP.sys kernel prefix registration (`http://+:8080/myapp/`).
 
@@ -366,7 +369,7 @@ One of Dext's most powerful features: **automatic generation of full REST APIs f
 - **Shadow Properties Support** — Declares columns (like `TenantId`, `CreatedAt`, `IsDeleted`) in database mappings that are tracked and saved without needing to be exposed as physical fields in class declarations.
 
 ### 4.2 Query Engine (LINQ-like)
-- Fluent queries with **Projection (Select)**, **Paging** (`Skip`/`Take`), and **Aggregates** (`Count`, `Sum`, `Max`, `Min`, `Average`).
+- Fluent queries with **Projection (Select)** (`Select(array of string)`, typed property projections), preserving server-side specifications, **Paging** (`Skip`/`Take`), and **Aggregates** (`Count`, `Sum`, `Max`, `Min`, `Average`).
 - **SQL Cache** — Reuse of generated SQL commands for repeated queries.
 - **Strongly-Typed Fluent Joins** (`JoinInner`, `JoinLeft`, `JoinRight`, `JoinFull`, `JoinCross`) — Compiles directly into optimized database-level joins (INNER, LEFT, RIGHT, FULL, CROSS) using explicit condition expressions, implicit auto-resolution via relations metadata (`TModelBuilder`), or Cross Join Cartesian product execution.
 - **Pessimistic Locking** — `FOR UPDATE` for concurrency control.
@@ -391,6 +394,11 @@ One of Dext's most powerful features: **automatic generation of full REST APIs f
 ### 4.6 Dialect Support (Polyglot)
 - PostgreSQL, SQL Server, MySQL, SQLite, Oracle, Firebird, InterBase.
 - **Legacy Paging** — Automatic wrapping for `ROWNUM` in older Oracle/SQL Server versions.
+- **Oracle Driver (`TOracleDialect`)** — Native support for Oracle OCI via FireDAC:
+  - Identity column definitions (`GENERATED BY DEFAULT AS IDENTITY`).
+  - Native `RETURNING "ID" INTO :RET_VAL` syntax for high-performance auto-generated PK retrieval.
+  - Automatic `ROWNUM` multi-level wrapper paging for legacy and modern Oracle versions.
+  - Precise type mapping: `NUMBER(1,0)` $\rightarrow$ `Boolean`/`BoolType`, `NUMBER(4,0)` $\rightarrow$ `SmallInt`/`Int16Type`, `NUMBER(9,0)` $\rightarrow$ `Integer`/`IntType`, `NUMBER(18,0)` $\rightarrow$ `Int64`/`Int64Type`, `NUMBER(p, s)` $\rightarrow$ `Currency`/`Double`, `DATE` $\rightarrow$ `TDateTime` (protects time component), `RAW(16)` $\rightarrow$ `TGUID`/`GuidType`, and `JSON` column mapping.
 
 ### 4.7 Soft Delete (`[SoftDelete]`)
 - **Declarative Attribute** — `[SoftDelete('IsDeleted')]` transforms `Remove()` into an automatic `UPDATE`.
@@ -413,8 +421,8 @@ One of Dext's most powerful features: **automatic generation of full REST APIs f
 - **TDextBatchStrategyFactory** — Dynamic selection of batch `UPDATE` and `DELETE` strategies based on `TDatabaseDialect`.
 - **PostgreSQL Strategy** (`TDextPostgresBatchStrategy`) — Rewrites batch `UPDATE` into a single-statement `UPDATE table AS t SET ... FROM (VALUES (...), (...)) AS v(...) WHERE t.pk = v.pk` and batch deletes into `WHERE (pk1, pk2) IN (...)`.
 - **MySQL / MariaDB Strategy** (`TDextMySqlBatchStrategy`) — Rewrites batch `UPDATE` into a single-statement `UPDATE table SET col = CASE WHEN pk = x THEN y END WHERE pk IN (...)`.
-- **Native Array DML Strategy** (`TDextNativeArrayDmlStrategy`) — Preserves native protocol array binding for Oracle OCI and Firebird 4+.
-- **Performance** — Eliminates FireDAC sequential Array DML emulation bottleneck on PostgreSQL and MySQL, reducing per-record latency from ~650 µs to ~118 µs.
+- **Native Array DML Strategy** (`TDextNativeArrayDmlStrategy`) — Preserves native protocol array binding for Oracle OCI (`OCIStmtExecute` delivering 17x bulk performance gain) and Firebird 4+.
+- **Performance** — Eliminates FireDAC sequential Array DML emulation bottleneck on PostgreSQL and MySQL, reducing per-record latency from ~650 µs to ~118 µs, while unlocking true native vector execution on Oracle.
 
 ### 4.9 EntityDataSet (`Dext.Data.EntityDataSet`)
 - **ORM ↔ VCL/FMX Bridge** — Connects components (DBGrid, FastReport) to `TList<T>` POCO collections while preserving a clean architecture.
@@ -690,7 +698,7 @@ Fluent API based on the `Should(Value)` pattern.
 ## 🛠️ 13. Dext CLI & Scaffolding (`Tools\Dext.Tool.Scaffolding` / `Apps\CLI`)
 
 - **Dext CLI (S01)** — Unified CLI engine (`dext.exe`) for project management and development automation.
-- **Advanced Scaffolding** — Project and file generation via smart templates: `dext new` (projects), `dext scaffold` (controllers, ORM entities, DTOs, middlewares).
+- **Advanced Scaffolding** — Project and file generation via smart templates: `dext new` (projects), `dext scaffold` (controllers, ORM entities, DTOs, middlewares) supporting all major relational engines (SQLite, PostgreSQL, SQL Server, Firebird, MySQL/MariaDB, Oracle) with automatic uppercase schema resolution for Oracle dictionary metadata (`MetaCurSchema`, `MetaDefSchema`).
 - **`dext dev-certs`** — Native CryptoAPI provisioner for local development X.509 certificates with SAN extension and automatic Root Certificate Store trust.
 - **`dext test --coverage`** — Automated unit test suite runner with **complete Code Coverage analysis** via `.map` files and XML export for **SonarQube** (`--sonar`).
 - **`dext migrate [up|down|list|generate]`** — CLI manager for Dext ORM database schema migrations.
