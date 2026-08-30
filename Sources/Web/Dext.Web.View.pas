@@ -189,19 +189,24 @@ type
   end;
 
   /// <summary>
-  ///   Internal wrapper to make IEnumerator compatible with Web Stencils @For loops.
+  ///   Makes IEnumerator compatible with Web Stencils @For (GetEnumerator) and
+  ///   native @foreach (IStreamingSequence). Both paths render during MoveNext
+  ///   so the flyweight ORM iterator keeps O(1) memory.
   /// </summary>
-  TStreamingListWrapper<T: class> = class
+  TStreamingListWrapper<T: class> = class(TInterfacedPersistent, IStreamingSequence)
   private
     FEnumerator: IEnumerator<T>;
     FIsEvaluated: Boolean;
     FIsEmpty: Boolean;
+    FSeqStarted: Boolean;
     procedure EnsureEvaluated;
   public
     constructor Create(AEnum: IEnumerator<T>);
     destructor Destroy; override;
     function GetEnumerator: TStreamingEnumeratorProxy<T>;
     function GetIsEmpty: Boolean;
+    function MoveNext: Boolean;
+    function GetCurrent: TObject;
     property IsEmpty: Boolean read GetIsEmpty;
   end;
 
@@ -508,6 +513,25 @@ function TStreamingListWrapper<T>.GetIsEmpty: Boolean;
 begin
   EnsureEvaluated;
   Result := FIsEmpty;
+end;
+
+function TStreamingListWrapper<T>.MoveNext: Boolean;
+begin
+  EnsureEvaluated;
+  if not FSeqStarted then
+  begin
+    FSeqStarted := True;
+    Result := not FIsEmpty;
+  end
+  else if Assigned(FEnumerator) then
+    Result := FEnumerator.MoveNext
+  else
+    Result := False;
+end;
+
+function TStreamingListWrapper<T>.GetCurrent: TObject;
+begin
+  Result := TValue.From<T>(FEnumerator.GetCurrent).AsObject;
 end;
 
 { TDextViewResult }

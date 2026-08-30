@@ -144,9 +144,11 @@ Services
 Result := Results.Ok(Data);                        // 200 + JSON
 Result := Results.Ok<TMyDto>(Dto);                 // 200 + typed serialization
 Result := Results.Created('/path', Data);          // 201 + Location header
+Result := Results.Accepted('/jobs/1', Data);       // 202 + Location header
 Result := Results.NoContent;                        // 204
 Result := Results.BadRequest('Invalid data');       // 400
 Result := Results.NotFound('Not found');            // 404
+Result := Results.ValidationProblem(Validation);    // 400 problem+json
 Result := Results.StatusCode(401);                  // Custom status
 Result := Results.Json<TMyDto>(Dto);               // Explicit JSON
 ```
@@ -189,7 +191,23 @@ type
     [HttpPost]
     [Authorize('Admin')]        // Require 'Admin' role
     function RestrictedAction: IResult;
+
+    [HttpDelete('{id}')]
+    [AuthorizePolicy('HighValueCancel')] // Named policy (see below)
+    function CancelCritical(Id: Integer): IResult;
   end;
+```
+
+> **Delphi note:** Attributes do not support named arguments. Use `[Authorize('Admin')]` for roles/schemes and `[AuthorizePolicy('PolicyName')]` for policies — never `[Authorize(Policy = '...')]`.
+
+Register the policy once (typically in startup):
+
+```pascal
+TAuthorizationPolicyRegistry.RegisterPolicy('HighValueCancel',
+  function(const Principal: IClaimsPrincipal): Boolean
+  begin
+    Result := (Principal <> nil) and Principal.IsInRole('Director');
+  end);
 ```
 
 ## OpenAPI Metadata

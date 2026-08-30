@@ -19,6 +19,13 @@ uses
   System.SyncObjs,
   Dext.Net.Security;
 
+const
+  SDextOpenSSLDisabled =
+    'Native OpenSSL is disabled. Uncomment DEXT_ENABLE_SSL in ' +
+    'Sources/Common/Dext.inc and rebuild the Dext packages. ' +
+    'On Linux, install libssl-dev and update the RAD Studio SDK Manager cache ' +
+    'so libssl.so and libcrypto.so exist before rebuilding.';
+
 type
   EDextOpenSSLException = class(Exception);
 
@@ -39,8 +46,10 @@ type
     FHandle: PSSL_CTX;
     FOptions: TDextTLSOptions;
     FMode: TDextTLSMode;
+    {$IFDEF DEXT_ENABLE_SSL}
     FALPNWire: TBytes;
     procedure Configure;
+    {$ENDIF}
     function GetHandle: PSSL_CTX;
   public
     constructor Create(const AOptions: TDextTLSOptions; AMode: TDextTLSMode);
@@ -51,9 +60,10 @@ type
   TDextOpenSSLTLSEngine = class(TInterfacedObject, IDextTLSEngine)
   private
     FOptions: TDextTLSOptions;
+    FMode: TDextTLSMode;
+    {$IFDEF DEXT_ENABLE_SSL}
     FHandshakeCompleted: Boolean;
     FNegotiatedALPN: string;
-    FMode: TDextTLSMode;
     FSSLContext: PSSL_CTX;
     FSSL: PSSL;
     FInputBIO: PBIO;
@@ -64,6 +74,7 @@ type
     procedure InitOpenSSLEngine(const AContext: IDextOpenSSLContext);
     procedure UpdateIOStatus(AReturnCode: Integer);
     procedure UpdateNegotiatedALPN;
+    {$ENDIF}
   public
     constructor Create(const AOptions: TDextTLSOptions; AMode: TDextTLSMode); overload;
     constructor Create(const AOptions: TDextTLSOptions; AMode: TDextTLSMode;
@@ -87,8 +98,10 @@ type
   TDextOpenSSLContextProvider = class(TInterfacedObject, IDextTLSContextProvider)
   private
     FOptions: TDextTLSOptions;
+    {$IFDEF DEXT_ENABLE_SSL}
     FClientContext: IDextOpenSSLContext;
     FServerContext: IDextOpenSSLContext;
+    {$ENDIF}
     FLock: TCriticalSection;
   public
     constructor Create(const AOptions: TDextTLSOptions);
@@ -98,6 +111,8 @@ type
   end;
 
 implementation
+
+{$IFDEF DEXT_ENABLE_SSL}
 
 const
   {$IFDEF MSWINDOWS}
@@ -658,5 +673,151 @@ function TDextOpenSSLContextProvider.GetOptions: TDextTLSOptions;
 begin
   Result := FOptions;
 end;
+
+{$ELSE}
+{$HINTS OFF}
+
+procedure RaiseOpenSSLDisabled;
+begin
+  raise EDextOpenSSLException.Create(SDextOpenSSLDisabled);
+end;
+
+{ TDextOpenSSLContext }
+
+constructor TDextOpenSSLContext.Create(const AOptions: TDextTLSOptions;
+  AMode: TDextTLSMode);
+begin
+  inherited Create;
+  FOptions := AOptions;
+  FMode := AMode;
+  FHandle := nil;
+  RaiseOpenSSLDisabled;
+end;
+
+destructor TDextOpenSSLContext.Destroy;
+begin
+  inherited;
+end;
+
+function TDextOpenSSLContext.GetHandle: PSSL_CTX;
+begin
+  Result := nil;
+end;
+
+{ TDextOpenSSLTLSEngine }
+
+constructor TDextOpenSSLTLSEngine.Create(const AOptions: TDextTLSOptions;
+  AMode: TDextTLSMode);
+begin
+  inherited Create;
+  FOptions := AOptions;
+  FMode := AMode;
+  RaiseOpenSSLDisabled;
+end;
+
+constructor TDextOpenSSLTLSEngine.Create(const AOptions: TDextTLSOptions;
+  AMode: TDextTLSMode; const AContext: IDextOpenSSLContext);
+begin
+  inherited Create;
+  FOptions := AOptions;
+  FMode := AMode;
+  RaiseOpenSSLDisabled;
+end;
+
+destructor TDextOpenSSLTLSEngine.Destroy;
+begin
+  inherited;
+end;
+
+function TDextOpenSSLTLSEngine.EncryptedIncoming(
+  const ABuffer: Pointer; ACount: Integer): Integer;
+begin
+  Result := 0;
+end;
+
+function TDextOpenSSLTLSEngine.PlaintextRead(
+  const ABuffer: Pointer; ACount: Integer): Integer;
+begin
+  Result := 0;
+end;
+
+function TDextOpenSSLTLSEngine.PlaintextWrite(
+  const ABuffer: Pointer; ACount: Integer): Integer;
+begin
+  Result := 0;
+end;
+
+function TDextOpenSSLTLSEngine.EncryptedOutgoing(
+  const ABuffer: Pointer; ACount: Integer): Integer;
+begin
+  Result := 0;
+end;
+
+function TDextOpenSSLTLSEngine.DoHandshake: TDextTLSEngineStatus;
+begin
+  Result := tlsError;
+end;
+
+function TDextOpenSSLTLSEngine.IsHandshakeCompleted: Boolean;
+begin
+  Result := False;
+end;
+
+function TDextOpenSSLTLSEngine.GetNegotiatedALPN: string;
+begin
+  Result := '';
+end;
+
+function TDextOpenSSLTLSEngine.GetLastIOStatus: TDextTLSIOStatus;
+begin
+  Result := tlsIOError;
+end;
+
+function TDextOpenSSLTLSEngine.GetLastErrorCode: NativeUInt;
+begin
+  Result := 0;
+end;
+
+function TDextOpenSSLTLSEngine.GetPendingEncryptedBytes: NativeInt;
+begin
+  Result := 0;
+end;
+
+function TDextOpenSSLTLSEngine.Shutdown: TDextTLSIOStatus;
+begin
+  Result := tlsIOClosed;
+end;
+
+{ TDextOpenSSLContextProvider }
+
+constructor TDextOpenSSLContextProvider.Create(
+  const AOptions: TDextTLSOptions);
+begin
+  inherited Create;
+  FOptions := AOptions;
+  FLock := TCriticalSection.Create;
+  RaiseOpenSSLDisabled;
+end;
+
+destructor TDextOpenSSLContextProvider.Destroy;
+begin
+  FLock.Free;
+  inherited;
+end;
+
+function TDextOpenSSLContextProvider.CreateEngine(
+  AMode: TDextTLSMode): IDextTLSEngine;
+begin
+  RaiseOpenSSLDisabled;
+  Result := nil;
+end;
+
+function TDextOpenSSLContextProvider.GetOptions: TDextTLSOptions;
+begin
+  Result := FOptions;
+end;
+
+{$HINTS ON}
+{$ENDIF}
 
 end.

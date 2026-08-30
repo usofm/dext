@@ -27,12 +27,16 @@ uses
   Dext.Logging.Sinks.APM.Tests in 'Dext.Logging.Sinks.APM.Tests.pas',
   Dext.WebSocket.Tests in 'Dext.WebSocket.Tests.pas',
   Dext.Web.PathBase.Tests in 'Dext.Web.PathBase.Tests.pas',
+  Dext.Web.StaticFiles.Security.Tests in 'Dext.Web.StaticFiles.Security.Tests.pas',
   Dext.Web.Mocks in '..\Common\Dext.Web.Mocks.pas',
   Test_Dext.Http2.Connection in 'Test_Dext.Http2.Connection.pas',
   Test_Dext.Http2.Framing in 'Test_Dext.Http2.Framing.pas',
   Test_Dext.Http2.Hpack in 'Test_Dext.Http2.Hpack.pas',
   Test_Dext.Http2.Stream in 'Test_Dext.Http2.Stream.pas',
   Dext.Testing.WebApplicationFactory in '..\..\Sources\Testing\Dext.Testing.WebApplicationFactory.pas',
+  Dext.Testing.WebApplicationFactory.Tests in '..\Testing\Dext.Testing.WebApplicationFactory.Tests.pas',
+  Dext.Web.Validation.Tests in 'Dext.Web.Validation.Tests.pas',
+  Dext.Web.S68.Tests in 'Dext.Web.S68.Tests.pas',
   Dext.Web.NewFeatures.Tests in 'Dext.Web.NewFeatures.Tests.pas';
 
 begin
@@ -60,7 +64,11 @@ begin
         TAPMSinksTests,
         TWebSocketTests,
         TPathBaseTests,
+        TStaticFilesSecurityTests,
         TDextNewFeaturesTests,
+        TWebApplicationFactoryTests,
+        TWebValidationTests,
+        TS68FrameworkGapTests,
         // HTTP/2 and HPACK Tests
         THpackStaticTableTests,
         THpackDynTableTests,

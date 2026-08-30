@@ -127,8 +127,10 @@ type
   TPathBaseMiddleware = Dext.Web.PathBase.TPathBaseMiddleware;
 
   // Dext.Auth.Attributes
-  /// <summary> Attribute to require authentication or a specific policy. </summary>
+  /// <summary> Attribute to require authentication or a specific role/scheme. </summary>
   AuthorizeAttribute = Dext.Auth.Attributes.AuthorizeAttribute;
+  /// <summary> Attribute to require a named authorization policy. </summary>
+  AuthorizePolicyAttribute = Dext.Auth.Attributes.AuthorizePolicyAttribute;
   /// <summary> Attribute to skip authentication for a controller or method. </summary>
   AllowAnonymousAttribute = Dext.Auth.Attributes.AllowAnonymousAttribute;
 
@@ -215,6 +217,7 @@ type
   IHealthCheckService = Dext.HealthChecks.IHealthCheckService;
   THealthCheckService = Dext.HealthChecks.THealthCheckService;
   THealthCheckMiddleware = Dext.HealthChecks.THealthCheckMiddleware;
+  THealthCheckOptions = Dext.HealthChecks.THealthCheckOptions;
   THealthCheckBuilder = Dext.HealthChecks.THealthCheckBuilder;
 
   // Dext.OpenAPI.Attributes
@@ -430,6 +433,8 @@ type
   EUnauthorizedException = Dext.Web.Middleware.EUnauthorizedException;
   EForbiddenException = Dext.Web.Middleware.EForbiddenException;
   EValidationException = Dext.Web.Middleware.EValidationException;
+  EDomainException = Dext.Web.Middleware.EDomainException;
+  EDomainValidationException = Dext.Web.Middleware.EDomainValidationException;
   TExceptionHandlerOptions = Dext.Web.Middleware.TExceptionHandlerOptions;
   TExceptionHandlerBuilder = Dext.Web.Middleware.TExceptionHandlerBuilder;
   TProblemDetails = Dext.Web.Middleware.TProblemDetails;
@@ -496,6 +501,10 @@ type
   TStatusCodeResult = Dext.Web.Results.TStatusCodeResult;
   TContentResult = Dext.Web.Results.TContentResult;
   TStreamResult = Dext.Web.Results.TStreamResult;
+  TCreatedResult = Dext.Web.Results.TCreatedResult;
+  TAcceptedResult = Dext.Web.Results.TAcceptedResult;
+  TProblemDetailsResult = Dext.Web.Results.TProblemDetailsResult;
+  TValidationProblemResult = Dext.Web.Results.TValidationProblemResult;
   TContextualResults = Dext.Web.Results.TContextualResults;
   Results = Dext.Web.Results.Results;
   // TObjectResult<T> = Dext.Web.Results.TObjectResult<T>;
