@@ -82,7 +82,7 @@ type
       const ASwap: string = ''): THtmxPartialBuilder;
 
     function Clear: THtmxPartialBuilder;
-    function ToHtml: string; override;
+    function ToHtml: string;
     /// <summary>Returns the built multi-partial response through Dext Results.Html.</summary>
     function AsResult(AStatusCode: Integer = 200): IResult;
   end;
@@ -90,7 +90,7 @@ type
   /// <summary>Entry points for HTMX 4 helpers without introducing middleware.</summary>
   Htmx4 = class
   public
-    class function Request(const ARequest: IHttpRequest): THtmxRequestInfo; static;
+    class function Request(const ARequest: IHttpRequest): THtmxRequestInfo; overload; static;
     class function Request(const AContext: IHttpContext): THtmxRequestInfo; overload; static;
     class function Partials: THtmxPartialBuilder; static;
   end;
