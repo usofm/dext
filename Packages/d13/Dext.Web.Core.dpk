@@ -94,6 +94,7 @@ contains
   Dext.Web.Indy.Types in '..\..\Sources\Web\Dext.Web.Indy.Types.pas',
   Dext.Web.Injection in '..\..\Sources\Web\Dext.Web.Injection.pas',
   Dext.Web.Interfaces in '..\..\Sources\Web\Dext.Web.Interfaces.pas',
+  Dext.Web.Htmx4 in '..\..\Sources\Web\Dext.Web.Htmx4.pas',
   Dext.Web.Middleware.Compression in '..\..\Sources\Web\Dext.Web.Middleware.Compression.pas',
   Dext.Web.Middleware.Extensions in '..\..\Sources\Web\Dext.Web.Middleware.Extensions.pas',
   Dext.Web.Middleware.Logging in '..\..\Sources\Web\Dext.Web.Middleware.Logging.pas',
@@ -135,4 +136,3 @@ contains
   Dext.Web.Antiforgery in '..\..\Sources\Web\Dext.Web.Antiforgery.pas';
 
 end.
-
