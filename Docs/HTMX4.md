@@ -169,8 +169,7 @@ The response body is:
 For a simple id target:
 
 ```pascal
-Parts
-  .Id('toast', '<b>Saved</b>', 'beforeend');
+Parts.Id('toast', '<b>Saved</b>', 'beforeend');
 ```
 
 A leading `#` is accepted as well:
@@ -179,7 +178,13 @@ A leading `#` is accepted as well:
 Parts.Id('#toast', '<b>Saved</b>');
 ```
 
-Both generate an `id="toast"` partial.
+Both generate:
+
+```html
+<hx-partial id="toast">...</hx-partial>
+```
+
+The HTMX 4 specification defines `id` as shorthand for targeting the DOM element with the same id.
 
 ---
 
@@ -231,6 +236,18 @@ without introducing a client-side SPA state store.
 
 ---
 
+## Caching note
+
+HTMX 4 distinguishes full and partial requests with `HX-Request-Type`. If the same URL can return a full page or a fragment and the response is cacheable, include:
+
+```http
+Vary: HX-Request-Type
+```
+
+This prevents a cache from serving a partial response where a full document is required, or vice versa.
+
+---
+
 ## Migration notes from HTMX 2
 
 For request-side code, prefer the HTMX 4 headers exposed by `THtmxRequestInfo`:
@@ -265,6 +282,16 @@ Coverage includes:
 - id shorthand;
 - attribute escaping;
 - all existing `IHtmxResponse` tests.
+
+## Delphi 13 package integration
+
+The unit is part of the existing Delphi 13 Web package:
+
+```text
+Packages/d13/Dext.Web.Core.dpk
+```
+
+No second HTMX package or middleware stack is introduced.
 
 ## Compiler gate
 
