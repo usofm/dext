@@ -1,52 +1,34 @@
 # Dext + HTMX 4
 
-This document describes the HTMX 4 helpers added on top of Dext's existing native HTMX response support.
+Dext already has native HTMX response support through `IHttpResponse.Htmx`. HTMX 4 support therefore extends the current Web API instead of introducing another middleware or result stack.
 
-## Design principle
+## What was added
 
-Dext already exposes HTMX response headers through:
-
-```pascal
-Context.Response.Htmx
-  .Trigger('invoice-saved')
-  .Retarget('#invoice-grid')
-  .Reswap('innerHTML');
-```
-
-HTMX 4 support therefore does **not** introduce a second response abstraction, middleware stack, or host-specific adapter.
-
-The new unit:
+The new unit is:
 
 ```text
 Sources/Web/Dext.Web.Htmx4.pas
 ```
 
-adds only the HTMX 4 functionality that was missing from the existing Dext Web API:
+It adds the HTMX 4 pieces that were missing from the existing Dext API:
 
-- HTMX request detection through `HX-Request`;
-- HTMX 4 `HX-Request-Type` (`partial` / `full`);
-- HTMX 4 `HX-Source`;
-- `HX-Target`, `HX-Current-URL`, boosted and history-restore helpers;
-- the HTMX 4 `<hx-partial>` multi-target response format;
-- direct conversion of a partial response to Dext `IResult` through `Results.Html`.
+- request detection through `HX-Request`;
+- `HX-Request-Type` (`partial` / `full`);
+- `HX-Source`;
+- `HX-Target` and `HX-Current-URL` access;
+- boosted and history-restore request flags;
+- an `<hx-partial>` builder for multi-target responses;
+- conversion to the normal Dext `IResult` through `Results.Html`.
 
-This keeps the feature transport-independent and compatible with the current Dext `IHttpRequest`, `IHttpContext`, `IHttpResponse` and `IResult` abstractions.
-
----
+The helpers depend on `IHttpRequest`, `IHttpContext`, `IHttpResponse` and `IResult`, so they remain independent of Indy, WebBroker, HttpSys, IOCP or other Dext hosting adapters.
 
 ## Request metadata
-
-Add:
 
 ```pascal
 uses
   Dext.Web,
   Dext.Web.Htmx4;
-```
 
-Then inspect the request without coupling application code to Indy, WebBroker or another server adapter:
-
-```pascal
 var
   Hx: THtmxRequestInfo;
 begin
@@ -54,12 +36,12 @@ begin
 
   if Hx.IsPartial then
   begin
-    // Return a fragment or an hx-partial response.
+    // Render a fragment.
   end;
 end;
 ```
 
-Available request helpers:
+Available helpers:
 
 ```pascal
 Hx.IsHtmx;
@@ -68,62 +50,32 @@ Hx.IsPartial;
 Hx.IsFull;
 Hx.IsBoosted;
 Hx.IsHistoryRestore;
-Hx.Source;           // HX-Source (HTMX 4)
-Hx.Target;           // HX-Target
+Hx.Source;           // HX-Source, e.g. button#save
+Hx.Target;           // HX-Target, e.g. div#invoice-grid
 Hx.CurrentUrl;       // HX-Current-URL
 ```
 
-### HTMX 4 request headers
+`RequestType` is intentionally `hrtNone` when `HX-Request-Type` is absent. `IsHtmx` can still be true, which keeps gradual HTMX 2 to HTMX 4 migration possible.
 
-The helper follows the HTMX 4 request model:
+## Existing Dext response API stays canonical
 
-```text
-HX-Request: true
-HX-Request-Type: partial | full
-HX-Source: <source descriptor>
-HX-Target: <target descriptor>
-HX-Boosted: true
-HX-History-Restore-Request: true
-HX-Current-URL: <url>
-```
-
-`HX-Request-Type` is intentionally not guessed when the header is absent. In that case `RequestType` returns `hrtNone`, while `IsHtmx` can still be true. This makes the helper usable during gradual HTMX 2 -> HTMX 4 migration.
-
----
-
-## Existing Dext response headers remain valid
-
-Do not replace the existing response API. Continue using it:
+Continue using the existing API for response headers:
 
 ```pascal
 Context.Response.Htmx
   .Trigger('invoice-saved')
+  .Retarget('#invoice-grid')
+  .Reswap('innerHTML')
   .PushUrl('/invoices/42');
 ```
 
-The existing Dext `IHtmxResponse` API already covers the response headers that remain useful in HTMX 4:
+Dext already supports the response headers that remain useful in HTMX 4, including `HX-Trigger`, `HX-Retarget`, `HX-Reswap`, `HX-Redirect`, `HX-Refresh`, `HX-Reselect`, `HX-Push-Url`, `HX-Replace-Url` and `HX-Location`.
 
-```text
-HX-Trigger
-HX-Retarget
-HX-Reswap
-HX-Redirect
-HX-Refresh
-HX-Reselect
-HX-Push-Url
-HX-Replace-Url
-HX-Location
-```
-
-The new HTMX 4 unit deliberately does not duplicate these methods.
-
----
+`Dext.Web.Htmx4` does not duplicate those methods.
 
 ## Multi-target responses with `<hx-partial>`
 
-HTMX 4 can update several areas of the page from one HTTP response.
-
-Dext usage:
+A single Dext endpoint can update several DOM regions:
 
 ```pascal
 var
@@ -137,7 +89,7 @@ begin
         'beforeend')
       .Target('#invoice-count', '<span>347</span>')
       .Target('#toast-area',
-        '<div class="notification is-success">Saved</div>',
+        '<div class=''notification is-success''>Saved</div>',
         'beforeend')
       .AsResult;
   finally
@@ -146,61 +98,56 @@ begin
 end;
 ```
 
-The response body is:
+Generated response:
 
 ```html
-<hx-partial hx-target="#invoice-grid" hx-swap="beforeend">
+<hx-partial hx-target='#invoice-grid' hx-swap='beforeend'>
   <tr><td>INV-42</td><td>12,500.00</td></tr>
 </hx-partial>
-<hx-partial hx-target="#invoice-count">
+<hx-partial hx-target='#invoice-count'>
   <span>347</span>
 </hx-partial>
-<hx-partial hx-target="#toast-area" hx-swap="beforeend">
-  <div class="notification is-success">Saved</div>
+<hx-partial hx-target='#toast-area' hx-swap='beforeend'>
+  <div class='notification is-success'>Saved</div>
 </hx-partial>
 ```
 
-`AsResult` returns the normal Dext `Results.Html(...)` result. No special response writer is required.
+The actual builder emits standard double-quoted HTML attributes; single quotes are used in this documentation block only to keep the example visually simple.
 
----
+`AsResult` delegates to `Results.Html`, so the existing Dext result execution pipeline remains authoritative.
 
 ## `id` shorthand
 
-For a simple id target:
+HTMX 4 allows `id` on `<hx-partial>` as shorthand for targeting the DOM element with that id.
 
 ```pascal
 Parts.Id('toast', '<b>Saved</b>', 'beforeend');
+Parts.Id('#toast', '<b>Saved</b>'); // leading # is accepted by the Dext helper
 ```
 
-A leading `#` is accepted as well:
-
-```pascal
-Parts.Id('#toast', '<b>Saved</b>');
-```
-
-Both generate:
+Equivalent HTMX response concept:
 
 ```html
-<hx-partial id="toast">...</hx-partial>
+<hx-partial id='toast'>...</hx-partial>
 ```
 
-The HTMX 4 specification defines `id` as shorthand for targeting the DOM element with the same id.
+## HTML safety
 
----
+The builder HTML-escapes the attribute values it creates (`hx-target`, `id`, `hx-swap`).
 
-## HTML safety model
+The fragment body is deliberately not escaped because it represents already-rendered HTML. Application values must therefore be encoded by the Dext view/template layer before being inserted into fragment HTML. Do not concatenate untrusted user data directly into HTML.
 
-The builder escapes **generated attribute values** such as `hx-target`, `id` and `hx-swap`.
+## Caching
 
-The fragment body itself is not escaped because it is expected to contain already-rendered HTML from Dext views/templates.
+HTMX 4 distinguishes full and partial requests with `HX-Request-Type`. When the same cacheable URL can return either representation, return:
 
-Therefore application values must be escaped by the view/template engine before they are inserted into fragment HTML. Do not concatenate untrusted user input directly into HTML.
+```http
+Vary: HX-Request-Type
+```
 
----
+This prevents a cached fragment from being served as a full document, or the reverse.
 
-## ERP pattern
-
-A useful server-driven ERP pattern is:
+## ERP usage pattern
 
 ```text
 Browser + HTMX 4
@@ -224,75 +171,40 @@ Dext View / fragment rendering
 multiple DOM updates
 ```
 
-For example, one invoice save can update:
+One invoice save can therefore update the grid row, totals, counters, document status and toast area without introducing a client-side SPA state store.
 
-- the invoice row/grid;
-- totals;
-- badge counters;
-- the active document status;
-- a toast/notification area;
+## Migration from HTMX 2
 
-without introducing a client-side SPA state store.
-
----
-
-## Caching note
-
-HTMX 4 distinguishes full and partial requests with `HX-Request-Type`. If the same URL can return a full page or a fragment and the response is cacheable, include:
-
-```http
-Vary: HX-Request-Type
-```
-
-This prevents a cache from serving a partial response where a full document is required, or vice versa.
-
----
-
-## Migration notes from HTMX 2
-
-For request-side code, prefer the HTMX 4 headers exposed by `THtmxRequestInfo`:
+For new request-side logic prefer:
 
 ```text
 HX-Request-Type
 HX-Source
 ```
 
-Do not build new request logic around the old HTMX 2 trigger request headers when HTMX 4 metadata is available.
-
-Existing Dext response-side `HX-Trigger` support remains valid; request-side source metadata and response-side trigger events are different concepts.
-
----
+`HX-Source` replaces the old request-side trigger metadata. This is separate from the response-side `HX-Trigger` header, which remains supported by HTMX 4 and by Dext's existing `Response.Htmx` API.
 
 ## Tests
 
-The existing Dext web test suite is extended rather than creating a parallel project:
+The existing Web test suite is extended instead of creating a second test project:
 
 ```text
 Tests/Web/Dext.Web.Htmx.Tests.pas
 Tests/Web/Dext.Web.UnitTests.dpr
 ```
 
-Coverage includes:
+Coverage includes request-type detection, case-insensitive header values, source/target/current-URL metadata, boosted/history flags, multiple partials, id shorthand, attribute escaping, and the existing `IHtmxResponse` tests.
 
-- partial/full request classification;
-- case-insensitive header values;
-- `HX-Source`, `HX-Target`, `HX-Current-URL`;
-- boosted/history flags;
-- multiple `<hx-partial>` output;
-- id shorthand;
-- attribute escaping;
-- all existing `IHtmxResponse` tests.
+## Delphi 13 package
 
-## Delphi 13 package integration
-
-The unit is part of the existing Delphi 13 Web package:
+The helper is included in the existing package:
 
 ```text
 Packages/d13/Dext.Web.Core.dpk
 ```
 
-No second HTMX package or middleware stack is introduced.
+No additional HTMX package is required.
 
 ## Compiler gate
 
-Run the current Dext Web unit-test project with Delphi 13 and perform a clean rebuild. The new source unit is explicitly included by the test DPR so the test does not rely on a previously-built DCU.
+Before merging, perform a clean Delphi 13 build of the Web unit tests and the `Dext.Web.Core` package for Win32/Win64, then run a browser smoke test against HTMX 4. The test DPR explicitly references `Dext.Web.Htmx4.pas`, so the compile cannot accidentally use a stale DCU.
