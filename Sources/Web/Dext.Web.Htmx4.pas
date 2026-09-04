@@ -199,11 +199,10 @@ end;
 
 class function THtmxPartialBuilder.EscapeAttribute(const AValue: string): string;
 begin
-  Result := AValue
-    .Replace('&', '&amp;')
-    .Replace('"', '&quot;')
-    .Replace('<', '&lt;')
-    .Replace('>', '&gt;');
+  Result := StringReplace(AValue, '&', '&amp;', [rfReplaceAll]);
+  Result := StringReplace(Result, '"', '&quot;', [rfReplaceAll]);
+  Result := StringReplace(Result, '<', '&lt;', [rfReplaceAll]);
+  Result := StringReplace(Result, '>', '&gt;', [rfReplaceAll]);
 end;
 
 procedure THtmxPartialBuilder.AppendPartial(const ATarget, AId, AHtml,
