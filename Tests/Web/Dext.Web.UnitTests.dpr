@@ -15,6 +15,7 @@ uses
   Dext.Testing.Fluent,
   Dext.Testing,
   Dext.Utils,
+  Dext.Web.Htmx4 in '..\..\Sources\Web\Dext.Web.Htmx4.pas',
   Dext.Web.DataApi.Resolver.Tests in 'Dext.Web.DataApi.Resolver.Tests.pas',
   Dext.Web.DataApi.Tests in 'Dext.Web.DataApi.Tests.pas',
   Dext.Web.Json.Tests in 'Dext.Web.Json.Tests.pas',
